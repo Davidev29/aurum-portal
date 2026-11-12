@@ -223,10 +223,7 @@ function shuttingDownResponse(): IpcResponse<never> {
   }
 }
 
-function toErrorResponse(
-  error: unknown,
-  isShuttingDown?: () => boolean,
-): IpcResponse<never> {
+function toErrorResponse(error: unknown, isShuttingDown?: () => boolean): IpcResponse<never> {
   // Corrida de encerramento: se o app esta saindo, nao loga INTERNAL para
   // chamadas que apenas esbarram no banco ja fechado.
   if (isShuttingDown?.()) return shuttingDownResponse()

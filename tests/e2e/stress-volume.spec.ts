@@ -10,11 +10,7 @@
  * `npm run build` (ou `npm run test:e2e`, que compila antes).
  */
 import { test, expect } from '@playwright/test'
-import {
-  launchAurumBitPortal,
-  createUserDataDir,
-  removeUserDataDir,
-} from './helpers/app'
+import { launchAurumBitPortal, createUserDataDir, removeUserDataDir } from './helpers/app'
 import { makeValidCnpj, syntheticPassword } from '../stress/helpers'
 
 const CLIENT_COUNT = 30
@@ -102,7 +98,10 @@ test.describe('AurumBit Portal - E2E volume (fluxo pesado)', () => {
       expect(credentialIds).toHaveLength(CLIENT_COUNT * CREDENTIALS_PER_CLIENT)
       console.log(
         '[stress-e2e]',
-        JSON.stringify({ metric: 'e2e.credentials_create_60', credentialsCreateMs: timings.credentialsCreateMs }),
+        JSON.stringify({
+          metric: 'e2e.credentials_create_60',
+          credentialsCreateMs: timings.credentialsCreateMs,
+        }),
       )
 
       // --- 100 revelações de senha pela ponte (login assistido sob carga) ---
@@ -152,12 +151,8 @@ test.describe('AurumBit Portal - E2E volume (fluxo pesado)', () => {
       expect(app.windows()).toHaveLength(1)
 
       // --- Fronteira de segurança intacta sob volume ---
-      expect(
-        await page.evaluate(() => typeof (globalThis as any).require),
-      ).toBe('undefined')
-      expect(
-        await page.evaluate(() => typeof (globalThis as any).process),
-      ).toBe('undefined')
+      expect(await page.evaluate(() => typeof (globalThis as any).require)).toBe('undefined')
+      expect(await page.evaluate(() => typeof (globalThis as any).process)).toBe('undefined')
     } finally {
       await app.close()
       removeUserDataDir(userData)

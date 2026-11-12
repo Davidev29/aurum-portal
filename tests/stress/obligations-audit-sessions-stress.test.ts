@@ -89,20 +89,29 @@ describe('stress: matriz de obrigações 60 clientes × 15 obrigações', () => 
         const obligationIds = obligationsCreated.map((obligation) => obligation.id)
 
         // Grupo com as 10 primeiras obrigações aplicado aos 60 clientes.
-        const group = createGroup(db, { name: 'Stress Grupo', obligationIds: obligationIds.slice(0, 10) })
+        const group = createGroup(db, {
+          name: 'Stress Grupo',
+          obligationIds: obligationIds.slice(0, 10),
+        })
         const applyStart = performance.now()
         const firstApply = applyGroup(db, { groupId: group.id, clientIds })
         const applyMs = performance.now() - applyStart
         expect(firstApply).toEqual({ created: 600, reactivated: 0, skipped: 0 })
         const secondApply = applyGroup(db, { groupId: group.id, clientIds })
         expect(secondApply).toEqual({ created: 0, reactivated: 0, skipped: 600 })
-        logMetric('obligations.apply_group_600', { totalMs: applyMs, idempotentSkipped: secondApply.skipped })
+        logMetric('obligations.apply_group_600', {
+          totalMs: applyMs,
+          idempotentSkipped: secondApply.skipped,
+        })
 
         // 5 restantes via pasteLinks, uma chamada por cliente (assinatura real).
         const pasteStart = performance.now()
         let pasteCreated = 0
         for (const client of clients) {
-          const result = pasteLinks(db, { targetClientId: client.id, obligationIds: obligationIds.slice(10) })
+          const result = pasteLinks(db, {
+            targetClientId: client.id,
+            obligationIds: obligationIds.slice(10),
+          })
           pasteCreated += result.created
         }
         const pasteMs = performance.now() - pasteStart
@@ -120,7 +129,10 @@ describe('stress: matriz de obrigações 60 clientes × 15 obrigações', () => 
         logMetric('obligations.update_links_900', { totalMs: performance.now() - updateStart })
 
         // Visão mensal 2026-01..2026-12 — cada mês tem 900 ocorrências.
-        const months = Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`)
+        const months = Array.from(
+          { length: 12 },
+          (_, i) => `2026-${String(i + 1).padStart(2, '0')}`,
+        )
         const overviewStart = performance.now()
         const counts: number[] = []
         for (const month of months) {
@@ -168,7 +180,10 @@ describe('stress: matriz de obrigações 60 clientes × 15 obrigações', () => 
             dueDate: item.dueDate,
             delivered: true,
           })
-          firstCompletedAt.set(`${item.clientId}|${item.obligationId}|${item.dueDate}`, result.completedAt)
+          firstCompletedAt.set(
+            `${item.clientId}|${item.obligationId}|${item.dueDate}`,
+            result.completedAt,
+          )
         }
         for (const item of batch) {
           const result = setDelivery(db, {
@@ -177,10 +192,14 @@ describe('stress: matriz de obrigações 60 clientes × 15 obrigações', () => 
             dueDate: item.dueDate,
             delivered: true,
           })
-          expect(result.completedAt).toBe(firstCompletedAt.get(`${item.clientId}|${item.obligationId}|${item.dueDate}`))
+          expect(result.completedAt).toBe(
+            firstCompletedAt.get(`${item.clientId}|${item.obligationId}|${item.dueDate}`),
+          )
         }
         const deliveryMs = performance.now() - deliveryStart
-        const deliveredCount = listMonthOverview(db, '2026-03').filter((item) => item.delivered).length
+        const deliveredCount = listMonthOverview(db, '2026-03').filter(
+          (item) => item.delivered,
+        ).length
         expect(deliveredCount).toBe(100)
         logMetric('obligations.set_delivery_lote_200', { totalMs: deliveryMs, deliveredCount })
       } finally {
@@ -314,8 +333,18 @@ describe('stress: partições e registry de sessões', () => {
         const authMethod = i % 3 === 0 ? ('certificate' as const) : ('password' as const)
         reuseKeys.add(
           authMethod === 'certificate'
-            ? sessionReuseKey({ clientId: `client-${i % 250}`, serviceId: `svc-${i % 40}`, authMethod, certificateId: `cert-${i}` })
-            : sessionReuseKey({ clientId: `client-${i % 250}`, serviceId: `svc-${i % 40}`, authMethod, credentialId: `cred-${i}` }),
+            ? sessionReuseKey({
+                clientId: `client-${i % 250}`,
+                serviceId: `svc-${i % 40}`,
+                authMethod,
+                certificateId: `cert-${i}`,
+              })
+            : sessionReuseKey({
+                clientId: `client-${i % 250}`,
+                serviceId: `svc-${i % 40}`,
+                authMethod,
+                credentialId: `cred-${i}`,
+              }),
         )
       }
       const reuseMs = performance.now() - reuseStart
