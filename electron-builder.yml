@@ -1,0 +1,47 @@
+appId: br.com.aurumbit.desktop
+productName: AurumBit Portal
+copyright: Copyright (c) 2026 AurumBit Portal
+directories:
+  output: dist
+  buildResources: build
+files:
+  - dist-electron/**/*
+  - out/**/*
+  - package.json
+  - node_modules/**/*
+  - '!node_modules/.cache/**'
+  - '!node_modules/electron/**'
+  - '!node_modules/@playwright/**'
+  - '!node_modules/playwright/**'
+  - '!node_modules/vitest/**'
+  - '!node_modules/typescript/**'
+asar: true
+npmRebuild: false
+asarUnpack:
+  - node_modules/better-sqlite3/**/*
+  - resources/**/*
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - '**/*'
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  signAndEditExecutable: true
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: AurumBit Portal
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+publish:
+  provider: generic
+  url: https://updates.aurumbit.invalid/stable
+  channel: stable

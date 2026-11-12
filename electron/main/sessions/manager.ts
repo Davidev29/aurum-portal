@@ -1,0 +1,1559 @@
+import {
+  BrowserWindow,
+  WebContentsView,
+  app,
+  dialog,
+  session as electronSession,
+  shell,
+  type Session,
+  type WebContents,
+} from 'electron'
+import { existsSync, statSync } from 'node:fs'
+import path from 'node:path'
+import { randomUUID } from 'node:crypto'
+import type { ImportProgressEvent } from '../../../shared/types'
+import type { AuthMethod } from '../../../shared/constants'
+import type {
+  PortalSession,
+  RecipeTestResult,
+  SessionDetails,
+  SessionOpenRequest,
+  SessionOpenResult,
+} from '../../../shared/types'
+import type { AppSettings } from '../../../shared/types'
+import type { RecipeDefinition } from '../../../shared/recipe'
+import type { AppDatabase } from '../db/database'
+import type { VaultService } from '../vault/service'
+import type { CertificateService } from '../certificates/service'
+import {
+  findDefaultCredential,
+  getCredentialRow,
+  getCredentialRecord,
+  markCredentialUsed,
+  revealCredential,
+} from '../db/repositories/credentials'
+import {
+  getCertificateView,
+  listCertificatesForClient,
+  markCertificateUsed,
+} from '../db/repositories/certificates'
+import { getClient } from '../db/repositories/clients'
+import { getServiceRow } from '../db/repositories/services'
+import { getRecipeByService, recordRecipeOutcome } from '../db/repositories/recipes'
+import { appendAuditEvent } from '../db/repositories/audit'
+import { closeSessionRow, createSessionRow, updateSessionRow } from '../db/repositories/sessions'
+import { AppError } from '../errors'
+import { logger } from '../logger'
+import { redactUrl } from '../security/redaction'
+import {
+  hostnameOf,
+  isAllowedHost,
+  isGovernmentHost,
+  normalizeHostname,
+  parseHttpUrl,
+} from '../../../shared/network'
+import { SESSION_CHROME_FOOTER_HEIGHT, SESSION_CHROME_HEIGHT } from '../../../shared/constants'
+import { buildPartition, sessionReuseKey } from './partition'
+import type { SessionContext, SessionContextRegistry } from './context-registry'
+import { checkPostLogin, runRecipe, type RecipeTarget } from '../recipes/runner'
+import { runAgenticLogin, agentValues } from '../recipes/agent'
+import { stepCarriesCredentials } from '../../../shared/custom-service'
+import { recipeValues } from '../recipes/core'
+import type { TrustedContentsRegistry } from '../ipc/trusted'
+
+/** Tempo máximo (ms) entre a abertura e a autenticação; ao expirar em sessão por
+ * certificado a janela continua invisível e o usuário recebe a tela de erro. */
+const BOOT_AUTH_TIMEOUT_MS = 60_000
+
+const BLOCKED_DOWNLOAD_EXTENSIONS = new Set([
+  '.exe',
+  '.msi',
+  '.bat',
+  '.cmd',
+  '.ps1',
+  '.vbs',
+  '.js',
+  '.jse',
+  '.scr',
+  '.com',
+  '.pif',
+  '.reg',
+  '.dll',
+])
+
+const CHROME_UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`
+
+interface ManagedSession {
+  id: string
+  reuseKey: string
+  clientId: string
+  clientName: string
+  clientDocument: string
+  serviceId: string
+  serviceName: string
+  serviceSlug: string
+  authMethod: AuthMethod
+  certificateId: string | null
+  certificateLabel: string | null
+  certificateHolderName: string | null
+  certificateValidTo: string | null
+  certificateThumbprintSha256: string | null
+  certificateThumbprintSha1: string | null
+  certificateSerialHex: string | null
+  certificateIssuerDn: string | null
+  certificateSubjectDn: string | null
+  credentialId: string | null
+  partition: string
+  allowedDomains: string[]
+  baseUrl: string
+  win: BrowserWindow
+  view: WebContentsView
+  status: PortalSession['status']
+  statusMessage: string | null
+  lastError: string | null
+  recipeRunning: boolean
+  recipeAttempted: boolean
+  watcher: NodeJS.Timeout | null
+  watcherBusy: boolean
+  watcherStartedAt: number
+  popups: Set<BrowserWindow>
+  openedAt: string
+  currentUrl: string
+  title: string
+  loading: boolean
+  closed: boolean
+  /** true quando a WebContentsView do portal esta oculta para o usuario
+   * (sessao por certificado em boot). Visao propria, nao depende de DOM. */
+  portalHidden: boolean
+  /** true quando a proxima revelacao deve mostrar o portal porque o fluxo
+   * exige interacao humana (2FA, desafio anti-bot ou pedido explicito). */
+  requiresHumanAction: boolean
+  /** Timer de seguranca: enquanto !authenticated apos BOOT_AUTH_TIMEOUT_MS,
+   * o portal continua escondido e a sessao vira 'manual' com instrucao. */
+  bootSafetyTimer: NodeJS.Timeout | null
+}
+
+export interface SessionManagerDeps {
+  db: AppDatabase
+  vault: VaultService
+  certificates: CertificateService
+  registry: SessionContextRegistry
+  trusted: TrustedContentsRegistry
+  preloadPath: string
+  buildAppUrl: (route: string) => string
+  getSettings: () => AppSettings
+  onSessionsChanged: (sessions: PortalSession[]) => void
+  onSessionError: (event: {
+    sessionId: string
+    type: 'certificate_not_offered' | 'certificate_missing' | 'recipe_failed' | 'load_failed'
+    message: string
+  }) => void
+  onDownloadProgress: (progress: {
+    id: string
+    filename: string
+    state: 'started' | 'progressing' | 'completed' | 'cancelled' | 'interrupted'
+    receivedBytes: number
+    totalBytes: number
+    savePath: string | null
+  }) => void
+  onImportProgress: (progress: ImportProgressEvent) => void
+}
+
+export class SessionManager {
+  private readonly sessions = new Map<string, ManagedSession>()
+  private readonly partitionUsage = new Map<string, number>()
+  private readonly configuredPartitions = new Set<string>()
+  private quitting = false
+
+  constructor(private readonly deps: SessionManagerDeps) {}
+
+  async open(request: SessionOpenRequest): Promise<SessionOpenResult> {
+    const settings = this.deps.getSettings()
+    if (this.sessions.size >= settings.sessionLimit) {
+      throw new AppError(
+        'SESSION_LIMIT',
+        `Limite de ${settings.sessionLimit} sessoes simultaneas atingido`,
+      )
+    }
+
+    const service = getServiceRow(this.deps.db, request.serviceId)
+    if (!service.enabled) {
+      throw new AppError('FORBIDDEN', 'Este servico esta desabilitado')
+    }
+    if (!service.authMethods.includes(request.authMethod)) {
+      throw new AppError('VALIDATION', 'Metodo de autenticacao nao aceito pelo servico')
+    }
+    // Senha + receita interativa (com passos que carregam credenciais): o
+    // portal fica oculto e a animação é exibida enquanto a automação
+    // preenche/envia — igual ao fluxo de certificado. Se o usuário precisar
+    // intervir (2FA/captcha), o portal é revelado na hora.
+    const interactiveRecipe = (() => {
+      if (request.authMethod !== 'password') return false
+      try {
+        const row = getRecipeByService(this.deps.db, service.id)
+        if (!row || row.status === 'disabled') return false
+        // Só esconde quando a automação vai até o fim (Entrar sozinho).
+        // No modo "revisar antes de enviar", o usuário precisa ver a tela.
+        if (!row.definition.autoSubmit) return false
+        return row.definition.steps.some((step) => stepCarriesCredentials(step))
+      } catch {
+        return false
+      }
+    })()
+    const client = getClient(this.deps.db, request.clientId)
+    if (!client) throw new AppError('NOT_FOUND', 'Cliente nao encontrado')
+    if (client.status === 'archived') {
+      throw new AppError('FORBIDDEN', 'Cliente arquivado nao pode abrir sessoes')
+    }
+
+    let certificateId: string | null = null
+    let certificateLabel: string | null = null
+    let certificateHolderName: string | null = null
+    let certificateValidTo: string | null = null
+    let thumbprint256: string | null = null
+    let thumbprint1: string | null = null
+    let serialHex: string | null = null
+    let issuerDn: string | null = null
+    let subjectDn: string | null = null
+
+    if (request.authMethod === 'certificate') {
+      certificateId = request.certificateId ?? this.pickOnlyCertificate(client.id)
+      let certificate = getCertificateView(this.deps.db, certificateId)
+      const linked =
+        certificate.clientId === client.id ||
+        certificate.clients.some((item) => item.id === client.id)
+      if (!linked) {
+        throw new AppError(
+          'FORBIDDEN',
+          'O certificado nao esta vinculado a este cliente',
+          'Vincule o certificado ao cliente antes de usa-lo.',
+        )
+      }
+      if (certificate.status === 'expired') {
+        throw new AppError(
+          'CERTIFICATE_EXPIRED',
+          'Certificado vencido nao pode autenticar',
+          'Este certificado esta vencido. Importe o certificado renovado.',
+        )
+      }
+      if (certificate.status === 'missing_windows') {
+        throw new AppError(
+          'CERTIFICATE_MISSING',
+          'Certificado ausente no Windows',
+          'O certificado sumiu do repositorio do Windows. Reinstale o PFX ou importe novamente.',
+        )
+      }
+      if (certificate.status === 'chain_incomplete') {
+        throw new AppError(
+          'CERTIFICATE_INVALID',
+          'Cadeia do certificado incompleta',
+          'Instale a cadeia ICP-Brasil antes de autenticar.',
+        )
+      }
+      if (!certificate.installed) {
+        certificate = await this.deps.certificates.install(certificateId)
+      }
+      if (!certificate.installed) {
+        throw new AppError(
+          'CERTIFICATE_NOT_INSTALLED',
+          'Certificado nao instalado no Windows',
+          'Instale o certificado no Windows antes de abrir o portal.',
+        )
+      }
+      certificateLabel = certificate.label
+      certificateHolderName = certificate.holderName
+      certificateValidTo = certificate.validTo
+      thumbprint256 = certificate.thumbprintSha256
+      thumbprint1 = certificate.thumbprintSha1
+      serialHex = certificate.serialHex
+      issuerDn = certificate.issuerDn
+      subjectDn = certificate.subjectDn
+    }
+
+    let credentialId: string | null = null
+    if (request.authMethod === 'password') {
+      const credential = request.credentialId
+        ? getCredentialRow(this.deps.db, request.credentialId)
+        : findDefaultCredential(this.deps.db, client.id, service.id)
+      if (!credential) {
+        throw new AppError(
+          'CREDENTIAL_MISSING',
+          'Nenhuma credencial cadastrada para este cliente e servico',
+          'Cadastre uma credencial para este cliente neste servico.',
+        )
+      }
+      if (credential.clientId !== client.id || credential.serviceId !== service.id) {
+        throw new AppError('FORBIDDEN', 'Credencial nao pertence ao cliente/servico selecionado')
+      }
+      credentialId = credential.id
+    }
+
+    const partition = buildPartition({
+      clientId: client.id,
+      certificateId,
+      authMethod: request.authMethod,
+    })
+    const reuseKey = sessionReuseKey({
+      clientId: client.id,
+      serviceId: service.id,
+      authMethod: request.authMethod,
+      certificateId,
+      credentialId,
+    })
+    if (!request.forceNew) {
+      const existing = Array.from(this.sessions.values()).find(
+        (session) => session.reuseKey === reuseKey && !session.closed,
+      )
+      if (existing) {
+        this.focus(existing.id)
+        return { sessionId: existing.id, reused: true }
+      }
+    }
+
+    const id = randomUUID()
+    const openedAt = new Date().toISOString()
+    const remoteSession = this.preparePartition(partition)
+    const context: SessionContext = {
+      sessionId: id,
+      clientId: client.id,
+      clientName: client.name,
+      clientDocument: client.document,
+      serviceId: service.id,
+      serviceName: service.name,
+      serviceSlug: service.slug,
+      authMethod: request.authMethod,
+      certificateId,
+      certificateLabel,
+      certificateHolderName,
+      certificateValidTo,
+      certificateThumbprintSha256: thumbprint256,
+      certificateThumbprintSha1: thumbprint1,
+      certificateSerialHex: serialHex,
+      certificateIssuerDn: issuerDn,
+      certificateSubjectDn: subjectDn,
+      allowedDomains: service.allowedDomains,
+      partition,
+    }
+    this.deps.registry.set(remoteSession, context)
+    this.partitionUsage.set(partition, (this.partitionUsage.get(partition) ?? 0) + 1)
+
+    createSessionRow(this.deps.db, {
+      id,
+      clientId: client.id,
+      certificateId,
+      serviceId: service.id,
+      credentialId,
+      authMethod: request.authMethod,
+      partition,
+      openedAt,
+    })
+
+    const win = new BrowserWindow({
+      width: 1240,
+      height: 840,
+      minWidth: 860,
+      minHeight: 560,
+      show: false,
+      title: `${service.name} -> ${client.name}`,
+      backgroundColor: '#1b1a17',
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: this.deps.preloadPath,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        nodeIntegrationInSubFrames: false,
+        webSecurity: true,
+        spellcheck: false,
+        devTools: true,
+      },
+    })
+    win.setMenu(null)
+    this.deps.trusted.add(win.webContents)
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    win.webContents.on('will-navigate', (event, url) => {
+      if (!url.startsWith(this.deps.buildAppUrl('/'))) event.preventDefault()
+    })
+
+    const view = new WebContentsView({
+      webPreferences: {
+        partition,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        nodeIntegrationInSubFrames: false,
+        webSecurity: true,
+        allowRunningInsecureContent: false,
+        plugins: true,
+        spellcheck: false,
+        devTools: true,
+        backgroundThrottling: false,
+      },
+    })
+    win.contentView.addChildView(view)
+    // Sessao por certificado: a view nasce com bounds 0x0 (invisivel E sem
+    // hit-testing). Usamos bounds em vez de setVisible(false), pois views
+    // ocultas por visibilidade podem continuar "ativas" para input/paint no
+    // compositor do Electron. Revelada pelo layout() em markAuthenticated().
+    if (request.authMethod === 'certificate') {
+      view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+    }
+    view.webContents.setUserAgent(CHROME_UA)
+    view.webContents.setWindowOpenHandler(({ url }) =>
+      this.handleWindowOpen(url, partition, context),
+    )
+
+    const record: ManagedSession = {
+      id,
+      reuseKey,
+      clientId: client.id,
+      clientName: client.name,
+      clientDocument: client.document,
+      serviceId: service.id,
+      serviceName: service.name,
+      serviceSlug: service.slug,
+      authMethod: request.authMethod,
+      certificateId,
+      certificateLabel,
+      certificateHolderName,
+      certificateValidTo,
+      certificateThumbprintSha256: thumbprint256,
+      certificateThumbprintSha1: thumbprint1,
+      certificateSerialHex: serialHex,
+      certificateIssuerDn: issuerDn,
+      certificateSubjectDn: subjectDn,
+      credentialId,
+      partition,
+      allowedDomains: service.allowedDomains,
+      baseUrl: service.baseUrl,
+      win,
+      view,
+      status: 'opening',
+      statusMessage: 'Abrindo portal...',
+      lastError: null,
+      recipeRunning: false,
+      recipeAttempted: false,
+      watcher: null,
+      watcherBusy: false,
+      watcherStartedAt: 0,
+      popups: new Set(),
+      openedAt,
+      currentUrl: service.baseUrl,
+      title: service.name,
+      loading: true,
+      closed: false,
+      portalHidden: request.authMethod === 'certificate' || interactiveRecipe,
+      requiresHumanAction: false,
+      bootSafetyTimer: null,
+    }
+    this.sessions.set(id, record)
+    this.armBootSafetyTimer(record)
+    this.configureRemoteContents(view.webContents, record)
+    this.layout(record)
+    win.on('resize', () => this.layout(record))
+    win.on('maximize', () => this.layout(record))
+    win.on('unmaximize', () => this.layout(record))
+    win.once('ready-to-show', () => {
+      if (!record.closed) {
+        win.show()
+        win.focus()
+      }
+    })
+    win.on('closed', () => this.dispose(record, 'Janela fechada pelo usuario'))
+
+    void win.loadURL(this.deps.buildAppUrl(`/session/?sessionId=${encodeURIComponent(id)}`))
+    // Carrega uma pagina em branco para preparar a WebContentsView.
+    view.webContents.loadURL('about:blank').catch(() => {})
+    // Carrega a URL real do portal. A view permanece oculta (bounds 0x0)
+    // ate a autenticacao; did-finish-load ignora o documento em branco ao iniciar a receita.
+    view.webContents.loadURL(service.baseUrl).catch((error: unknown) => {
+      if (record.closed) return
+      record.status = 'error'
+      record.lastError = error instanceof Error ? error.message : 'Falha ao abrir o portal'
+      record.statusMessage = 'Falha ao abrir o portal'
+      this.emit()
+    })
+
+    view.webContents.on('did-start-loading', () => {
+      record.loading = true
+      this.emit()
+    })
+    view.webContents.on('did-finish-load', () => {
+      if (record.closed) return
+      record.loading = false
+      record.currentUrl = view.webContents.getURL()
+      // Inicia a receita apenas quando o documento commitado NAO for a pagina
+      // em branco (corrige a corrida about:blank x baseUrl).
+      const currentUrl = record.view.webContents.getURL()
+      const isBlankDocument = !currentUrl || currentUrl === 'about:blank'
+      if (!record.recipeAttempted && !isBlankDocument) {
+        record.recipeAttempted = true
+        void this.startRecipe(record)
+      }
+      this.emit()
+    })
+    view.webContents.on('did-navigate', (_event, url) => {
+      record.currentUrl = url
+      // Detecção de autenticação por URL definitiva: quando o portal nos força
+      // de volta ao HOST definitivo com um path não-inicial e não-login, o
+      // fluxo certificado está concluído. Independe do `load` da página, que
+      // em portais ASP.NET/PrimeFaces pode demorar dezenas de segundos.
+      // Gated por `recipeAttempted` (a navegação inicial do portal ocorre
+      // antes do primeiro did-finish-load, garantindo que a marca só aparece
+      // depois que o fluxo do SSO/mTLS já começou).
+      if (
+        record.authMethod === 'certificate' &&
+        record.recipeAttempted &&
+        record.status === 'awaiting_login' &&
+        this.urlIndicatesAuthenticated(url, record)
+      ) {
+        this.record('session.url_auth_detected', record.id, {
+          url: redactUrl(url),
+          serviceId: record.serviceId,
+          clientId: record.clientId,
+        })
+        this.markAuthenticated(record, 'Login detectado no portal (redirect autenticado).')
+      }
+      this.emit()
+    })
+    view.webContents.on('did-stop-loading', () => {
+      record.loading = false
+      record.currentUrl = view.webContents.getURL()
+      this.emit()
+    })
+    view.webContents.on('did-navigate-in-page', (_event, url) => {
+      record.currentUrl = url
+      this.emit()
+    })
+    view.webContents.on('page-title-updated', (_event, title) => {
+      record.title = title
+      this.emit()
+    })
+    view.webContents.on(
+      'did-fail-load',
+      (_event, errorCode, errorDescription, _url, isMainFrame) => {
+        if (!isMainFrame || errorCode === -3 || record.closed) return
+        // Sessao por certificado: o portal permanece invisivel; o usuario ve a tela de
+        // erro na pagina /session (com opcoes de tentar novamente ou abrir o portal).
+        record.status = 'manual'
+        record.statusMessage = `Falha ao carregar: ${errorDescription}`
+        record.lastError = errorDescription
+        updateSessionRow(this.deps.db, id, 'manual', errorDescription)
+        this.deps.onSessionError({
+          sessionId: id,
+          type: 'load_failed',
+          message: record.statusMessage,
+        })
+        this.emit()
+      },
+    )
+    view.webContents.on('render-process-gone', (_event, details) => {
+      if (record.closed) return
+      // O portal permanece invisivel; o estado de erro e exibido na /session.
+      record.status = 'error'
+      record.statusMessage = `O portal travou (${details.reason}).`
+      updateSessionRow(this.deps.db, id, 'error', details.reason)
+      this.emit()
+    })
+
+    this.record('session.opened', id, {
+      clientId: client.id,
+      serviceId: service.id,
+      authMethod: request.authMethod,
+      certificateId,
+      partition,
+    })
+    if (certificateId) markCertificateUsed(this.deps.db, certificateId)
+    if (credentialId) markCredentialUsed(this.deps.db, credentialId)
+    this.emit()
+    return { sessionId: id, reused: false }
+  }
+
+  private pickOnlyCertificate(clientId: string): string {
+    const eligible = listCertificatesForClient(this.deps.db, clientId).filter(
+      (certificate) => certificate.status !== 'expired' && certificate.status !== 'missing_windows',
+    )
+    if (eligible.length === 0) {
+      throw new AppError(
+        'CERTIFICATE_MISSING',
+        'Nenhum certificado valido vinculado ao cliente',
+        'Importe um certificado A1 e vincule ao cliente.',
+      )
+    }
+    if (eligible.length > 1) {
+      throw new AppError(
+        'VALIDATION',
+        'Selecione um certificado',
+        'Este cliente possui mais de um certificado. Escolha qual usar.',
+      )
+    }
+    return (eligible[0] as { id: string }).id
+  }
+
+  private preparePartition(partition: string): Session {
+    const ses = electronSession.fromPartition(partition)
+    if (!this.configuredPartitions.has(partition)) {
+      this.configuredPartitions.add(partition)
+      ses.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
+      ses.setPermissionCheckHandler(() => false)
+      // Carrega a extensao Web PKI (se fornecida via variavel de ambiente) para
+      // compatibilidade com portais que exigem Web PKI para autenticacao.
+      const extensionPath = process.env.AURUMBIT_WEBPKI_EXTENSION
+      if (extensionPath) {
+        try {
+          const stats = statSync(extensionPath)
+          if (stats.isDirectory()) {
+            void ses
+              .loadExtension(extensionPath, { allowFileAccess: false })
+              .catch((error: unknown) => {
+                logger.warn('webpki.extension_failed', {
+                  partition,
+                  message: error instanceof Error ? error.message : String(error),
+                })
+              })
+          }
+        } catch {
+          // Extensao opcional; ignora se o caminho nao existir.
+        }
+      }
+      if (process.env.AURUMBIT_E2E_ALLOW_LOCAL_TLS === '1' && !app.isPackaged) {
+        // Exclusivo de testes E2E com servidor mTLS local. Nunca usado em producao
+        // empacotada, mesmo que a variavel de ambiente seja definida.
+        ses.setCertificateVerifyProc((request, callback) => {
+          if (request.hostname === '127.0.0.1' || request.hostname === 'localhost') {
+            callback(0)
+          } else {
+            callback(-3)
+          }
+        })
+      }
+      ses.on('will-download', (_event, item) => {
+        const filename = item.getFilename()
+        const extension = path.extname(filename).toLowerCase()
+        if (BLOCKED_DOWNLOAD_EXTENSIONS.has(extension)) {
+          item.cancel()
+          this.deps.onDownloadProgress({
+            id: randomUUID(),
+            filename,
+            state: 'cancelled',
+            receivedBytes: 0,
+            totalBytes: item.getTotalBytes(),
+            savePath: null,
+          })
+          return
+        }
+        const directory = app.getPath('downloads')
+        let savePath = path.join(directory, path.basename(filename))
+        let suffix = 1
+        while (existsSync(savePath)) {
+          const parsed = path.parse(path.basename(filename))
+          savePath = path.join(directory, `${parsed.name} (${suffix})${parsed.ext}`)
+          suffix += 1
+        }
+        item.setSavePath(savePath)
+        const id = randomUUID()
+        this.deps.onDownloadProgress({
+          id,
+          filename,
+          state: 'started',
+          receivedBytes: 0,
+          totalBytes: item.getTotalBytes(),
+          savePath,
+        })
+        item.on('updated', (_event, state) => {
+          this.deps.onDownloadProgress({
+            id,
+            filename,
+            state: state === 'interrupted' ? 'interrupted' : 'progressing',
+            receivedBytes: item.getReceivedBytes(),
+            totalBytes: item.getTotalBytes(),
+            savePath,
+          })
+        })
+        item.once('done', (_event, state) => {
+          this.deps.onDownloadProgress({
+            id,
+            filename,
+            state: state === 'completed' ? 'completed' : state,
+            receivedBytes: item.getReceivedBytes(),
+            totalBytes: item.getTotalBytes(),
+            savePath: state === 'completed' ? savePath : null,
+          })
+        })
+      })
+    }
+    return ses
+  }
+
+  private configureRemoteContents(contents: WebContents, record: ManagedSession): void {
+    contents.setUserAgent(CHROME_UA)
+    contents.on('will-attach-webview', (event) => event.preventDefault())
+    contents.on('will-navigate', (event, url) => {
+      // Portais do governo redirecionam por varios dominios (SSO, CDN, etc.).
+      // Tudo deve permanecer dentro da guia do aplicativo; nunca abrir navegador externo.
+      if (!this.isAllowedUrl(url, record.allowedDomains)) {
+        // Bloqueia silenciosamente, sem sugerir navegador externo.
+        event.preventDefault()
+      }
+    })
+    contents.on('will-redirect', (event, url) => {
+      if (!this.isAllowedUrl(url, record.allowedDomains)) {
+        event.preventDefault()
+        const host = hostnameOf(url) ?? 'dominio desconhecido'
+        this.deps.onSessionError({
+          sessionId: record.id,
+          type: 'load_failed',
+          message: `Redirecionamento bloqueado para ${host}`,
+        })
+      }
+    })
+    contents.on('did-create-window', (child) => {
+      child.setMenu(null)
+      record.popups.add(child)
+      if (this.shouldHidePopupsNow(record.partition)) {
+        child.once('ready-to-show', () => {
+          if (record.status === 'authenticated' || record.requiresHumanAction) child.show()
+        })
+      }
+      child.on('closed', () => record.popups.delete(child))
+      this.configureRemoteContents(child.webContents, record)
+      child.webContents.setWindowOpenHandler(({ url }) =>
+        this.handleWindowOpen(url, record.partition, {
+          sessionId: record.id,
+          clientId: record.clientId,
+          clientName: record.clientName,
+          clientDocument: record.clientDocument,
+          serviceId: record.serviceId,
+          serviceName: record.serviceName,
+          serviceSlug: record.serviceSlug,
+          authMethod: record.authMethod,
+          certificateId: record.certificateId,
+          certificateLabel: record.certificateLabel,
+          certificateHolderName: record.certificateHolderName,
+          certificateValidTo: record.certificateValidTo,
+          certificateThumbprintSha256: record.certificateThumbprintSha256,
+          certificateThumbprintSha1: record.certificateThumbprintSha1,
+          certificateSerialHex: record.certificateSerialHex,
+          certificateIssuerDn: record.certificateIssuerDn,
+          certificateSubjectDn: record.certificateSubjectDn,
+          allowedDomains: record.allowedDomains,
+          partition: record.partition,
+        }),
+      )
+    })
+    contents.on('before-input-event', (event, input) => {
+      if (input.type === 'keyDown' && input.key === 'F12' && app.isPackaged) {
+        event.preventDefault()
+      }
+    })
+  }
+
+  private handleWindowOpen(
+    url: string,
+    partition: string,
+    context: SessionContext,
+  ): Electron.WindowOpenHandlerResponse {
+    // Em sessao por certificado ainda nao autenticada, popups nascem ocultos
+    // (revelados junto com o portal na autenticacao/revelacao explicita).
+    const hidePopup = this.shouldHidePopupsNow(partition)
+    if (url === 'about:blank') {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: this.popupWindowOptions(partition, hidePopup),
+      }
+    }
+    if (!this.isAllowedUrl(url, context.allowedDomains)) {
+      // Portais do governo abrem recursos em dominios variados. Mantemos a
+      // navegacao dentro do aplicativo e nunca sugerimos o navegador externo.
+      return { action: 'deny' }
+    }
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: this.popupWindowOptions(partition, hidePopup),
+    }
+  }
+
+  private urlIndicatesAuthenticated(url: string, record: ManagedSession): boolean {
+    try {
+      const parsed = new URL(url)
+      const serviceHost = normalizeHostname(new URL(record.baseUrl).hostname)
+      const host = normalizeHostname(parsed.hostname)
+      if (!serviceHost || !host) return false
+      if (host !== serviceHost) return false
+      const pathname = (parsed.pathname || '/').toLowerCase()
+      // A raiz / é o landing pré-login de vários portais.
+      if (pathname === '' || pathname === '/') return false
+      // Caminhos Keycloak (JUCEC) — o fluxo certificado nunca termina aí.
+      if (pathname.includes('/auth/realms/')) return false
+      if (pathname.includes('autenticacao/login')) return false
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  private shouldHidePopupsNow(partition: string): boolean {
+    const record = Array.from(this.sessions.values()).find(
+      (session) => session.partition === partition && !session.closed,
+    )
+    if (!record) return false
+    return (
+      record.authMethod === 'certificate' &&
+      record.status !== 'authenticated' &&
+      !record.requiresHumanAction
+    )
+  }
+
+  private popupWindowOptions(
+    partition: string,
+    hideUntilRevealed = false,
+  ): Electron.BrowserWindowConstructorOptions {
+    return {
+      width: 1000,
+      height: 760,
+      show: !hideUntilRevealed,
+      autoHideMenuBar: true,
+      backgroundColor: '#ffffff',
+      webPreferences: {
+        partition,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        nodeIntegrationInSubFrames: false,
+        webSecurity: true,
+        allowRunningInsecureContent: false,
+        plugins: true,
+        spellcheck: false,
+        devTools: !app.isPackaged,
+      },
+    }
+  }
+
+  private async confirmExternal(url: string, parent?: BrowserWindow): Promise<void> {
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      return
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return
+    const settings = this.deps.getSettings()
+    if (settings.confirmOpenExternal) {
+      const options: Electron.MessageBoxOptions = {
+        type: 'warning',
+        title: 'Abrir link externo?',
+        message: 'Este link sera aberto no navegador padrao do Windows.',
+        detail: `${redactUrl(url)}\n\nO navegador externo nao usara o certificado da sessao do AurumBit Portal.`,
+        buttons: ['Abrir no navegador', 'Cancelar'],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      }
+      const result = parent
+        ? await dialog.showMessageBox(parent, options)
+        : await dialog.showMessageBox(options)
+      if (result.response !== 0) return
+    }
+    await shell.openExternal(url)
+  }
+
+  private isAllowedUrl(url: string, allowedDomains: string[]): boolean {
+    // Navegacao aceita HTTP e HTTPS (o portal faz o upgrade para HTTPS), mas
+    // apenas para hosts governamentais ou da allowlist do servico. A
+    // autenticacao por certificado exige HTTPS e e tratada em certificates/core.ts.
+    const parsed = parseHttpUrl(url)
+    if (!parsed) return false
+    const host = normalizeHostname(parsed.hostname)
+    if (isGovernmentHost(host)) return true
+    return isAllowedHost(host, allowedDomains)
+  }
+
+  private layout(record: ManagedSession): void {
+    if (record.win.isDestroyed()) return
+    // Portal oculto (senha interativa ou certificado): bounds zerados até a
+    // revelação atômica, para que a tela de boot cubra o processo.
+    if (record.portalHidden) {
+      record.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+      return
+    }
+    const size = record.win.getContentSize()
+    const width = size[0] ?? 0
+    const height = size[1] ?? 0
+    record.view.setBounds({
+      x: 0,
+      y: SESSION_CHROME_HEIGHT,
+      width,
+      height: Math.max(0, height - SESSION_CHROME_HEIGHT - SESSION_CHROME_FOOTER_HEIGHT),
+    })
+  }
+
+  private targetForRecorder(record: ManagedSession): RecipeTarget {
+    return {
+      executeJavaScript: async <T>(code: string) =>
+        record.view.webContents.executeJavaScript(code) as Promise<T>,
+      loadURL: async (url: string) => {
+        await record.view.webContents.loadURL(url)
+      },
+      getURL: () => record.view.webContents.getURL(),
+      isDestroyed: () => record.closed || record.view.webContents.isDestroyed(),
+      stop: () => record.view.webContents.stop(),
+    }
+  }
+
+  private async startRecipe(record: ManagedSession): Promise<void> {
+    if (record.closed || record.recipeRunning) return
+    const recipeRow = getRecipeByService(this.deps.db, record.serviceId)
+
+    // Sem receita: o portal abre e a sessão fica em modo assistido com
+    // detecção genérica de pós-login (para portais adicionados sem automação).
+    // Se a partição persistente já tem cookies, o usuário entra já logado.
+    if (!recipeRow || recipeRow.status === 'disabled') {
+      record.status = 'awaiting_login'
+      record.statusMessage = 'Sessao aberta. Autentique-se manualmente no portal.'
+      updateSessionRow(this.deps.db, record.id, 'awaiting_login')
+      this.emit()
+      const fallback: RecipeDefinition = {
+        version: 1,
+        service: record.serviceSlug,
+        auth: record.authMethod,
+        steps: [],
+        postLogin: {
+          selectors: [
+            'text=Sair',
+            'a[href*="logout"]',
+            'button[aria-label*="Sair" i]',
+            '[data-testid="logout"]',
+          ],
+          timeoutMs: 5_000,
+        },
+        autoSubmit: false,
+        onFailure: 'manual',
+      }
+      const target = this.targetForRecorder(record)
+      try {
+        if (await checkPostLogin(fallback, target, 4_000)) {
+          this.markAuthenticated(record, 'Login ja detectado (sessao salva).')
+          return
+        }
+      } catch {
+        // Página ainda navegando; o watcher tenta novamente.
+      }
+      this.startWatcher(record, fallback)
+      // Sessao por certificado: mantem o portal invisivel; a tela de loading
+      // mostra o estado (Aguardando autenticacao) com opcao de abrir o portal.
+      return
+    }
+    const stored: RecipeDefinition = recipeRow.definition
+    const definition = this.recipeForSession(stored, record)
+    // Senha sem receita interativa relevante (ou todos os passos filtrados):
+    // não esconde o portal — o usuário precisa ver a tela.
+    if (record.authMethod === 'password' && record.portalHidden && definition.steps.length === 0) {
+      this.revealPortal(record)
+    }
+    record.recipeRunning = true
+    record.status = 'awaiting_login'
+    record.statusMessage =
+      record.authMethod === 'certificate'
+        ? 'Conectando ao portal com certificado digital...'
+        : record.portalHidden
+          ? `Entrando no ${record.serviceName}...`
+          : 'Executando autofill assistido...'
+    updateSessionRow(this.deps.db, record.id, 'awaiting_login')
+    this.emit()
+
+    let username = ''
+    let password = ''
+    if (record.authMethod === 'password' && record.credentialId) {
+      try {
+        const secret = revealCredential(this.deps.db, this.deps.vault, record.credentialId)
+        username = secret.username
+        password = secret.password
+        markCredentialUsed(this.deps.db, record.credentialId)
+      } catch {
+        record.recipeRunning = false
+        record.status = 'manual'
+        record.statusMessage = 'Nao foi possivel abrir a credencial. Use o modo manual.'
+        this.emit()
+        return
+      }
+    }
+
+    const target = this.targetForRecorder(record)
+
+    // Fast-path: partição persistente pode já estar logada (cookies salvos do
+    // acesso anterior com o mesmo cliente+certificado). Detecta antes de
+    // executar os passos para não quebrar o fluxo com cliques em elementos
+    // de login que já não existem.
+    try {
+      if (await checkPostLogin(definition, target, 4_000)) {
+        record.recipeRunning = false
+        this.markAuthenticated(record, 'Login ja detectado (sessao salva).')
+        recordRecipeOutcome(this.deps.db, record.serviceId, 'verified')
+        return
+      }
+    } catch {
+      // Segue para a receita completa.
+    }
+
+    try {
+      // Fluxo agêntico (senha): observa a página e age até o login concluir,
+      // em vez de seguir uma lista fixa de passos. Se o usuário optou por
+      // revisar antes de enviar (autoSubmit=false), apenas preenche e espera
+      // que ele clique em Entrar.
+      const result =
+        record.authMethod === 'password' && username
+          ? await runAgenticLogin({
+              values: agentValues({
+                username,
+                password,
+                document: record.clientDocument,
+                clientName: record.clientName,
+              }),
+              target,
+              autoSubmit: definition.autoSubmit,
+              onProgress: (stepIndex, total) => {
+                if (record.closed) return
+                record.statusMessage = `Acessando ${record.serviceName}... passo ${Math.min(stepIndex + 1, total)}/${total}`
+                this.emit()
+              },
+            }).then((agentResult) => ({
+              status: agentResult.status,
+              message: agentResult.message,
+              failedStep: null,
+              captchaDetected: agentResult.captchaDetected,
+              twoFactorDetected: agentResult.twoFactorDetected,
+              lastUrl: agentResult.lastUrl,
+            }))
+          : await runRecipe({
+              recipe: definition,
+              values: recipeValues({
+                username,
+                password,
+                document: record.clientDocument,
+                clientName: record.clientName,
+              }),
+              target,
+              allowedDomains: record.allowedDomains,
+            })
+      username = ''
+      password = ''
+      if (record.closed) return
+      record.recipeRunning = false
+      record.currentUrl = target.getURL()
+      if (result.status === 'authenticated') {
+        this.markAuthenticated(record, 'Login detectado automaticamente.')
+        recordRecipeOutcome(this.deps.db, record.serviceId, 'verified')
+      } else if (result.status === 'awaiting_login') {
+        // Nunca rebaixar um estado 'authenticated' alcancado pelo fast-path
+        // de URL durante a receita.
+        if (record.status !== 'authenticated') {
+          // O portal permanece invisivel; o usuario ve o estado de espera na
+          // /session (com opcao de abrir o portal a qualquer momento).
+          record.status = 'awaiting_login'
+          record.statusMessage =
+            record.authMethod === 'certificate'
+              ? 'Aguardando autenticacao no portal...'
+              : result.message
+          updateSessionRow(this.deps.db, record.id, 'awaiting_login')
+          this.startWatcher(record, definition)
+        }
+      } else {
+        // Mesma guarda de nao rebaixamento.
+        if (record.status === 'authenticated') {
+          this.emit()
+          return
+        }
+        // Falha que exige interacao humana (2FA, desafio anti-bot): revelar o
+        // portal com o selo manual para o usuario concluir. Demais falhas:
+        // manter o portal invisivel e mostrar o estado de erro na /session.
+        const needsHuman = result.captchaDetected || result.twoFactorDetected
+        if (needsHuman) {
+          record.requiresHumanAction = true
+          this.revealPortal(record)
+        }
+        record.status = 'manual'
+        record.statusMessage = needsHuman
+          ? result.twoFactorDetected
+            ? 'Verificacao em duas etapas. Conclua o codigo na tela aberta.'
+            : 'Verificacao anti-bot. Conclua o desafio na tela aberta.'
+          : result.message
+        record.lastError = result.message
+        updateSessionRow(this.deps.db, record.id, 'manual', result.message)
+        if (result.failedStep !== null) {
+          recordRecipeOutcome(this.deps.db, record.serviceId, 'broken')
+          this.record('session.recipe_failed', record.id, {
+            serviceId: record.serviceId,
+            failedStep: result.failedStep,
+            message: result.message.slice(0, 500),
+          })
+        }
+        this.deps.onSessionError({
+          sessionId: record.id,
+          type: 'recipe_failed',
+          message: result.message,
+        })
+        this.startWatcher(record, definition)
+      }
+      this.emit()
+    } catch (error) {
+      // Excecao na receita: manter o portal invisivel; estado de erro na /session.
+      record.recipeRunning = false
+      record.requiresHumanAction = false
+      record.status = 'manual'
+      record.statusMessage = 'A automacao falhou. Use o modo manual.'
+      record.lastError = error instanceof Error ? error.message : 'Erro na receita'
+      updateSessionRow(this.deps.db, record.id, 'manual', record.lastError)
+      this.record('session.recipe_failed', record.id, {
+        serviceId: record.serviceId,
+        message: record.lastError.slice(0, 500),
+      })
+      this.deps.onSessionError({
+        sessionId: record.id,
+        type: 'recipe_failed',
+        message: record.statusMessage,
+      })
+      this.emit()
+    }
+  }
+
+  private recipeForSession(stored: RecipeDefinition, record: ManagedSession): RecipeDefinition {
+    // A receita declara um método (auth). Em sessões de certificado, passos que
+    // carregam credenciais nunca rodam — mesmo quando o método bate com o da
+    // receita (a receita unificada de um site gov.br inclui smart fill para o
+    // modo senha). A detecção de pós-login continua ativa nos dois casos.
+    // autoSubmit só faz sentido com formulário de senha: no certificado, a
+    // tentativa geraria falha pós-login (página sem campo de senha).
+    if (stored.auth === record.authMethod) {
+      if (record.authMethod !== 'certificate') return stored
+      return { ...stored, steps: stored.steps.filter((step) => !stepCarriesCredentials(step)), autoSubmit: false }
+    }
+    const steps =
+      record.authMethod === 'certificate'
+        ? stored.steps.filter((step) => !stepCarriesCredentials(step))
+        : stored.steps.filter((step) => {
+            const selectors = (step.selectors ?? []).join(' ').toLowerCase()
+            if (selectors.includes('certificado')) return false
+            // Em modo senha, nao disparar o clique automatico no botao
+            // "Seu certificado digital" — o operador escolhe outro metodo de
+            // identificacao no gov.br.
+            if (step.action === 'evaluate') {
+              const script = (step.script ?? '').toLowerCase()
+              if (script.includes('login-certificate') || script.includes('certificado digital')) {
+                return false
+              }
+            }
+            return true
+          })
+    // Se sobraram só passos de certificado genéricos para sessão de senha,
+    // ou nada, mantém a receita-atalho: apenas watcher de pós-login.
+    return { ...stored, steps, autoSubmit: record.authMethod === 'certificate' ? false : stored.autoSubmit }
+  }
+
+  private startWatcher(record: ManagedSession, definition: RecipeDefinition): void {
+    this.stopWatcher(record)
+    record.watcherStartedAt = Date.now()
+    record.watcher = setInterval(() => {
+      void this.watchPostLogin(record, definition)
+    }, 5_000)
+  }
+
+  private async watchPostLogin(
+    record: ManagedSession,
+    definition: RecipeDefinition,
+  ): Promise<void> {
+    if (record.closed || record.watcherBusy || record.status === 'authenticated') return
+    if (Date.now() - record.watcherStartedAt > 10 * 60_000) {
+      this.stopWatcher(record)
+      return
+    }
+    record.watcherBusy = true
+    try {
+      const target = this.targetForRecorder(record)
+      if (await checkPostLogin(definition, target)) {
+        this.markAuthenticated(record, 'Login detectado no portal.')
+      }
+    } catch {
+      // A pagina pode estar navegando; a proxima verificacao tenta novamente.
+    } finally {
+      record.watcherBusy = false
+    }
+  }
+
+  private markAuthenticated(record: ManagedSession, message: string): void {
+    if (record.closed || record.status === 'authenticated') return
+    record.status = 'authenticated'
+    record.statusMessage = message
+    record.lastError = null
+    record.requiresHumanAction = false
+    updateSessionRow(this.deps.db, record.id, 'authenticated')
+    this.stopWatcher(record)
+    this.clearBootSafetyTimer(record)
+    // Revelacao atomica: a janela mostra o e-CAC ja logado em um unico frame.
+    this.revealPortal(record)
+    // O e-CAC/RFB às vezes permanece com a máscara cinza ("processando...")
+    // após o callback mTLS. Um reload com o cookie de sessão entra direto na
+    // área logada. Para outros portais (ex.: JUCEC), a página renderiza ok na
+    // primeira vez — o reload só desperdiça um roundtrip com o broker.
+    if (record.authMethod === 'certificate' && record.serviceSlug === 'ecac') {
+      try {
+        record.view.webContents.reload()
+      } catch {
+        // A view pode ter sido destruída no exato instante.
+      }
+    }
+    this.record('session.auth_detected', record.id, {
+      serviceId: record.serviceId,
+      clientId: record.clientId,
+      autoReload: record.authMethod === 'certificate' && record.serviceSlug === 'ecac',
+    })
+    this.emit()
+  }
+
+  private revealPortal(record: ManagedSession): void {
+    if (record.closed) return
+    try {
+      if (record.win.isMinimized()) record.win.restore()
+      record.win.show()
+      record.win.focus()
+      record.portalHidden = false
+      // Revela nos bounds reais (y=chrome, altura=conteudo) e da foco a view
+      this.layout(record)
+      record.view.webContents.focus()
+      for (const popup of record.popups) {
+        if (!popup.isDestroyed() && !popup.isVisible()) popup.show()
+      }
+    } catch {
+      // Janela pode ter sido fechada entre a deteccao e a revelacao.
+    }
+  }
+
+  private hidePortal(record: ManagedSession): void {
+    if (record.closed) return
+    try {
+      record.portalHidden = true
+      record.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+    } catch {
+      // Janela pode ter sido fechada.
+    }
+  }
+
+  /** Revela o portal a pedido do usuario (botao "Abrir o portal mesmo assim"). */
+  reveal(id: string): void {
+    const record = this.requireSession(id)
+    record.requiresHumanAction = true
+    this.clearBootSafetyTimer(record)
+    this.revealPortal(record)
+    this.record('session.reveal_requested', record.id, { serviceId: record.serviceId })
+    this.emit()
+  }
+
+  private armBootSafetyTimer(record: ManagedSession): void {
+    if (record.authMethod !== 'certificate' && !record.portalHidden) return
+    this.clearBootSafetyTimer(record)
+    record.bootSafetyTimer = setTimeout(() => {
+      record.bootSafetyTimer = null
+      if (record.closed || record.status === 'authenticated') return
+      if (record.requiresHumanAction) return // humano agindo: nao podar o fluxo
+      // A receita legitima pode demorar (postLogin wait de 60s + clique). Nesse
+      // caso apenas adia o veredicto em vez de marcar erro prematuramente.
+      if (record.recipeRunning) {
+        this.armBootSafetyTimer(record)
+        return
+      }
+      record.status = 'manual'
+      record.statusMessage =
+        'O portal esta demorando mais que o esperado para concluir a autenticacao.'
+      record.lastError = 'boot_auth_timeout'
+      updateSessionRow(this.deps.db, record.id, 'manual', record.lastError)
+      this.record('session.boot_timeout', record.id, { serviceId: record.serviceId })
+      this.emit()
+    }, BOOT_AUTH_TIMEOUT_MS)
+  }
+
+  private clearBootSafetyTimer(record: ManagedSession): void {
+    if (record.bootSafetyTimer) {
+      clearTimeout(record.bootSafetyTimer)
+      record.bootSafetyTimer = null
+    }
+  }
+
+  private stopWatcher(record: ManagedSession): void {
+    if (record.watcher) {
+      clearInterval(record.watcher)
+      record.watcher = null
+    }
+  }
+
+  focus(id: string): void {
+    const record = this.requireSession(id)
+    if (record.status === 'authenticated' || record.requiresHumanAction) {
+      this.revealPortal(record)
+    }
+    if (record.win.isMinimized()) record.win.restore()
+    record.win.show()
+    record.win.focus()
+  }
+
+  close(id: string): void {
+    const record = this.requireSession(id)
+    record.win.close()
+  }
+
+  list(): PortalSession[] {
+    return Array.from(this.sessions.values())
+      .filter((session) => !session.closed)
+      .map((session) => this.toView(session))
+  }
+
+  details(id: string): SessionDetails | null {
+    const record = this.sessions.get(id)
+    if (!record || record.closed) return null
+    return {
+      ...this.toView(record),
+      allowedDomains: record.allowedDomains,
+      canProvideCredentials: Boolean(record.credentialId),
+      credentialId: record.credentialId,
+      zoomFactor: record.view.webContents.getZoomFactor(),
+      portalVisible: !record.portalHidden,
+      requiresHumanAction: record.requiresHumanAction,
+    }
+  }
+
+  navigate(id: string, url: string): void {
+    const record = this.requireSession(id)
+    if (!this.isAllowedUrl(url, record.allowedDomains)) {
+      throw new AppError(
+        'FORBIDDEN',
+        'Navegacao bloqueada',
+        'Este dominio nao esta na allowlist do servico.',
+      )
+    }
+    void record.view.webContents.loadURL(url)
+  }
+
+  reload(id: string): void {
+    this.requireSession(id).view.webContents.reload()
+  }
+
+  stop(id: string): void {
+    this.requireSession(id).view.webContents.stop()
+  }
+
+  back(id: string): void {
+    const record = this.requireSession(id)
+    if (record.view.webContents.canGoBack()) record.view.webContents.goBack()
+  }
+
+  forward(id: string): void {
+    const record = this.requireSession(id)
+    if (record.view.webContents.canGoForward()) record.view.webContents.goForward()
+  }
+
+  setZoom(id: string, factor: number): void {
+    this.requireSession(id).view.webContents.setZoomFactor(factor)
+    this.emit()
+  }
+
+  async openExternal(id: string, url?: string): Promise<void> {
+    const record = this.requireSession(id)
+    const target = url ?? record.view.webContents.getURL()
+    await this.confirmExternal(target, record.win)
+  }
+
+  getCredentialForManual(
+    id: string,
+    credentialId: string,
+    field: 'username' | 'password',
+  ): { value: string; expiresAt: string } {
+    const record = this.requireSession(id)
+    if (record.credentialId !== credentialId) {
+      throw new AppError('FORBIDDEN', 'Credencial nao pertence a esta sessao')
+    }
+    const recordCredential = getCredentialRecord(this.deps.db, credentialId)
+    if (
+      recordCredential.row.clientId !== record.clientId ||
+      recordCredential.row.serviceId !== record.serviceId
+    ) {
+      throw new AppError('FORBIDDEN', 'Credencial nao pertence ao cliente/servico da sessao')
+    }
+    const secret = revealCredential(this.deps.db, this.deps.vault, credentialId)
+    this.record('credential.revealed', credentialId, {
+      sessionId: id,
+      field,
+      reason: 'manual-login-panel',
+    })
+    return {
+      value: field === 'username' ? secret.username : secret.password,
+      expiresAt: new Date(Date.now() + 30_000).toISOString(),
+    }
+  }
+
+  async retryRecipe(id: string): Promise<RecipeTestResult> {
+    const record = this.requireSession(id)
+    if (record.recipeRunning) {
+      return {
+        ok: false,
+        status: 'broken',
+        message: 'A receita ja esta em execucao.',
+        failedStep: null,
+        testedAt: new Date().toISOString(),
+      }
+    }
+    if (record.status === 'authenticated' || record.requiresHumanAction) {
+      this.revealPortal(record)
+    }
+    record.recipeAttempted = true
+    record.status = 'awaiting_login'
+    record.statusMessage = 'Reexecutando receita...'
+    if (record.authMethod === 'certificate') {
+      record.requiresHumanAction = false
+      this.hidePortal(record)
+      this.armBootSafetyTimer(record)
+    }
+    this.stopWatcher(record)
+    await this.startRecipe(record)
+    const finalStatus = record.status as PortalSession['status']
+    const ok = finalStatus === 'authenticated' || finalStatus === 'awaiting_login'
+    return {
+      ok,
+      status: ok ? 'verified' : 'broken',
+      message: record.statusMessage ?? '',
+      failedStep: null,
+      testedAt: new Date().toISOString(),
+    }
+  }
+
+  isCertificateInUse(certificateId: string): boolean {
+    return Array.from(this.sessions.values()).some(
+      (session) => !session.closed && session.certificateId === certificateId,
+    )
+  }
+
+  closeAll(): void {
+    this.quitting = true
+    for (const session of Array.from(this.sessions.values())) {
+      this.stopWatcher(session)
+      for (const popup of session.popups) {
+        if (!popup.isDestroyed()) popup.close()
+      }
+      if (!session.win.isDestroyed()) session.win.close()
+      this.dispose(session, 'Aplicativo encerrado')
+    }
+  }
+
+  count(): number {
+    return this.sessions.size
+  }
+
+  onSelectionIssue(sessionId: string, message: string): void {
+    const record = this.sessions.get(sessionId)
+    if (!record || record.closed) return
+    record.status = 'manual'
+    record.statusMessage = message
+    record.lastError = message
+    updateSessionRow(this.deps.db, sessionId, 'manual', message)
+    this.deps.onSessionError({ sessionId, type: 'certificate_not_offered', message })
+    this.emit()
+  }
+
+  private dispose(record: ManagedSession, reason: string): void {
+    if (record.closed) return
+    record.closed = true
+    this.stopWatcher(record)
+    this.clearBootSafetyTimer(record)
+    for (const popup of record.popups) {
+      if (!popup.isDestroyed()) popup.close()
+    }
+    record.popups.clear()
+    this.sessions.delete(record.id)
+    const usage = (this.partitionUsage.get(record.partition) ?? 1) - 1
+    if (usage <= 0) {
+      this.partitionUsage.delete(record.partition)
+      const ses = electronSession.fromPartition(record.partition)
+      this.deps.registry.delete(ses)
+    } else {
+      this.partitionUsage.set(record.partition, usage)
+    }
+    try {
+      closeSessionRow(this.deps.db, record.id, reason)
+      this.record('session.closed', record.id, { reason })
+    } catch (error) {
+      logger.warn('session.close_audit_failed', {
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+    if (!this.quitting && !record.view.webContents.isDestroyed()) {
+      try {
+        record.view.webContents.close()
+      } catch {
+        // A view ja pode ter sido destruida junto com a janela.
+      }
+    }
+    this.emit()
+  }
+
+  private requireSession(id: string): ManagedSession {
+    const record = this.sessions.get(id)
+    if (!record || record.closed) throw new AppError('NOT_FOUND', 'Sessao nao encontrada')
+    return record
+  }
+
+  private toView(record: ManagedSession): PortalSession {
+    let url = ''
+    try {
+      url = redactUrl(record.view.webContents.getURL() || record.currentUrl)
+    } catch {
+      url = redactUrl(record.currentUrl)
+    }
+    return {
+      id: record.id,
+      clientId: record.clientId,
+      clientName: record.clientName,
+      serviceId: record.serviceId,
+      serviceName: record.serviceName,
+      serviceSlug: record.serviceSlug,
+      certificateId: record.certificateId,
+      certificate: record.certificateId
+        ? {
+            id: record.certificateId,
+            label: record.certificateLabel ?? 'Certificado',
+            holderName: record.certificateHolderName ?? record.clientName,
+            thumbprintSha256: record.certificateThumbprintSha256 ?? '',
+            validTo: record.certificateValidTo ?? '',
+          }
+        : null,
+      authMethod: record.authMethod,
+      partition: record.partition,
+      status: record.status,
+      statusMessage: record.statusMessage,
+      url,
+      title: record.title,
+      loading: record.loading,
+      canGoBack: record.view.webContents.canGoBack(),
+      canGoForward: record.view.webContents.canGoForward(),
+      recipeRunning: record.recipeRunning,
+      openedAt: record.openedAt,
+      closedAt: null,
+      lastError: record.lastError,
+    }
+  }
+
+  private emit(): void {
+    this.deps.onSessionsChanged(this.list())
+  }
+
+  private record(type: string, entityId: string | null, metadata: Record<string, unknown>): void {
+    try {
+      appendAuditEvent(this.deps.db, {
+        type,
+        entity: 'session',
+        entityId,
+        metadata,
+      })
+    } catch (error) {
+      logger.warn('session.audit_failed', {
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+}

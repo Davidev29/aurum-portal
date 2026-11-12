@@ -1,0 +1,1088 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   AurumBit Portal — Sistema de cor (colorimetria)
+   --------------------------------------------------------------------------
+   Princípios (WCAG 2.2 AA + conforto visual)
+   - Texto principal ≥ 7:1 sobre fundo/painel; texto secundário ≥ 4.5:1.
+   - Croma ≤ 15% nos neutros (evita fadiga cromática): chumbo quente
+     (cinza levemente alaranjado, nunca preto puro nem azul-slate).
+   - Light: fundo chumbo-linho #ECEAE5; painel aquecido #FAF9F6.
+     Dark: chumbo profundo #1B1A17; hierarquia bg < panel < panel-2 < panel-3.
+   - Acento: champanhe (#C9A962) — ouro velho dessaturado. Botões sólidos
+     usam texto chumbo (--pv-on-accent), nunca branco sobre champanhe.
+   - Semânticos: light usa tom 700; dark usa tom 300. Aviso vira laranja
+     queimado (se separa do dourado do acento). Destrutivo ganha peso 700.
+   - Texto ≠ fundo sólido: --pv-accent/--pv-success/--pv-danger são COR DE
+     TEXTO. Fundo sólido com texto usa --pv-*-solid (bronze/champanhe,
+     verde #15803D, vermelho #991B1B).
+   ========================================================================== */
+
+@theme {
+  --font-sans:
+    'Segoe UI', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+
+  /* Champanhe/bronze — escala dessaturada, de papel envelhecido a quase-negro quente */
+  --color-brand-50: #faf7ec;
+  --color-brand-100: #f4edd8;
+  --color-brand-200: #e9dcae;
+  --color-brand-300: #dcc987;
+  --color-brand-400: #c9a962;
+  --color-brand-500: #a8853f;
+  --color-brand-600: #7e6327;
+  --color-brand-700: #66521f;
+  --color-brand-800: #50401c;
+  --color-brand-900: #3d3118;
+}
+
+:root {
+  color-scheme: light;
+
+  /* Fundo — chumbo-linho: of-white aquecido, sem azul, sem brilho */
+  --pv-bg: #eceae5;
+  /* Painel — branco aquecido (não #FFF puro) */
+  --pv-panel: #faf9f6;
+  /* Painel secundário dentro de cards */
+  --pv-panel-2: #f0eee9;
+  /* Painel terciário (sub-grupos, cabeçalhos internos) */
+  --pv-panel-3: #e3e0da;
+  --pv-inset: #d9d6cf;
+
+  /* Bordas — chumbo médio, delimita sem pesar */
+  --pv-border: #cbc8bf;
+  --pv-border-strong: #a6a298;
+  --pv-border-subtle: #dfdcd5;
+
+  /* Texto — chumbo profundo (contraste ≥ 7:1) */
+  --pv-text: #26241f;
+  /* Texto secundário — chumbo médio (≥ 4.5:1) */
+  --pv-muted: #4b4840;
+  /* Texto fraco — recuado mas legível */
+  --pv-faint: #706c62;
+
+  /* Acento — bronze escuro como texto; champanhe como sólido (com texto chumbo) */
+  --pv-accent: #7e6327;
+  --pv-accent-solid: #c9a962;
+  --pv-accent-solid-hover: #b99b52;
+  --pv-accent-strong: #66521f;
+  --pv-accent-2: #5f5230;
+  --pv-accent-soft: #f3edda;
+  --pv-accent-soft-border: #e2d3a4;
+  /* Texto sobre --pv-accent-solid (champanhe) — nunca branco */
+  --pv-on-accent: #262013;
+
+  --pv-success: #15803d;
+  --pv-success-solid: #15803d;
+  --pv-success-soft: #edf7ef;
+  --pv-success-border: #a9d9bb;
+
+  --pv-warning: #c2410c;
+  --pv-warning-soft: #fdf0e7;
+  --pv-warning-border: #f5b48c;
+
+  --pv-danger: #b91c1c;
+  --pv-danger-solid: #991b1b;
+  --pv-danger-strong: #7f1d1d;
+  --pv-danger-soft: #fdf2f0;
+  --pv-danger-border: #efc3bd;
+
+  --pv-info: #3f4c5e;
+  --pv-info-soft: #eef0f4;
+  --pv-info-border: #c9cedb;
+
+  --pv-shadow-sm: 0 1px 2px rgba(38, 36, 31, 0.07);
+  --pv-shadow: 0 1px 2px rgba(38, 36, 31, 0.07), 0 8px 24px rgba(38, 36, 31, 0.07);
+  --pv-shadow-md: 0 2px 6px rgba(38, 36, 31, 0.08), 0 12px 32px rgba(38, 36, 31, 0.1);
+  --pv-shadow-lg: 0 4px 10px rgba(38, 36, 31, 0.09), 0 20px 52px rgba(38, 36, 31, 0.14);
+  --pv-ring: 0 0 0 3px rgba(168, 133, 63, 0.35);
+  --pv-ring-danger: 0 0 0 3px rgba(185, 28, 28, 0.25);
+
+  --pv-radius: 18px;
+  --pv-radius-sm: 12px;
+  --pv-overlay: rgba(27, 26, 23, 0.5);
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* Fundo — chumbo profundo e quente (nunca preto puro, nunca azul) */
+  --pv-bg: #1b1a17;
+  /* Painel — chumbo elevado */
+  --pv-panel: #242220;
+  /* Painel secundário — hierarquia clareando */
+  --pv-panel-2: #2c2a27;
+  /* Painel terciário */
+  --pv-panel-3: #373530;
+  --pv-inset: #201f1c;
+
+  /* Bordas — chumbo metálico, delimitam sem 'friaca' */
+  --pv-border: #3b3833;
+  --pv-border-strong: #52504a;
+  --pv-border-subtle: #2b2925;
+
+  /* Texto — of-white aquecido, alto contraste */
+  --pv-text: #ece9e2;
+  /* Texto secundário — greige claro */
+  --pv-muted: #b3afa3;
+  /* Texto fraco — recuado mas legível */
+  --pv-faint: #847f74;
+
+  /* Acento — champanhe claro como texto; champanhe clássico como sólido */
+  --pv-accent: #dcc987;
+  --pv-accent-solid: #c9a962;
+  --pv-accent-solid-hover: #dcc987;
+  --pv-accent-strong: #a8853f;
+  --pv-accent-2: #b0a06d;
+  --pv-accent-soft: rgba(220, 201, 135, 0.13);
+  --pv-accent-soft-border: rgba(220, 201, 135, 0.3);
+  /* Texto sobre --pv-accent-solid (champanhe) — nunca branco */
+  --pv-on-accent: #262013;
+
+  --pv-success: #3ddc97;
+  --pv-success-solid: #15803d;
+  --pv-success-soft: rgba(61, 220, 151, 0.12);
+  --pv-success-border: rgba(61, 220, 151, 0.28);
+
+  --pv-warning: #fb923c;
+  --pv-warning-soft: rgba(251, 146, 60, 0.12);
+  --pv-warning-border: rgba(251, 146, 60, 0.28);
+
+  --pv-danger: #f87171;
+  --pv-danger-solid: #991b1b;
+  --pv-danger-strong: #7f1d1d;
+  --pv-danger-soft: rgba(248, 113, 113, 0.13);
+  --pv-danger-border: rgba(248, 113, 113, 0.32);
+
+  --pv-info: #b9c6d6;
+  --pv-info-soft: rgba(185, 198, 214, 0.12);
+  --pv-info-border: rgba(185, 198, 214, 0.26);
+
+  --pv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --pv-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --pv-shadow-md: 0 2px 6px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.42);
+  --pv-shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.55), 0 20px 52px rgba(0, 0, 0, 0.55);
+  --pv-ring: 0 0 0 3px rgba(220, 201, 135, 0.3);
+  --pv-ring-danger: 0 0 0 3px rgba(248, 113, 113, 0.3);
+  --pv-overlay: rgba(15, 14, 11, 0.64);
+}
+
+* {
+  border-color: var(--pv-border);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* Evita o salto da página quando um modal trava o scroll (Radix): o gutter
+ * fica reservado mesmo com a barra de rolagem escondida. */
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  background: var(--pv-bg);
+  color: var(--pv-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings:
+    'ss01' on,
+    'cv11' on;
+  letter-spacing: -0.011em;
+}
+
+/* Atmosfera sutil — brilho mínimo, sem arco-íris (reduz fadiga) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 400px at 85% -10%, rgba(168, 133, 63, 0.09), transparent 65%),
+    radial-gradient(700px 320px at -5% 105%, rgba(201, 169, 98, 0.08), transparent 62%);
+  z-index: -1;
+}
+
+.dark body::before {
+  background:
+    radial-gradient(900px 400px at 85% -10%, rgba(220, 201, 135, 0.09), transparent 65%),
+    radial-gradient(700px 320px at -5% 105%, rgba(201, 169, 98, 0.06), transparent 62%);
+}
+
+::selection {
+  background: rgba(168, 133, 63, 0.32);
+  color: inherit;
+}
+
+.dark ::selection {
+  background: rgba(220, 201, 135, 0.34);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::placeholder {
+  color: var(--pv-faint);
+  opacity: 1;
+}
+
+.pv-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--pv-faint) 55%, transparent) transparent;
+}
+
+.pv-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.pv-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--pv-faint) 45%, transparent);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.pv-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--pv-faint) 70%, transparent);
+  background-clip: content-box;
+  border: 3px solid transparent;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--pv-ring);
+}
+
+/* ---------- Superfícies reutilizáveis ---------- */
+
+.pv-surface {
+  border: 1px solid var(--pv-border);
+  background: var(--pv-panel);
+  border-radius: var(--pv-radius);
+  box-shadow: var(--pv-shadow-sm);
+}
+
+.pv-surface-raised {
+  border: 1px solid var(--pv-border);
+  background: linear-gradient(180deg, var(--pv-panel), var(--pv-panel-2));
+  border-radius: var(--pv-radius);
+  box-shadow: var(--pv-shadow-md);
+}
+
+/* Hover estável: nunca desloca o elemento (sem "pulo"). Só sombra/borda. */
+.pv-surface-hover {
+  transition:
+    box-shadow var(--pv-dur-base) cubic-bezier(0.16, 1, 0.3, 1),
+    border-color var(--pv-dur-base) ease;
+}
+
+.pv-surface-hover:hover {
+  border-color: var(--pv-border-strong);
+  box-shadow: var(--pv-shadow-lg);
+}
+
+.pv-btn--link {
+  overflow: visible;
+}
+
+.pv-btn--link::before {
+  display: none;
+}
+
+.pv-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pv-faint);
+}
+
+/* ---------- Semânticos (texto sempre ≥ 4.5:1) ---------- */
+
+.pv-text-success {
+  color: var(--pv-success);
+  font-weight: 600;
+}
+
+.pv-text-warning {
+  color: var(--pv-warning);
+  font-weight: 600;
+}
+
+.pv-text-info {
+  color: var(--pv-info);
+  font-weight: 600;
+}
+
+/* Destrutivo: não é só cor — peso, tint e borda. Legível à distância. */
+.pv-text-danger {
+  color: var(--pv-danger);
+  font-weight: 700;
+}
+
+.pv-danger-surface {
+  border: 1px solid var(--pv-danger-border);
+  background: var(--pv-danger-soft);
+  color: var(--pv-danger);
+}
+
+.pv-danger-surface:hover {
+  border-color: var(--pv-danger);
+}
+
+.pv-error {
+  color: var(--pv-danger);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ---------- Componentes base ---------- */
+
+.pv-input {
+  border: 1px solid var(--pv-border-strong);
+  background: var(--pv-panel);
+  color: var(--pv-text);
+  border-radius: 12px;
+  box-shadow: var(--pv-shadow-sm);
+}
+
+.pv-input:focus-visible,
+.pv-input:focus {
+  border-color: var(--pv-accent);
+  box-shadow: var(--pv-ring);
+}
+
+.pv-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--pv-panel-2);
+}
+
+.pv-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.65) 50%,
+    transparent 80%
+  );
+  animation: pv-shimmer 1.4s infinite;
+}
+
+.dark .pv-skeleton::after {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 80%
+  );
+}
+
+@keyframes pv-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pv-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pv-anim-fade-up {
+  animation: pv-fade-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* `backwards`, não `both`: o fill-forwards manteria transform no elemento e
+ * impediria micro-interações de hover (translateY) após a entrada. */
+.pv-stagger > * {
+  animation: pv-fade-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.pv-stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.pv-stagger > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.pv-stagger > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+.pv-stagger > *:nth-child(4) {
+  animation-delay: 120ms;
+}
+.pv-stagger > *:nth-child(5) {
+  animation-delay: 160ms;
+}
+.pv-stagger > *:nth-child(6) {
+  animation-delay: 200ms;
+}
+.pv-stagger > *:nth-child(n + 7) {
+  animation-delay: 240ms;
+}
+
+/* ==========================================================================
+   AurumBit Portal — Sistema de movimento (micro-interações elásticas)
+   Tokens, keyframes e utilitários. Tudo respeita prefers-reduced-motion.
+   Curvas: spring (overshoot elegante) aplicada em botões, menus, modais.
+   ========================================================================== */
+
+:root {
+  --pv-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --pv-ease-spring-soft: cubic-bezier(0.22, 1.36, 0.36, 1);
+  --pv-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --pv-ease-in-out: cubic-bezier(0.65, 0.05, 0.36, 1);
+  --pv-dur-micro: 120ms;
+  --pv-dur-fast: 160ms;
+  --pv-dur-base: 220ms;
+  --pv-dur-slow: 380ms;
+  --pv-dur-modal: 340ms;
+}
+
+@keyframes pv-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pv-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pv-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(6px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.03) translateY(-1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Centralização do modal: vem da propriedade `translate` do Tailwind
+   (-translate-x-1/2 -translate-y-1/2 em DialogContent). Não incluir
+   translate(-50%, -50%) aqui — no Tailwind v4 `translate` e `transform`
+   se somam e o modal fica descentralizado (duplo deslocamento). */
+@keyframes pv-dialog-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(14px);
+    filter: blur(2px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.015) translateY(-2px);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes pv-dialog-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.94) translateY(10px);
+  }
+}
+
+@keyframes pv-page-in {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.995);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.002);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pv-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes pv-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes pv-slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.01);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pv-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pv-toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pv-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+}
+
+@keyframes pv-check-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pv-heart-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.25) rotate(-8deg);
+  }
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes pv-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes pv-shine {
+  from {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(260%) skewX(-18deg);
+  }
+}
+
+@keyframes pv-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(21, 128, 61, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(21, 128, 61, 0);
+  }
+}
+
+@keyframes pv-ripple-out {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Utilitários de entrada (usar nas páginas e componentes) */
+.pv-page-transition {
+  animation: pv-page-in var(--pv-dur-slow) var(--pv-ease-spring-soft) both;
+}
+
+.pv-anim-pop {
+  animation: pv-pop-in var(--pv-dur-modal) var(--pv-ease-spring) both;
+}
+
+.pv-anim-scale {
+  animation: pv-scale-in var(--pv-dur-base) var(--pv-ease-spring) both;
+}
+
+.pv-anim-slide-right {
+  animation: pv-slide-in-right var(--pv-dur-base) var(--pv-ease-spring-soft) both;
+}
+
+.pv-anim-slide-left {
+  animation: pv-slide-in-left var(--pv-dur-base) var(--pv-ease-spring-soft) both;
+}
+
+.pv-anim-slide-up {
+  animation: pv-slide-in-up var(--pv-dur-slow) var(--pv-ease-spring-soft) both;
+}
+
+.pv-anim-check-pop {
+  animation: pv-check-pop 320ms var(--pv-ease-spring) both;
+}
+
+.pv-anim-heart-pop {
+  animation: pv-heart-pop 420ms var(--pv-ease-spring) both;
+}
+
+.pv-anim-shake {
+  animation: pv-shake 380ms var(--pv-ease-in-out);
+}
+
+.pv-stagger-spring > * {
+  animation: pv-pop-in 380ms var(--pv-ease-spring) backwards;
+}
+
+.pv-stagger-spring > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.pv-stagger-spring > *:nth-child(2) {
+  animation-delay: 45ms;
+}
+.pv-stagger-spring > *:nth-child(3) {
+  animation-delay: 90ms;
+}
+.pv-stagger-spring > *:nth-child(4) {
+  animation-delay: 135ms;
+}
+.pv-stagger-spring > *:nth-child(5) {
+  animation-delay: 180ms;
+}
+.pv-stagger-spring > *:nth-child(6) {
+  animation-delay: 225ms;
+}
+.pv-stagger-spring > *:nth-child(n + 7) {
+  animation-delay: 270ms;
+}
+
+/* Botão — base táctil global (aplica-se a todo <button> sem classe customizada) */
+button,
+[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  will-change: transform;
+}
+
+/* Botão — família .pv-btn (usada pelo componente Button) */
+.pv-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    box-shadow var(--pv-dur-fast) var(--pv-ease-out-expo),
+    background-color var(--pv-dur-fast) ease,
+    border-color var(--pv-dur-fast) ease,
+    color var(--pv-dur-fast) ease,
+    filter var(--pv-dur-fast) ease;
+}
+
+.pv-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  transform: translateX(-130%) skewX(-18deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pv-btn:hover::before {
+  animation: pv-shine 620ms var(--pv-ease-out-expo) 80ms;
+}
+
+.pv-btn:hover {
+  filter: brightness(1.04);
+}
+
+.pv-btn:active {
+  filter: brightness(0.96);
+}
+
+.pv-btn svg {
+  flex-shrink: 0;
+}
+
+/* Link de navegação — menu lateral (hover estável, sem deslocamento) */
+.pv-nav-link {
+  position: relative;
+  transition:
+    background-color var(--pv-dur-fast) ease,
+    color var(--pv-dur-fast) ease,
+    box-shadow var(--pv-dur-fast) ease;
+}
+
+.pv-nav-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translateY(-50%) scaleY(0);
+  transition:
+    height var(--pv-dur-base) var(--pv-ease-spring),
+    transform var(--pv-dur-base) var(--pv-ease-spring);
+  opacity: 0.8;
+}
+
+.pv-nav-link:hover::before {
+  height: 20px;
+  transform: translateY(-50%) scaleY(1);
+}
+
+.pv-nav-link.is-active::before {
+  height: 22px;
+  opacity: 1;
+  transform: translateY(-50%) scaleY(1);
+}
+
+.pv-nav-link .pv-nav-icon {
+  transition:
+    background-color var(--pv-dur-fast) ease,
+    color var(--pv-dur-fast) ease;
+}
+
+/* Cartões e cards — hover estável: sem "levantar", só sombra/borda */
+.pv-lift {
+  transition:
+    box-shadow var(--pv-dur-base) var(--pv-ease-out-expo),
+    border-color var(--pv-dur-base) ease;
+}
+
+.pv-lift:hover {
+  box-shadow: var(--pv-shadow-lg);
+  border-color: var(--pv-border-strong);
+}
+
+/* Store — card de serviço: elevação táctil suave ao passar o mouse.
+ * Curva easeOutQuart: começa devagar, assenta sem "snapping" — na ida e na
+ * volta. Sombra em camadas de baixa opacidade (nunca "pesada"). */
+.pv-service-card {
+  transition:
+    transform 360ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 360ms cubic-bezier(0.25, 1, 0.5, 1),
+    border-color var(--pv-dur-base) ease;
+  will-change: transform;
+}
+
+.pv-service-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--pv-border-strong);
+  box-shadow:
+    0 1px 2px rgba(38, 36, 31, 0.06),
+    0 10px 20px rgba(38, 36, 31, 0.09),
+    0 26px 52px rgba(38, 36, 31, 0.17);
+}
+
+.dark .pv-service-card:hover {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.42),
+    0 12px 24px rgba(0, 0, 0, 0.36),
+    0 30px 60px rgba(0, 0, 0, 0.5);
+}
+
+.pv-service-card:active {
+  transform: translateY(-2px) scale(0.985);
+  transition-duration: 180ms;
+  box-shadow:
+    0 1px 2px rgba(38, 36, 31, 0.07),
+    0 10px 22px rgba(38, 36, 31, 0.11);
+}
+
+.dark .pv-service-card:active {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 12px 26px rgba(0, 0, 0, 0.42);
+}
+
+/* Tile do logo: leve "respiração" no hover do card (mola suave) */
+.pv-service-logo {
+  transition: transform var(--pv-dur-slow) var(--pv-ease-spring-soft);
+}
+
+.pv-service-card:hover .pv-service-logo {
+  transform: scale(1.07);
+}
+
+/* Ponto "ao vivo" (sessões abertas) — pulso suave */
+@keyframes pv-live-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.72);
+  }
+}
+
+.pv-live-dot {
+  animation: pv-live-dot 1.6s ease-in-out infinite;
+}
+
+/* Favorito: estouro de estrela ao marcar */
+@keyframes pv-star-pop {
+  0% {
+    transform: scale(0.5) rotate(-24deg);
+  }
+  55% {
+    transform: scale(1.35) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.pv-star-pop {
+  animation: pv-star-pop 420ms var(--pv-ease-spring) both;
+}
+
+/* Chip GOV.BR — identidade do ecossistema gov.br no card */
+.pv-gov-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--pv-accent-soft-border);
+  background: var(--pv-accent-soft);
+  color: var(--pv-accent);
+  border-radius: 999px;
+  padding: 2px 8px 2px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: lowercase;
+  line-height: 1.5;
+}
+
+/* Ícone — hover estável: só cor/fundo, sem "pop" ou escala */
+.pv-icon-btn {
+  transition:
+    background-color var(--pv-dur-fast) ease,
+    color var(--pv-dur-fast) ease;
+}
+
+/* Elemento genérico (chips, linhas clicáveis, links) — hover sem deslocamento */
+.pv-pressable {
+  transition:
+    box-shadow var(--pv-dur-fast) var(--pv-ease-out-expo),
+    border-color var(--pv-dur-fast) ease,
+    background-color var(--pv-dur-fast) ease;
+}
+
+.pv-pressable:hover {
+  box-shadow: var(--pv-shadow);
+  border-color: var(--pv-border-strong);
+}
+
+/* Ripple — elemento injetado pelo JS do Button */
+.pv-ripple {
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(0);
+  animation: pv-ripple-out 520ms ease-out forwards;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pv-ripple--dark {
+  background: rgba(38, 36, 31, 0.14);
+}
+
+/* Dialog & Overlay — estados Radix */
+.pv-overlay[data-state='open'] {
+  animation: pv-fade-in 220ms ease-out both;
+}
+
+.pv-overlay[data-state='closed'] {
+  animation: pv-fade-out 180ms ease-in both;
+}
+
+.pv-dialog[data-state='open'] {
+  animation: pv-dialog-in var(--pv-dur-modal) var(--pv-ease-spring) both;
+}
+
+.pv-dialog[data-state='closed'] {
+  animation: pv-dialog-out 180ms ease-in both;
+}
+
+/* Tabs — painel entra com slide suave */
+.pv-tabs-content[data-state='active'] {
+  animation: pv-slide-in-up 280ms var(--pv-ease-spring-soft) both;
+}
+
+/* Sonner — entrada elástica dos toasts */
+[data-sonner-toaster] [data-sonner-toast] {
+  animation: pv-toast-in var(--pv-dur-slow) var(--pv-ease-spring-soft) both;
+  transition: transform var(--pv-dur-fast) var(--pv-ease-spring);
+}
+
+[data-sonner-toaster] [data-sonner-toast]:active {
+  transform: scale(0.98);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-removed='true'] {
+  animation: pv-toast-out 140ms ease-in both;
+}
+
+/* Dropdown / Popover / Select — menus flutuantes */
+.pv-floating[data-state='open'] {
+  animation: pv-pop-in var(--pv-dur-base) var(--pv-ease-spring) both;
+  transform-origin: var(--radix-popper-transform-origin, top center);
+}
+
+.pv-floating[data-state='closed'] {
+  animation: pv-fade-out 120ms ease-in both;
+}
+
+/* Linha de tabela clicável */
+.pv-row-hover {
+  transition:
+    background-color var(--pv-dur-fast) ease,
+    transform var(--pv-dur-micro) var(--pv-ease-spring);
+}
+
+.pv-row-hover:hover {
+  background-color: color-mix(in srgb, var(--pv-accent-soft) 55%, transparent);
+}
+
+/* Focus visível — anel (sem deslocamento) */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--pv-ring);
+  transition: box-shadow var(--pv-dur-fast) ease;
+}
+
+.pv-ring-soft {
+  box-shadow: 0 0 0 1px var(--pv-border) inset;
+}
+
+/* Sonner — toasts herdam o tema */
+[data-sonner-toaster] {
+  --normal-bg: var(--pv-panel);
+  --normal-text: var(--pv-text);
+  --normal-border: var(--pv-border);
+  --success-bg: var(--pv-success-soft);
+  --success-border: var(--pv-success-border);
+  --success-text: var(--pv-success);
+  --error-bg: var(--pv-danger-soft);
+  --error-border: var(--pv-danger-border);
+  --error-text: var(--pv-danger);
+  --warning-bg: var(--pv-warning-soft);
+  --warning-border: var(--pv-warning-border);
+  --warning-text: var(--pv-warning);
+  --info-bg: var(--pv-info-soft);
+  --info-border: var(--pv-info-border);
+  --info-text: var(--pv-info);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

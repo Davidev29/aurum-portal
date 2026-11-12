@@ -1,0 +1,126 @@
+/* ==========================================================================
+   Boot Loader — "Spinner duplo gov.br" (dark neon)
+   Dois anéis concêntricos girando em sentidos opostos; núcleo estático.
+   ========================================================================== */
+
+.runtime-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 620px at 50% -12%, rgba(6, 78, 59, 0.46), transparent 62%),
+    radial-gradient(900px 500px at 12% 110%, rgba(6, 95, 70, 0.34), transparent 60%),
+    radial-gradient(900px 520px at 88% 108%, rgba(5, 46, 34, 0.5), transparent 62%),
+    linear-gradient(180deg, #141310 0%, #1b1a17 52%, #100f0d 100%);
+}
+
+.runtime-grid {
+  position: absolute;
+  inset: -160px;
+  background-image:
+    linear-gradient(rgba(220, 201, 135, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(220, 201, 135, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  animation: pv-grid-drift 26s linear infinite;
+  transform-origin: center;
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 55%, black 40%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 55%, black 40%, transparent 78%);
+}
+
+@keyframes pv-grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 44px, 44px 0; }
+}
+
+.runtime-aurora {
+  position: absolute;
+  width: 62%;
+  height: 60%;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.32;
+  animation: pv-aurora-drift 18s ease-in-out infinite alternate;
+}
+.runtime-aurora-a { background: radial-gradient(circle, #064e3b 0%, transparent 70%); left: -14%; top: -18%; }
+.runtime-aurora-b { background: radial-gradient(circle, #065f46 0%, transparent 70%); right: -16%; bottom: -22%; animation-delay: -9s; }
+
+@keyframes pv-aurora-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.26; }
+  100% { transform: translate3d(6%, -7%, 0) scale(1.12); opacity: 0.38; }
+}
+
+/* ---------- Spinker duplo ---------- */
+.spinner-outer {
+  animation: pv-rotate-cw 6.5s linear infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.spinner-inner {
+  animation: pv-rotate-ccw 3.2s linear infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes pv-rotate-cw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pv-rotate-ccw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+.spinner-core {
+  animation: pv-core-pulse 2.4s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes pv-core-pulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.18); }
+}
+
+/* ---------- Texto (uma linha) + shimmer ---------- */
+.pv-line-label {
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  animation: pv-label-breathe 2.8s ease-in-out infinite;
+}
+
+@keyframes pv-label-breathe {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+.pv-dot { animation: pv-dot-blink 1.35s steps(1) infinite; }
+.pv-dot-2 { animation-delay: -0.9s; }
+.pv-dot-3 { animation-delay: -0.45s; }
+
+@keyframes pv-dot-blink {
+  0%, 100% { opacity: 0.15; }
+  40% { opacity: 1; }
+}
+
+.pv-shimmer-track { background: rgba(52, 211, 153, 0.16); }
+.pv-shimmer-bar {
+  background: linear-gradient(90deg, transparent 0%, #34d399 35%, #a7f3d0 50%, #34d399 65%, transparent 100%);
+  background-size: 260% 100%;
+  animation: pv-shimmer 2.6s ease-in-out infinite;
+  border-radius: inherit;
+}
+
+@keyframes pv-shimmer {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runtime-grid, .runtime-aurora, .runtime-aurora-a, .runtime-aurora-b,
+  .spinner-outer, .spinner-inner, .spinner-core,
+  .pv-line-label, .pv-dot, .pv-dot-2, .pv-dot-3, .pv-shimmer-bar {
+    animation: none !important;
+  }
+}
