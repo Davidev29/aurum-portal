@@ -13,7 +13,7 @@ export function Switch({
   return (
     <SwitchPrimitive.Root
       className={cn(
-        'peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent bg-[var(--pv-border-strong)] transition-[background-color,box-shadow] duration-200 ease hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-[var(--pv-accent-solid)]',
+        'peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent bg-[var(--pv-border-strong)] transition-[background-color,box-shadow] duration-200 ease hover:brightness-105 focus-visible:ring-2 focus-visible:ring-brand-600/30 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-[var(--pv-accent-solid)]',
         className,
       )}
       {...props}
@@ -30,7 +30,7 @@ export function Checkbox({
   return (
     <CheckboxPrimitive.Root
       className={cn(
-        'peer h-5 w-5 shrink-0 rounded-md border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] shadow-sm transition-[background-color,border-color] duration-150 ease hover:border-[var(--pv-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-[var(--pv-accent-solid)] data-[state=checked]:bg-[var(--pv-accent-solid)] data-[state=checked]:text-[var(--pv-on-accent)]',
+        'peer h-5 w-5 shrink-0 rounded-md border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] shadow-sm transition-[background-color,border-color] duration-150 ease hover:border-[var(--pv-accent)] focus-visible:ring-2 focus-visible:ring-brand-600/30 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-[var(--pv-accent-solid)] data-[state=checked]:bg-[var(--pv-accent-solid)] data-[state=checked]:text-[var(--pv-on-accent)]',
         className,
       )}
       {...props}

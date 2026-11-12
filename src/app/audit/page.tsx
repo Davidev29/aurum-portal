@@ -207,7 +207,7 @@ export default function AuditPage() {
           <Input
             value={entity}
             onChange={(event) => setEntity(event.target.value)}
-            placeholder="Filtrar por entidade (cliente, credencial, certificado...)"
+            placeholder="Filtrar por entidade ou tipo…"
             className="pl-10"
             aria-label="Filtrar por entidade"
           />

@@ -407,7 +407,7 @@ export default function SessionPage() {
         <RoboticActivity label={`Acessando ${data.serviceName}`} />
       ) : null}
       {needsHuman ? (
-        <div className="flex h-8 shrink-0 items-center justify-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-3 text-[11px] font-medium text-amber-400">
+        <div className="flex h-8 shrink-0 items-center justify-center gap-2 border-b border-[var(--pv-warning-border)] bg-[var(--pv-warning-soft)] px-3 text-[11px] font-medium text-[var(--pv-warning)]">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span className="truncate">
             Ação manual necessária — conclua a verificação na tela abaixo.
@@ -416,7 +416,7 @@ export default function SessionPage() {
       ) : null}
 
       {portalHidden ? (
-        <main className="relative min-h-0 flex-1 overflow-hidden bg-[#141310]">
+        <main className="relative min-h-0 flex-1 overflow-hidden bg-[#0d0d12]">
           {awaitingOrBooting ? (
             <>
               <BootLoader title={`Acessando ${data?.serviceName ?? 'portal'}`} />
@@ -425,7 +425,7 @@ export default function SessionPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="border-[#6b5524] bg-[#1b1a17]/60 text-[#ece9e2] backdrop-blur-sm hover:bg-[#242220]"
+                    className="border-indigo-300/25 bg-[#17171c]/70 text-[#f2f2f6] backdrop-blur-sm hover:bg-[#23232b]"
                     onClick={() =>
                       void run(async () => {
                         const result = await aurumBitPortal().sessions.retryRecipe(sessionId)
@@ -439,7 +439,7 @@ export default function SessionPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-[#d8c795] hover:bg-white/5 hover:text-[#f5efe4]"
+                    className="text-[#a5adff] hover:bg-white/5 hover:text-[#e7e9ff]"
                     onClick={() => void run(() => aurumBitPortal().sessions.reveal(sessionId))}
                   >
                     Abrir o portal mesmo assim
@@ -454,10 +454,10 @@ export default function SessionPage() {
                   <AlertTriangle className="h-7 w-7 text-amber-400" aria-hidden="true" />
                 </div>
                 <div className="space-y-2">
-                  <p className="text-base font-semibold tracking-tight text-[#ece9e2]">
+                  <p className="text-base font-semibold tracking-tight text-[#f2f2f6]">
                     Não foi possível concluir o acesso
                   </p>
-                  <p className="mx-auto max-w-md text-[13px] leading-relaxed text-[#d8c795]">
+                  <p className="mx-auto max-w-md text-[13px] leading-relaxed text-[#a5adff]">
                     {data.statusMessage ?? 'O portal não confirmou a autenticação automaticamente.'}
                   </p>
                 </div>
@@ -477,7 +477,7 @@ export default function SessionPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="border-[#6b5524] bg-[#1b1a17] text-[#ece9e2] hover:bg-[#242220]"
+                    className="border-indigo-300/25 bg-[#17171c] text-[#f2f2f6] hover:bg-[#23232b]"
                     onClick={() => void run(() => aurumBitPortal().sessions.reveal(sessionId))}
                   >
                     Abrir o portal mesmo assim
@@ -485,7 +485,7 @@ export default function SessionPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-[#d8c795] hover:bg-white/5 hover:text-[#f5efe4]"
+                    className="text-[#a5adff] hover:bg-white/5 hover:text-[#e7e9ff]"
                     onClick={() => void aurumBitPortal().sessions.close(sessionId)}
                   >
                     Fechar sessão

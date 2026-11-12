@@ -28,13 +28,13 @@ const navigation = [
       { href: '/', label: 'Store', icon: Store },
       { href: '/clients', label: 'Clientes', icon: Building2 },
       { href: '/obrigacoes', label: 'Obrigações', icon: ClipboardCheck },
-      { href: '/certificates', label: 'Gerenciar Certificados digitais', icon: FileBadge },
+      { href: '/certificates', label: 'Certificados', icon: FileBadge },
     ],
   },
   {
     section: 'Trabalho',
     items: [
-      { href: '/assinaturas', label: 'Assinar documentos digitalmente', icon: FilePenLine },
+      { href: '/assinaturas', label: 'Assinatura digital', icon: FilePenLine },
       { href: '/sessions', label: 'Sessões', icon: AppWindow },
     ],
   },
@@ -69,35 +69,43 @@ export function AppShell({
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--pv-bg)]">
+      <a
+        href="#app-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-[var(--pv-radius-control)] focus:border focus:border-[var(--pv-border)] focus:bg-[var(--pv-panel)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[var(--pv-text)] focus:shadow-lg"
+      >
+        Pular para o conteúdo
+      </a>
       <aside className="flex w-[264px] shrink-0 flex-col border-r border-[var(--pv-border)] bg-[var(--pv-panel)]">
-        <div className="flex h-[72px] shrink-0 items-center gap-3 border-b border-[var(--pv-border)] px-4">
+        <div className="flex h-[72px] shrink-0 items-center gap-3 border-b border-[var(--pv-border)] px-6">
           <div className="relative shrink-0">
             <img
               src={APP_LOGO_URL}
               alt={APP_DISPLAY_NAME}
-              className="h-11 w-11 rounded-2xl object-cover shadow-md ring-1 ring-[var(--pv-border-strong)]"
+              className="h-11 w-11 rounded-[var(--pv-radius)] object-cover ring-1 ring-[var(--pv-border-strong)]"
               draggable={false}
             />
             <span
-              className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[var(--pv-success)] ring-2 ring-[var(--pv-panel)]"
+              className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-[var(--pv-success)] ring-2 ring-[var(--pv-panel)]"
               aria-hidden="true"
             />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-[15px] font-bold tracking-tight">{APP_DISPLAY_NAME}</div>
-            <div className="text-[11px] font-medium text-[var(--pv-muted)]">
+            <div className="truncate text-[14px] font-semibold tracking-[-0.01em]">
+              {APP_DISPLAY_NAME}
+            </div>
+            <div className="text-[11px] font-medium text-[var(--pv-faint)]">
               Cofre de acessos gov.br
             </div>
           </div>
         </div>
 
         <nav
-          className="flex-1 space-y-6 overflow-y-auto p-3 pv-scroll"
+          className="flex-1 space-y-6 overflow-y-auto px-3 py-4 pv-scroll"
           aria-label="Navegação principal"
         >
           {navigation.map((group) => (
             <div key={group.section} className="space-y-1">
-              <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--pv-faint)]">
+              <div className="px-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[var(--pv-faint)]">
                 {group.section}
               </div>
               {group.items.map((item) => {
@@ -109,18 +117,16 @@ export function AppShell({
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'pv-nav-link group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30',
-                      active
-                        ? 'is-active bg-[var(--pv-accent-solid)] text-[var(--pv-on-accent)] shadow-md'
-                        : 'text-[var(--pv-muted)] hover:bg-[var(--pv-panel-2)] hover:text-[var(--pv-text)]',
+                      'pv-nav-link group relative flex items-center gap-3 overflow-hidden rounded-[var(--pv-radius-control)] py-2 px-3 text-[13.5px] font-medium focus-visible:ring-2 focus-visible:ring-[var(--pv-accent-solid)]',
+                      active ? 'is-active' : 'hover:bg-[var(--pv-panel-2)]',
                     )}
                   >
                     <span
                       className={cn(
-                        'pv-nav-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                        'pv-nav-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--pv-radius-xs)] border',
                         active
-                          ? 'bg-black/10 text-[var(--pv-on-accent)]'
-                          : 'bg-[var(--pv-panel-2)] text-[var(--pv-muted)] group-hover:bg-[var(--pv-panel-3)] group-hover:text-[var(--pv-text)] border border-[var(--pv-border)]',
+                          ? 'border-[var(--pv-accent-soft-border)] text-[var(--pv-accent)]'
+                          : 'border-[var(--pv-border)] bg-[var(--pv-panel-2)] text-[var(--pv-muted)] group-hover:bg-[var(--pv-panel-3)] group-hover:text-[var(--pv-text)]',
                       )}
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />
@@ -139,7 +145,11 @@ export function AppShell({
         </nav>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main
+        id="app-content"
+        tabIndex={-1}
+        className="flex min-w-0 flex-1 flex-col overflow-hidden focus:outline-none"
+      >
         <div className="relative flex h-16 shrink-0 items-center justify-between gap-4 border-b border-[var(--pv-border)] bg-[var(--pv-panel)]/85 px-6 backdrop-blur supports-[backdrop-filter]:bg-[var(--pv-panel)]/80">
           <nav
             className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--pv-muted)]"
@@ -149,7 +159,7 @@ export function AppShell({
             <ChevronRight className="hidden h-3.5 w-3.5 sm:inline" aria-hidden="true" />
             <span
               key={current?.href ?? 'panel'}
-              className="pv-anim-slide-right max-w-[240px] truncate rounded-full bg-[var(--pv-panel-2)] px-2.5 py-1 font-semibold text-[var(--pv-text)]"
+              className="pv-anim-slide-right max-w-[240px] truncate rounded-full border border-[var(--pv-border-subtle)] bg-[var(--pv-panel-2)]/60 px-2.5 py-1 font-semibold text-[var(--pv-text)]"
             >
               {current?.label ?? 'Painel'}
             </span>
@@ -162,7 +172,7 @@ export function AppShell({
             {openSessions > 0 ? (
               <Link
                 href="/sessions"
-                className="pv-pressable inline-flex h-9 items-center gap-2 rounded-full border border-[var(--pv-success-border)] bg-[var(--pv-success-soft)] px-3.5 text-xs font-bold text-[var(--pv-success)] shadow-sm hover:brightness-105"
+                className="pv-pressable inline-flex h-9 items-center gap-2 rounded-[var(--pv-radius-control)] border border-[var(--pv-border)] bg-[var(--pv-panel)] px-3.5 text-sm font-bold text-[var(--pv-success)] shadow-sm hover:brightness-[1.02]"
               >
                 <span
                   className="h-2 w-2 animate-pulse rounded-full bg-[var(--pv-success)]"

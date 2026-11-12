@@ -104,7 +104,7 @@ export function CertificateLinkDialog({
             Cancelar
           </Button>
           <Button onClick={() => void submit()} disabled={busy || !clientId || !consent}>
-            {busy ? 'Vinculando...' : 'Vincular'}
+            {busy ? 'Vinculando…' : 'Vincular'}
           </Button>
         </DialogFooter>
       </DialogContent>

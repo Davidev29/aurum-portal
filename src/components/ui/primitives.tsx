@@ -89,10 +89,12 @@ export function StatCard({
         </div>
       ) : null}
       <div className="min-w-0">
-        <div className="truncate text-xs font-medium text-[var(--pv-muted)]">{label}</div>
+        <div className="text-[11px] font-medium uppercase leading-snug tracking-[0.05em] text-[var(--pv-faint)]">
+          {label}
+        </div>
         <div
           className={cn(
-            'mt-0.5 text-[22px] font-bold leading-none tracking-tight',
+            'pv-num mt-0.5 text-[20px] font-semibold leading-none tracking-tight',
             valueTones[tone],
           )}
         >

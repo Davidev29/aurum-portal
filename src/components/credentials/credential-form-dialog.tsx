@@ -254,6 +254,7 @@ export function CredentialFormDialog({
                 size="icon"
                 onClick={() => void copy()}
                 disabled={!password}
+                aria-label="Copiar senha"
               >
                 <Copy className="h-4 w-4" />
               </Button>
@@ -306,7 +307,7 @@ export function CredentialFormDialog({
             Cancelar
           </Button>
           <Button onClick={() => void create()} disabled={busy || !valid}>
-            {busy ? 'Salvando...' : credential ? 'Salvar alteracoes' : 'Adicionar ao cofre'}
+            {busy ? 'Salvando…' : credential ? 'Salvar alteracoes' : 'Adicionar ao cofre'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -364,7 +364,7 @@ export function ObligationsMonthView() {
                         onClick={() => toggleExpanded(group.clientId)}
                         aria-expanded={isOpen}
                         aria-controls={panelId}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-[var(--pv-panel-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30"
+                        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-[var(--pv-panel-2)] focus-visible:ring-2 focus-visible:ring-brand-600/30"
                       >
                         <Avatar name={group.clientName} size="sm" />
                         <span className="min-w-0 flex-1">
@@ -393,7 +393,7 @@ export function ObligationsMonthView() {
                       <div
                         id={panelId}
                         className={cn(
-                          'grid transition-all duration-200 ease-out',
+                          'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
                           isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
                         )}
                       >
@@ -418,7 +418,7 @@ export function ObligationsMonthView() {
                                         : 'Obrigação eventual: sem vencimento para baixa'
                                     }
                                     className={cn(
-                                      'group/item flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30',
+                                      'group/item flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-brand-600/30',
                                       item.dueDate
                                         ? 'hover:bg-[var(--pv-panel-2)]'
                                         : 'cursor-default',
@@ -614,9 +614,9 @@ export function ObligationsMonthView() {
               )
 
               const cellClass = cn(
-                'flex min-h-16 flex-col rounded-xl border p-1.5 text-left transition-all sm:min-h-20',
+                'flex min-h-16 flex-col rounded-xl border p-1.5 text-left transition-[background-color,border-color,box-shadow] sm:min-h-20',
                 cell.inMonth
-                  ? 'cursor-pointer border-[var(--pv-border)]/70 bg-[var(--pv-panel-2)]/40 hover:border-[var(--pv-accent)] hover:bg-[var(--pv-panel-2)] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30'
+                  ? 'cursor-pointer border-[var(--pv-border)]/70 bg-[var(--pv-panel-2)]/40 hover:border-[var(--pv-accent)] hover:bg-[var(--pv-panel-2)] hover:shadow-sm focus-visible:ring-2 focus-visible:ring-brand-600/30'
                   : 'border-transparent bg-transparent',
                 count > 0 && cell.inMonth && 'border-[var(--pv-border-strong)]',
                 isToday && 'ring-1 ring-[var(--pv-accent)]',
@@ -825,7 +825,7 @@ function DayDeliveryDialog({
           >
             <div
               className={cn(
-                'h-full rounded-full transition-all duration-300',
+                'h-full rounded-full transition-[width] duration-300',
                 percent === 100 ? 'bg-[var(--pv-success)]' : 'bg-[var(--pv-accent-solid)]',
               )}
               style={{ width: `${percent}%` }}
@@ -916,7 +916,7 @@ function DayDeliveryDialog({
                       disabled={busy}
                       aria-pressed={item.delivered}
                       title={item.delivered ? 'Desfazer baixa' : 'Dar baixa na entrega'}
-                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[var(--pv-panel-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600/30 disabled:opacity-60"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[var(--pv-panel-2)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600/30 disabled:opacity-60"
                     >
                       <span
                         className={cn(

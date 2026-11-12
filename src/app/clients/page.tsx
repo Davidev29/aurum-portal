@@ -413,7 +413,7 @@ export default function ClientsPage() {
               Cancelar
             </Button>
             <Button onClick={() => void submitBatch()} disabled={batchBusy}>
-              {batchBusy ? 'Cadastrando...' : 'Cadastrar'}
+              {batchBusy ? 'Cadastrando…' : 'Cadastrar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -490,8 +490,8 @@ export default function ClientsPage() {
                   ? `Processados ${refreshProgress.completed} de ${refreshProgress.total}` +
                     (refreshProgress.remaining > 0
                       ? ` • Faltam ${refreshProgress.remaining}`
-                      : ' • Quase pronto...')
-                  : 'Iniciando...'}
+                      : ' • Quase pronto…')
+                  : 'Iniciando…'}
               </p>
             </div>
 
@@ -502,7 +502,7 @@ export default function ClientsPage() {
                   <div className="grid grid-cols-3 gap-2 text-center text-sm" aria-live="polite">
                     <div className="rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)] p-3">
                       <div className="text-xs text-[var(--pv-muted)]">Atualizados</div>
-                      <div className="text-xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                      <div className="text-xl font-semibold tabular-nums text-[var(--pv-success)]">
                         {refreshProgress.updated}
                       </div>
                     </div>

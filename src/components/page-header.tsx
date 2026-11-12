@@ -19,25 +19,23 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'mb-6 flex flex-wrap items-start justify-between gap-4 rounded-[var(--pv-radius)] border border-[var(--pv-border)] bg-[var(--pv-panel)] px-5 py-5 shadow-[var(--pv-shadow)] sm:px-6',
+        'mb-6 flex flex-wrap items-center justify-between gap-4 rounded-[var(--pv-radius-panel)] border border-[var(--pv-border)] bg-[var(--pv-panel)] px-5 py-4 shadow-[var(--pv-shadow)]',
         className,
       )}
     >
-      <div className="flex min-w-0 items-start gap-3.5">
+      <div className="flex min-w-0 items-center gap-3.5">
         {icon ? (
-          <div className="pv-anim-check-pop mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--pv-accent-solid)] text-[var(--pv-on-accent)] shadow-md">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--pv-radius-control)] border border-[var(--pv-accent-soft-border)] bg-[var(--pv-accent-soft)] text-[var(--pv-accent)]">
             {icon}
           </div>
         ) : null}
         <div className="min-w-0 max-w-3xl">
-          {eyebrow ? <div className="pv-eyebrow mb-1">{eyebrow}</div> : null}
-          <h1 className="text-[22px] font-bold leading-tight tracking-[-0.02em] text-[var(--pv-text)]">
+          {eyebrow ? <div className="pv-eyebrow mb-0.5">{eyebrow}</div> : null}
+          <h1 className="text-[19px] font-semibold leading-tight tracking-[-0.02em] text-[var(--pv-text)]">
             {title}
           </h1>
           {description ? (
-            <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--pv-muted)]">
-              {description}
-            </p>
+            <p className="mt-1 text-[13px] leading-relaxed text-[var(--pv-muted)]">{description}</p>
           ) : null}
         </div>
       </div>

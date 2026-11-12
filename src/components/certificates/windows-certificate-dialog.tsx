@@ -160,7 +160,7 @@ export function WindowsCertificateDialog({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs text-[var(--pv-muted)]">
                 {loading
-                  ? 'Lendo repositorio...'
+                  ? 'Lendo repositorio…'
                   : `${items.length} certificado(s) encontrado(s)` +
                     (importable.length > 0
                       ? ` • ${importable.length} novo(s) • ${alreadyImportedCount} já cadastrado(s)`
@@ -337,14 +337,14 @@ export function WindowsCertificateDialog({
                 onClick={() => void runImport({ thumbprints: selected })}
                 disabled={cannotSubmit || selectedCount === 0}
               >
-                {busy ? 'Importando...' : `Importar ${selectedCount} selecionado(s)`}
+                {busy ? 'Importando…' : `Importar ${selectedCount} selecionado(s)`}
               </Button>
               <Button
                 onClick={() => void runImport({ importAll: true, thumbprints: [] })}
                 disabled={cannotSubmit || (importable.length === 0 && selectedCount === 0)}
               >
                 <Plus className="h-4 w-4" />
-                {busy ? 'Importando...' : `Importar todos (${importable.length} novo(s))`}
+                {busy ? 'Importando…' : `Importar todos (${importable.length} novo(s))`}
               </Button>
             </DialogFooter>
           </>

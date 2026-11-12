@@ -21,3 +21,7 @@ artifacts/
 scripts/spike/.certs/
 tests/e2e/.certs/
 spike-results/
+.preview/
+.taste-skill/
+.playwright-cli/
+before-*.png

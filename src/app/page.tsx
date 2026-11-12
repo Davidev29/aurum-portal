@@ -308,7 +308,7 @@ export default function StorePage() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar serviço por nome, categoria ou URL"
+            placeholder="Buscar serviço, categoria ou URL"
             className="pl-10"
             aria-label="Buscar serviços"
           />
@@ -534,8 +534,11 @@ function ServiceCard({
           )}
         </div>
         <div className="min-w-0 flex-1 pt-0.5">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate text-[15px] font-bold leading-snug tracking-tight">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3
+              className="min-w-0 truncate text-[15px] font-semibold leading-snug tracking-tight"
+              title={service.name}
+            >
               {service.name}
             </h3>
             {service.openSessions > 0 ? (

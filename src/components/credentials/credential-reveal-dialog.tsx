@@ -107,13 +107,18 @@ export function CredentialRevealDialog({
                 {password ?? '••••••••••••'}
               </code>
               {password ? (
-                <Button variant="secondary" size="icon-sm" onClick={() => void copy()}>
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  onClick={() => void copy()}
+                  aria-label="Copiar senha"
+                >
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
               ) : (
                 <Button size="sm" onClick={() => void reveal()} disabled={busy}>
                   <Eye className="h-3.5 w-3.5" />
-                  {busy ? 'Abrindo...' : 'Revelar'}
+                  {busy ? 'Abrindo…' : 'Revelar'}
                 </Button>
               )}
             </div>

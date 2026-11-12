@@ -159,7 +159,7 @@ export function RecipeDialog({
               Cancelar
             </Button>
             <Button onClick={() => void save()} disabled={busy}>
-              {busy ? 'Salvando...' : 'Salvar receita'}
+              {busy ? 'Salvando…' : 'Salvar receita'}
             </Button>
           </div>
         </DialogFooter>

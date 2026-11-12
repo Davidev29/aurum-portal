@@ -87,7 +87,7 @@ export function NotificationCenter() {
             : 'Central de avisos'
         }
         aria-expanded={open}
-        className="pv-icon-btn relative flex h-9 w-9 items-center justify-center rounded-full border border-[var(--pv-border)] bg-[var(--pv-panel-2)] text-[var(--pv-muted)] transition-colors hover:text-[var(--pv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30"
+        className="pv-icon-btn relative flex h-9 w-9 items-center justify-center rounded-full border border-[var(--pv-border)] bg-[var(--pv-panel-2)] text-[var(--pv-muted)] transition-colors hover:text-[var(--pv-text)] focus-visible:ring-2 focus-visible:ring-brand-600/30"
       >
         <Bell className="h-4 w-4" aria-hidden="true" />
         {unreadCount > 0 ? (
@@ -101,7 +101,7 @@ export function NotificationCenter() {
         <div
           role="dialog"
           aria-label="Central de avisos"
-          className="absolute right-0 z-50 mt-2 flex w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)] shadow-[var(--pv-shadow-lg)]"
+          className="absolute right-0 z-50 mt-2 flex w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[var(--pv-radius-panel)] border border-[var(--pv-border)] bg-[var(--pv-panel)] shadow-[var(--pv-shadow-lg)]"
         >
           <div className="flex items-center justify-between gap-2 border-b border-[var(--pv-border)] px-4 py-3">
             <div className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export function NotificationCenter() {
             </div>
           </div>
 
-          <div className="max-h-[420px] overflow-y-auto pv-scroll">
+          <div className="max-h-[420px] overflow-y-auto overscroll-contain pv-scroll">
             {isLoading ? (
               <p className="px-4 py-6 text-center text-xs text-[var(--pv-muted)]">Carregando…</p>
             ) : notifications.length === 0 ? (

@@ -8,18 +8,18 @@
   inset: 0;
   overflow: hidden;
   background:
-    radial-gradient(1200px 620px at 50% -12%, rgba(6, 78, 59, 0.46), transparent 62%),
-    radial-gradient(900px 500px at 12% 110%, rgba(6, 95, 70, 0.34), transparent 60%),
-    radial-gradient(900px 520px at 88% 108%, rgba(5, 46, 34, 0.5), transparent 62%),
-    linear-gradient(180deg, #141310 0%, #1b1a17 52%, #100f0d 100%);
+    radial-gradient(1200px 620px at 50% -12%, rgba(30, 27, 75, 0.5), transparent 62%),
+    radial-gradient(900px 500px at 12% 110%, rgba(49, 46, 129, 0.38), transparent 60%),
+    radial-gradient(900px 520px at 88% 108%, rgba(21, 21, 43, 0.55), transparent 62%),
+    linear-gradient(180deg, #0e0e13 0%, #14141d 52%, #0a0a0f 100%);
 }
 
 .runtime-grid {
   position: absolute;
   inset: -160px;
   background-image:
-    linear-gradient(rgba(220, 201, 135, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(220, 201, 135, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(133, 141, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(133, 141, 255, 0.05) 1px, transparent 1px);
   background-size: 44px 44px;
   animation: pv-grid-drift 26s linear infinite;
   transform-origin: center;
@@ -50,12 +50,12 @@
   animation: pv-aurora-drift 18s ease-in-out infinite alternate;
 }
 .runtime-aurora-a {
-  background: radial-gradient(circle, #064e3b 0%, transparent 70%);
+  background: radial-gradient(circle, #1e1b4b 0%, transparent 70%);
   left: -14%;
   top: -18%;
 }
 .runtime-aurora-b {
-  background: radial-gradient(circle, #065f46 0%, transparent 70%);
+  background: radial-gradient(circle, #2e2a6e 0%, transparent 70%);
   right: -16%;
   bottom: -22%;
   animation-delay: -9s;
@@ -159,15 +159,15 @@
 }
 
 .pv-shimmer-track {
-  background: rgba(52, 211, 153, 0.16);
+  background: rgba(130, 143, 255, 0.16);
 }
 .pv-shimmer-bar {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    #34d399 35%,
-    #a7f3d0 50%,
-    #34d399 65%,
+    #828fff 35%,
+    #c7c8ff 50%,
+    #828fff 65%,
     transparent 100%
   );
   background-size: 260% 100%;

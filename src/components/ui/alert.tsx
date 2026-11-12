@@ -35,7 +35,7 @@ export function Alert({
     <div
       role={variant === 'danger' ? 'alert' : 'status'}
       className={cn(
-        'pv-anim-slide-up rounded-2xl border p-4 text-sm shadow-sm [&_p]:text-[var(--pv-text)]',
+        'pv-anim-slide-up rounded-[var(--pv-radius)] border p-4 text-sm shadow-sm [&_p]:text-[var(--pv-text)]',
         styles[variant],
         className,
       )}

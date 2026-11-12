@@ -14,6 +14,8 @@ export default tseslint.config(
       'coverage/**',
       'playwright-report/**',
       'test-results/**',
+      '.preview/**',
+      '.taste-skill/**',
       '*.config.*',
       'next-env.d.ts',
     ],

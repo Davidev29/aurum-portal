@@ -96,12 +96,12 @@ function formatCertificateDocument(certificate: Certificate): string | null {
 }
 
 const certificateStatusText: Record<string, { label: string; className: string }> = {
-  valid: { label: 'Válido', className: 'text-emerald-700 dark:text-emerald-300' },
-  expiring: { label: 'A vencer', className: 'text-amber-800 dark:text-amber-300' },
+  valid: { label: 'Válido', className: 'text-[var(--pv-success)]' },
+  expiring: { label: 'A vencer', className: 'text-[var(--pv-warning)]' },
   expired: { label: 'Vencido', className: 'text-[var(--pv-danger)]' },
   in_vault: { label: 'No cofre', className: 'text-[var(--pv-muted)]' },
   missing_windows: { label: 'Ausente no Windows', className: 'text-[var(--pv-danger)]' },
-  chain_incomplete: { label: 'Cadeia incompleta', className: 'text-amber-800 dark:text-amber-300' },
+  chain_incomplete: { label: 'Cadeia incompleta', className: 'text-[var(--pv-warning)]' },
 }
 
 function renewalText(certificate: Certificate): { text: string; className: string } {
@@ -111,12 +111,11 @@ function renewalText(certificate: Certificate): { text: string; className: strin
   if (renewed) {
     return {
       text: `Renovado — válido até ${formatDate(certificateEffectiveValidToOf(certificate))}`,
-      className: 'text-emerald-700 dark:text-emerald-300',
+      className: 'text-[var(--pv-success)]',
     }
   }
   if (expired) return { text: 'Aguardando renovação', className: 'text-[var(--pv-danger)]' }
-  if (expiring)
-    return { text: 'A vencer — renovar', className: 'text-amber-800 dark:text-amber-300' }
+  if (expiring) return { text: 'A vencer — renovar', className: 'text-[var(--pv-warning)]' }
   if (certificate.hasOlderCertificate)
     return { text: 'Atual (renovação de anterior)', className: 'text-[var(--pv-muted)]' }
   return { text: 'Em vigor, sem renovação pendente', className: 'text-[var(--pv-muted)]' }
@@ -594,8 +593,8 @@ export default function CertificatesPage() {
                           certificate.status === 'expired'
                             ? 'text-[var(--pv-danger)]'
                             : certificate.status === 'expiring'
-                              ? 'text-amber-800 dark:text-amber-300'
-                              : 'text-emerald-700 dark:text-emerald-300'
+                              ? 'text-[var(--pv-warning)]'
+                              : 'text-[var(--pv-success)]'
                         }`}
                       >
                         {certificate.daysUntilExpiry >= 0
@@ -615,7 +614,7 @@ export default function CertificatesPage() {
                         {certificateStatusText[certificate.status]?.label ?? certificate.status}
                       </span>
                       {certificate.isRenewed || certificate.hasNewerValid ? (
-                        <span className="text-xs text-emerald-700 dark:text-emerald-300">
+                        <span className="text-xs text-[var(--pv-success)]">
                           Renovado até {formatDate(certificateEffectiveValidToOf(certificate))}
                         </span>
                       ) : null}
@@ -629,7 +628,7 @@ export default function CertificatesPage() {
                       <span
                         className={`text-xs ${
                           certificate.installed
-                            ? 'text-emerald-700 dark:text-emerald-300'
+                            ? 'text-[var(--pv-success)]'
                             : 'text-[var(--pv-muted)]'
                         }`}
                       >
@@ -709,7 +708,7 @@ export default function CertificatesPage() {
                           aria-label="Remover do Windows"
                           onClick={() => setUninstallCertificate(certificate)}
                         >
-                          <ShieldOff className="h-4 w-4 text-amber-600" />
+                          <ShieldOff className="h-4 w-4 text-[var(--pv-warning)]" />
                         </Button>
                       )}
                       {certificate.clients.length === 0 ? (
@@ -955,7 +954,7 @@ export default function CertificatesPage() {
               Cancelar
             </Button>
             <Button onClick={() => void backup()} disabled={busy || passphrase.length < 12}>
-              {busy ? 'Gerando...' : 'Exportar backup'}
+              {busy ? 'Gerando…' : 'Exportar backup'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -998,7 +997,7 @@ export default function CertificatesPage() {
               onClick={() => void uninstall()}
               disabled={busy || uninstallConfirm !== 'REMOVER'}
             >
-              {busy ? 'Removendo...' : 'Remover do Windows'}
+              {busy ? 'Removendo…' : 'Remover do Windows'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1062,7 +1061,7 @@ function StatCard({
 }) {
   const color =
     tone === 'warning'
-      ? 'text-amber-600 dark:text-amber-400'
+      ? 'text-[var(--pv-warning)]'
       : tone === 'danger'
         ? 'text-[var(--pv-danger)]'
         : 'text-[var(--pv-text)]'

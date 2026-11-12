@@ -491,7 +491,7 @@ export function LaunchDialog({
               Cancelar
             </Button>
             <Button onClick={() => void submit()} disabled={busy || !canOpen}>
-              {busy ? 'Abrindo...' : 'Abrir portal'}
+              {busy ? 'Abrindo…' : 'Abrir portal'}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>

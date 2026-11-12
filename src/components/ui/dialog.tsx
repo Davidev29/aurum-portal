@@ -26,7 +26,7 @@ export function DialogContent({
       <DialogPrimitive.Content
         className={cn(
           animate && 'pv-dialog',
-          'fixed left-1/2 top-1/2 z-50 grid max-h-[92vh] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto rounded-[var(--pv-radius)] border border-[var(--pv-border)] bg-[var(--pv-panel)] p-6 text-[var(--pv-text)] shadow-[var(--pv-shadow-lg)] pv-scroll',
+          'fixed left-1/2 top-1/2 z-50 grid max-h-[92vh] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto overscroll-contain rounded-[var(--pv-radius-panel)] border border-[var(--pv-border)] bg-[var(--pv-panel)] p-6 text-[var(--pv-text)] shadow-[var(--pv-shadow-lg)] pv-scroll',
           className,
         )}
         {...props}
@@ -35,7 +35,7 @@ export function DialogContent({
         {hideClose ? null : (
           <DialogPrimitive.Close
             aria-label="Fechar"
-            className="pv-icon-btn absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-2)] hover:text-[var(--pv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="pv-icon-btn absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-2)] hover:text-[var(--pv-text)] focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             <X className="h-5 w-5" />
           </DialogPrimitive.Close>

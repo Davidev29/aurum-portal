@@ -21,7 +21,7 @@ export function DropdownMenuContent({
         sideOffset={sideOffset}
         align={align}
         className={cn(
-          'pv-floating z-50 min-w-56 overflow-hidden rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)] p-1.5 text-[var(--pv-text)] shadow-[var(--pv-shadow-lg)]',
+          'pv-floating z-50 min-w-56 overflow-hidden rounded-[var(--pv-radius)] border border-[var(--pv-border)] bg-[var(--pv-panel)] p-1.5 text-[var(--pv-text)] shadow-[var(--pv-shadow-lg)]',
           className,
         )}
         {...props}
@@ -55,7 +55,7 @@ export function DropdownMenuItem({
   return (
     <DropdownMenuPrimitive.Item
       className={cn(
-        'flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] font-medium outline-none transition-colors duration-150 data-[disabled]:pointer-events-none data-[disabled]:opacity-45',
+        'flex cursor-pointer select-none items-center gap-2.5 rounded-[var(--pv-radius-control)] px-2.5 py-2 text-[13px] font-medium transition-colors duration-150 data-[disabled]:pointer-events-none data-[disabled]:opacity-45',
         variant === 'danger'
           ? 'text-[var(--pv-danger)] data-[highlighted]:bg-[var(--pv-danger-soft)]'
           : 'text-[var(--pv-text)] data-[highlighted]:bg-[var(--pv-panel-2)]',
@@ -86,7 +86,7 @@ export function DropdownMenuCheckboxItem({
   return (
     <DropdownMenuPrimitive.CheckboxItem
       className={cn(
-        'relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl py-2 pl-8 pr-2.5 text-[13px] font-medium text-[var(--pv-text)] outline-none transition-colors duration-150 data-[disabled]:pointer-events-none data-[disabled]:opacity-45 data-[highlighted]:bg-[var(--pv-panel-2)]',
+        'relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl py-2 pl-8 pr-2.5 text-[13px] font-medium text-[var(--pv-text)] transition-colors duration-150 data-[disabled]:pointer-events-none data-[disabled]:opacity-45 data-[highlighted]:bg-[var(--pv-panel-2)]',
         className,
       )}
       {...props}
@@ -109,7 +109,7 @@ export function DropdownMenuRadioItem({
   return (
     <DropdownMenuPrimitive.RadioItem
       className={cn(
-        'relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl py-2 pl-8 pr-2.5 text-[13px] font-medium text-[var(--pv-text)] outline-none data-[highlighted]:bg-[var(--pv-panel-2)]',
+        'relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl py-2 pl-8 pr-2.5 text-[13px] font-medium text-[var(--pv-text)] data-[highlighted]:bg-[var(--pv-panel-2)]',
         className,
       )}
       {...props}
@@ -147,7 +147,7 @@ export function DropdownMenuSubTrigger({
   return (
     <DropdownMenuPrimitive.SubTrigger
       className={cn(
-        'flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] font-medium text-[var(--pv-text)] outline-none data-[highlighted]:bg-[var(--pv-panel-2)]',
+        'flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] font-medium text-[var(--pv-text)] data-[highlighted]:bg-[var(--pv-panel-2)]',
         className,
       )}
       {...props}

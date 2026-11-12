@@ -176,7 +176,7 @@ export function ClientForm({
               ) : (
                 <ScanSearch className="h-4 w-4" />
               )}
-              {lookupBusy ? 'Buscando...' : 'Buscar dados'}
+              {lookupBusy ? 'Buscando…' : 'Buscar dados'}
             </Button>
           </div>
           <p className="-mt-2 text-xs text-[var(--pv-muted)]">
@@ -279,7 +279,7 @@ export function ClientForm({
           </Button>
         ) : null}
         <Button type="submit" disabled={busy || !name || !document}>
-          {busy ? 'Salvando...' : client ? 'Salvar alteracoes' : 'Cadastrar cliente'}
+          {busy ? 'Salvando…' : client ? 'Salvar alteracoes' : 'Cadastrar cliente'}
         </Button>
       </div>
     </form>

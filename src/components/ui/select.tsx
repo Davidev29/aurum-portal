@@ -10,7 +10,7 @@ export const Select = React.forwardRef<
     <div className={cn('relative', className)}>
       <select
         ref={ref}
-        className="flex h-10 w-full appearance-none rounded-xl border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] pl-3.5 pr-10 text-sm text-[var(--pv-text)] shadow-sm transition-[border-color,box-shadow] duration-150 ease hover:border-[var(--pv-accent)] focus-visible:border-[var(--pv-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/25 focus-visible:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-10 w-full appearance-none rounded-[var(--pv-radius-control)] border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] pl-3.5 pr-10 text-sm text-[var(--pv-text)] transition-[border-color,box-shadow] duration-150 ease hover:border-[var(--pv-accent-solid)] focus-visible:border-[var(--pv-accent-solid)] focus-visible:ring-2 focus-visible:ring-brand-600/25 disabled:cursor-not-allowed disabled:opacity-60"
         {...props}
       >
         {children}

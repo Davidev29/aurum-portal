@@ -97,7 +97,7 @@ export default function SessionsPage() {
           {sessions.map((session) => (
             <Card key={session.id} className="overflow-hidden pv-surface-hover">
               <div
-                className="h-1 bg-gradient-to-r from-emerald-500 via-brand-500 to-brand-400"
+                className="h-1 bg-gradient-to-r from-brand-400 via-brand-500 to-brand-600"
                 aria-hidden="true"
               />
               <CardContent className="flex flex-col gap-3 p-4">
@@ -146,7 +146,15 @@ export default function SessionsPage() {
                 </div>
 
                 {session.lastError || session.statusMessage ? (
-                  <p className="rounded-md border border-[var(--pv-warning-border)] bg-[var(--pv-warning-soft)] p-2 text-xs text-[var(--pv-warning)] dark:border-[var(--pv-warning-border)] dark:bg-[var(--pv-warning-soft)] dark:text-[var(--pv-warning)]">
+                  <p
+                    className={
+                      session.lastError
+                        ? 'rounded-md border border-[var(--pv-danger-border)] bg-[var(--pv-danger-soft)] p-2 text-xs text-[var(--pv-danger)]'
+                        : session.status === 'authenticated'
+                          ? 'rounded-md border border-[var(--pv-success-border)] bg-[var(--pv-success-soft)] p-2 text-xs text-[var(--pv-success)]'
+                          : 'rounded-md border border-[var(--pv-warning-border)] bg-[var(--pv-warning-soft)] p-2 text-xs text-[var(--pv-warning)]'
+                    }
+                  >
                     {session.lastError ?? session.statusMessage}
                   </p>
                 ) : null}

@@ -26,19 +26,19 @@ export function BootLoader({ title }: { title?: string }): React.JSX.Element {
         >
           <defs>
             <radialGradient id="spinnerCore" cx="50%" cy="42%" r="62%">
-              <stop offset="0%" stopColor="#34d399" stopOpacity="0.9" />
-              <stop offset="55%" stopColor="#10b981" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+              <stop offset="0%" stopColor="#828fff" stopOpacity="0.9" />
+              <stop offset="55%" stopColor="#5e6ad2" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#5e6ad2" stopOpacity="0" />
             </radialGradient>
             <linearGradient id="arcBright" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#a7f3d0" />
-              <stop offset="55%" stopColor="#34d399" />
-              <stop offset="100%" stopColor="#065f46" />
+              <stop offset="0%" stopColor="#c7c8ff" />
+              <stop offset="55%" stopColor="#828fff" />
+              <stop offset="100%" stopColor="#232552" />
             </linearGradient>
             <linearGradient id="arcFaint" x1="1" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#34d399" />
-              <stop offset="50%" stopColor="#10b981" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+              <stop offset="0%" stopColor="#828fff" />
+              <stop offset="50%" stopColor="#5e6ad2" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#5e6ad2" stopOpacity="0" />
             </linearGradient>
           </defs>
 
@@ -52,7 +52,7 @@ export function BootLoader({ title }: { title?: string }): React.JSX.Element {
               cy="100"
               r="74"
               fill="none"
-              stroke="#10b981"
+              stroke="#5e6ad2"
               strokeWidth="9"
               strokeLinecap="round"
               strokeDasharray="14 22"
@@ -63,7 +63,7 @@ export function BootLoader({ title }: { title?: string }): React.JSX.Element {
               cy="100"
               r="74"
               fill="none"
-              stroke="#6ee7b7"
+              stroke="#a5adff"
               strokeWidth="9"
               strokeLinecap="round"
               strokeDasharray="14 446"
@@ -100,12 +100,12 @@ export function BootLoader({ title }: { title?: string }): React.JSX.Element {
           </g>
 
           {/* núcleo */}
-          <circle cx="100" cy="100" r="10.5" fill="#a7f3d0" opacity="0.95" />
-          <circle cx="100" cy="100" r="5" fill="#ecfdf5" />
+          <circle cx="100" cy="100" r="10.5" fill="#c7c8ff" opacity="0.95" />
+          <circle cx="100" cy="100" r="5" fill="#f2f2ff" />
         </svg>
 
         <div className="flex flex-col items-center gap-3">
-          <p className="pv-line-label text-[11px] font-semibold text-emerald-100/90 md:text-[13px]">
+          <p className="pv-line-label text-[11px] font-semibold text-indigo-100/90 md:text-[13px]">
             {label}
             <span className="pv-dot">.</span>
             <span className="pv-dot pv-dot-2">.</span>

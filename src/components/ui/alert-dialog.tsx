@@ -17,7 +17,7 @@ export function AlertDialogContent({
       <AlertDialogPrimitive.Overlay className="pv-overlay fixed inset-0 z-50 bg-[var(--pv-overlay)] backdrop-blur-sm" />
       <AlertDialogPrimitive.Content
         className={cn(
-          'pv-dialog fixed left-1/2 top-1/2 z-50 grid w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)] p-6 text-[var(--pv-text)] shadow-[var(--pv-shadow-lg)]',
+          'pv-dialog fixed left-1/2 top-1/2 z-50 grid w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[var(--pv-radius-panel)] border border-[var(--pv-border)] bg-[var(--pv-panel)] p-6 text-[var(--pv-text)] shadow-[var(--pv-shadow-lg)]',
           className,
         )}
         {...props}

@@ -410,7 +410,7 @@ export function CertificateImportWizard({
                   disabled={busy || (Boolean(clientId) && !consent)}
                   onClick={() => void run()}
                 >
-                  {busy ? 'Importando...' : `Importar ${files.length} arquivo(s)`}
+                  {busy ? 'Importando…' : `Importar ${files.length} arquivo(s)`}
                 </Button>
               )}
             </>
@@ -432,9 +432,9 @@ function Summary({
 }) {
   const color =
     tone === 'success'
-      ? 'text-emerald-600 dark:text-emerald-400'
+      ? 'text-[var(--pv-success)]'
       : tone === 'warning'
-        ? 'text-amber-600 dark:text-amber-400'
+        ? 'text-[var(--pv-warning)]'
         : tone === 'danger'
           ? 'text-[var(--pv-danger)]'
           : 'text-[var(--pv-text)]'

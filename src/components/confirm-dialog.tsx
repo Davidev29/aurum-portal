@@ -50,7 +50,7 @@ export function ConfirmDialog({
               onConfirm()
             }}
           >
-            {busy ? 'Processando...' : confirmLabel}
+            {busy ? 'Processando…' : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -221,7 +221,7 @@ export function MatrixGrid() {
             type="button"
             onClick={() => setDeptOpen((value) => !value)}
             aria-expanded={deptOpen}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] px-3.5 text-sm font-medium text-[var(--pv-text)] shadow-sm hover:border-[var(--pv-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/25"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] px-3.5 text-sm font-medium text-[var(--pv-text)] shadow-sm hover:border-[var(--pv-accent)] focus-visible:ring-2 focus-visible:ring-brand-600/25"
           >
             Departamentos
             <span className="rounded-full bg-[var(--pv-panel-2)] px-2 py-0.5 text-[11px] font-bold text-[var(--pv-muted)]">
@@ -248,7 +248,7 @@ export function MatrixGrid() {
                 ) : null}
               </button>
               <div className="my-1 h-px bg-[var(--pv-border)]" />
-              <div className="max-h-64 overflow-y-auto pv-scroll">
+              <div className="max-h-64 overflow-y-auto overscroll-contain pv-scroll">
                 {(departments ?? []).map((department) => {
                   const checked = visibleDepartmentIds.has(department.id)
                   return (
@@ -430,7 +430,7 @@ export function MatrixGrid() {
                             {formatDocumentMasked(client.document)} · {activeCount} vínculo(s)
                           </span>
                           {/* Ações abaixo do nome, reveladas no hover/foco (sem coluna dedicada) */}
-                          <div className="grid grid-rows-[0fr] opacity-0 transition-all duration-150 ease-out focus-within:grid-rows-[1fr] focus-within:opacity-100 group-hover:grid-rows-[1fr] group-hover:opacity-100">
+                          <div className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-150 ease-out focus-within:grid-rows-[1fr] focus-within:opacity-100 group-hover:grid-rows-[1fr] group-hover:opacity-100">
                             <div className="overflow-hidden">
                               <div className="flex items-center gap-1 pt-1">
                                 <button
@@ -503,7 +503,7 @@ export function MatrixGrid() {
                             } ${obligation.name} (${obligation.sigla}) — ${client.name}`}
                             title={`${obligation.name} — ${client.name}`}
                             className={cn(
-                              'mx-auto flex h-9 w-9 items-center justify-center rounded-lg border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30',
+                              'mx-auto flex h-9 w-9 items-center justify-center rounded-lg border transition-[background-color,border-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-brand-600/30',
                               filled &&
                                 'border-[var(--pv-accent-soft-border)] bg-[var(--pv-accent-soft)] text-[var(--pv-accent)] shadow-sm',
                               dashed &&

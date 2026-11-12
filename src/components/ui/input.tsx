@@ -2,7 +2,7 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const controlClasses =
-  'flex h-10 w-full rounded-xl border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] px-3.5 py-1 text-sm text-[var(--pv-text)] shadow-sm transition-[border-color,box-shadow] duration-150 ease placeholder:text-[var(--pv-faint)] hover:border-[var(--pv-accent)] hover:shadow focus-visible:border-[var(--pv-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/25 focus-visible:shadow-md disabled:cursor-not-allowed disabled:opacity-60'
+  'flex h-10 w-full rounded-[var(--pv-radius-control)] border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] px-3.5 py-1 text-sm text-[var(--pv-text)] transition-[border-color,box-shadow] duration-150 ease placeholder:text-[var(--pv-faint)] hover:border-[var(--pv-accent-solid)] focus-visible:border-[var(--pv-accent-solid)] focus-visible:ring-2 focus-visible:ring-brand-600/25 disabled:cursor-not-allowed disabled:opacity-60'
 
 export const Input = React.forwardRef<
   HTMLInputElement,
@@ -19,7 +19,7 @@ export const Textarea = React.forwardRef<
   <textarea
     ref={ref}
     className={cn(
-      'flex min-h-[96px] w-full rounded-xl border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] px-3.5 py-2.5 text-sm text-[var(--pv-text)] shadow-sm transition-[border-color,box-shadow] duration-150 ease placeholder:text-[var(--pv-faint)] hover:border-[var(--pv-accent)] hover:shadow focus-visible:border-[var(--pv-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/25 focus-visible:shadow-md disabled:cursor-not-allowed disabled:opacity-60',
+      'flex min-h-[96px] w-full rounded-[var(--pv-radius-control)] border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] px-3.5 py-2.5 text-sm text-[var(--pv-text)] transition-[border-color,box-shadow] duration-150 ease placeholder:text-[var(--pv-faint)] hover:border-[var(--pv-accent-solid)] focus-visible:border-[var(--pv-accent-solid)] focus-visible:ring-2 focus-visible:ring-brand-600/25 disabled:cursor-not-allowed disabled:opacity-60',
       className,
     )}
     {...props}

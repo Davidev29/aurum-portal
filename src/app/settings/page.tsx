@@ -319,12 +319,12 @@ export default function SettingsPage() {
         {/* Cabeçalho enxuto e contido — sem cartão pesado */}
         <header className="mb-8 flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--pv-accent-solid)] text-[var(--pv-on-accent)] shadow-md">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--pv-radius-control)] border border-[var(--pv-accent-soft-border)] bg-[var(--pv-accent-soft)] text-[var(--pv-accent)]">
               <Settings className="h-5 w-5" aria-hidden="true" />
             </div>
             <div className="min-w-0">
               <div className="pv-eyebrow">Sistema</div>
-              <h1 className="text-[22px] font-bold leading-tight tracking-[-0.02em]">
+              <h1 className="text-[19px] font-semibold leading-tight tracking-[-0.02em]">
                 Configurações
               </h1>
               <p className="mt-0.5 max-w-xl text-[13px] leading-relaxed text-[var(--pv-muted)]">
@@ -929,7 +929,7 @@ function Section({
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 px-6 py-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600/40"
+        className="flex w-full items-center gap-3 px-6 py-5 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600/40"
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--pv-accent-soft)] text-[var(--pv-accent)] ring-1 ring-[var(--pv-accent-soft-border)]">
           {icon}

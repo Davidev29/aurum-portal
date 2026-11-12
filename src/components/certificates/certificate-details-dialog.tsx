@@ -125,8 +125,8 @@ export function CertificateDetailsDialog({
   const toneText = expiry?.expired
     ? 'text-[var(--pv-danger)]'
     : expiry?.expiring
-      ? 'text-amber-700 dark:text-amber-300'
-      : 'text-emerald-700 dark:text-emerald-300'
+      ? 'text-[var(--pv-warning)]'
+      : 'text-[var(--pv-success)]'
   const toneBar = expiry?.expired
     ? 'bg-[var(--pv-danger-solid)]'
     : expiry?.expiring
@@ -214,14 +214,14 @@ export function CertificateDetailsDialog({
                 aria-label={`Progresso da validade: ${Math.round(validityPercent)}%`}
               >
                 <div
-                  className={`h-full rounded-full transition-all ${toneBar}`}
+                  className={`h-full rounded-full transition-[width] ${toneBar}`}
                   style={{ width: `${validityPercent}%` }}
                 />
               </div>
 
               {/* Linha de renovação: uma única linha, quando aplicável */}
               {isRenewed ? (
-                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-[var(--pv-success)]">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                   {renewedBy ? (
                     <>
@@ -365,7 +365,7 @@ export function CertificateDetailsDialog({
 
             {/* ---------- Dados técnicos (recolhidos por padrão) ---------- */}
             <details className="group rounded-xl border border-[var(--pv-border)]">
-              <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-semibold text-[var(--pv-muted)] outline-none transition-colors hover:text-[var(--pv-text)] focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-semibold text-[var(--pv-muted)] transition-colors hover:text-[var(--pv-text)] focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
                 <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
                 <ShieldCheck className="h-3.5 w-3.5" /> Dados técnicos
                 <span className="font-normal">— serial, emissor, thumbprints, importação</span>

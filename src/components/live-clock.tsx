@@ -36,7 +36,7 @@ export function LiveClock() {
 
   return (
     <div
-      className="pointer-events-none hidden select-none items-center gap-2.5 rounded-full border border-[var(--pv-border)] bg-[var(--pv-panel-2)]/70 py-1.5 pl-1.5 pr-4 shadow-sm xl:flex"
+      className="pointer-events-none hidden select-none items-center gap-2.5 rounded-full border border-[var(--pv-border)] bg-[var(--pv-panel)] py-1.5 pl-1.5 pr-4 xl:flex"
       role="timer"
       aria-label="Data e hora atuais"
     >
@@ -46,7 +46,7 @@ export function LiveClock() {
       <span className="flex flex-col leading-none">
         <time
           dateTime={now?.toISOString()}
-          className="text-sm font-bold tabular-nums tracking-tight text-[var(--pv-text)]"
+          className="pv-num text-[13px] font-semibold tabular-nums tracking-tight text-[var(--pv-text)]"
         >
           {timeLabel}
         </time>

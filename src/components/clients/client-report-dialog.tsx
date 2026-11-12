@@ -182,7 +182,7 @@ export function ClientReportDialog({
             ) : (
               <FileText className="h-4 w-4" aria-hidden="true" />
             )}
-            {busy ? 'Gerando...' : 'Gerar PDF'}
+            {busy ? 'Gerando…' : 'Gerar PDF'}
           </Button>
         </DialogFooter>
       </DialogContent>

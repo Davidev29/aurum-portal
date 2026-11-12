@@ -17,7 +17,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'pv-anim-slide-up flex flex-col items-center justify-center gap-4 rounded-[var(--pv-radius)] border border-dashed border-[var(--pv-border-strong)] bg-[var(--pv-panel)]/60 px-6 py-16 text-center',
+        'pv-anim-slide-up flex flex-col items-center justify-center gap-4 rounded-[var(--pv-radius-panel)] border border-dashed border-[var(--pv-border-strong)] bg-[var(--pv-panel)]/60 px-6 py-16 text-center',
         className,
       )}
     >

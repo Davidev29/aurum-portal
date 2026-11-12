@@ -15,10 +15,7 @@ export function TableHeader({
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <thead
-      className={cn(
-        'border-b border-[var(--pv-border)] bg-[var(--pv-panel-2)] [&_tr]:border-0',
-        className,
-      )}
+      className={cn('border-b border-[var(--pv-border)] bg-transparent [&_tr]:border-0', className)}
       {...props}
     />
   )
@@ -41,7 +38,7 @@ export function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTa
   return (
     <th
       className={cn(
-        'whitespace-nowrap px-5 py-4 text-left align-middle text-xs font-semibold uppercase tracking-[0.06em] text-[var(--pv-muted)]',
+        'whitespace-nowrap px-5 py-3.5 text-left align-middle text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--pv-faint)]',
         className,
       )}
       {...props}

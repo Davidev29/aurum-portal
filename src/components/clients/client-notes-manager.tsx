@@ -217,7 +217,7 @@ export function ClientNotesManager({
             id="new-note"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Nova observação..."
+            placeholder="Nova observação…"
             disabled={busy}
             aria-label="Nova observação"
           />

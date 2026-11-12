@@ -1551,7 +1551,7 @@ export default function AssinaturasPage() {
 
       {/* Step 1: Documento (PDF) */}
       {step === 1 ? (
-        <Card className="p-6">
+        <Card className="flex min-h-0 flex-1 flex-col justify-center p-6">
           <div className="mb-4 flex items-center gap-2">
             <Upload className="h-5 w-5 text-[var(--pv-accent)]" />
             <h2 className="text-base font-semibold">Documento PDF para assinatura</h2>
@@ -1627,7 +1627,7 @@ export default function AssinaturasPage() {
         <Card className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
           <div className="mb-2 flex shrink-0 flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+              <ShieldCheck className="h-5 w-5 text-[var(--pv-success)]" />
               <h2 className="text-base font-semibold">Certificados digitais dos clientes</h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1931,8 +1931,8 @@ export default function AssinaturasPage() {
                 </h2>
                 <p className="text-xs text-[var(--pv-muted)]">
                   Desenhe um bloco sobre o campo de assinatura e o sistema coloca a assinatura
-                  dentro dele, igual ao Adobe. O bloco adota exatamente o tamanho desenhado
-                  (o conteúdo do carimbo encolhe proporcionalmente para caber).
+                  dentro dele, igual ao Adobe. O bloco adota exatamente o tamanho desenhado (o
+                  conteúdo do carimbo encolhe proporcionalmente para caber).
                 </p>
               </div>
             </div>
@@ -2020,7 +2020,7 @@ export default function AssinaturasPage() {
                             onPointerUp={handleStampPointerUp}
                             onPointerCancel={handleStampPointerCancel}
                             onKeyDown={handleStampKeyDown}
-                            className={`absolute flex cursor-grab touch-none select-none items-center justify-center overflow-hidden rounded-xl bg-white shadow-md outline-none ring-1 ring-[var(--pv-border-strong)]/70 transition-shadow duration-150 ${!stampPt ? 'hidden' : ''} ${dragging ? 'shadow-lg ring-2 ring-brand-500/40' : ''}`}
+                            className={`absolute flex cursor-grab touch-none select-none items-center justify-center overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-[var(--pv-border-strong)]/70 transition-shadow duration-150 ${!stampPt ? 'hidden' : ''} ${dragging ? 'shadow-lg ring-2 ring-brand-500/40' : ''}`}
                             style={stampPctToStyle}
                             aria-valuenow={Math.round(stampRect.x * 100)}
                             aria-valuetext={`Posição ${Math.round(stampRect.x * 100)}% horizontal, ${Math.round(stampRect.y * 100)}% vertical, largura ${Math.round(stampRect.w * 100)}%, altura ${Math.round(stampRect.h * 100)}%`}
@@ -2053,75 +2053,75 @@ export default function AssinaturasPage() {
                               className="pointer-events-none relative flex h-[138.67px] w-[186.67px] shrink-0 flex-col overflow-hidden rounded-[10px] bg-white"
                               style={{ zoom: previewStageZoom }}
                             >
-                            {/* Marca d'água (biometria) centralizada no meio de tudo,
+                              {/* Marca d'água (biometria) centralizada no meio de tudo,
                                 atrás de todo o conteúdo do carimbo. */}
-                            <img
-                              src="/biometria-watermark.png"
-                              alt=""
-                              aria-hidden="true"
-                              draggable={false}
-                              className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[62%] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.18]"
-                            />
-                            {/* Cabeçalho do carimbo */}
-                            <div className="relative z-10 flex shrink-0 items-center justify-between gap-2 px-2.5 py-1.5 bg-[#1b1a17] text-[#ece9e2]">
-                              <div className="flex min-w-0 items-center gap-1.5">
-                                <GripHorizontal
-                                  className="h-3 w-3 shrink-0 text-[#D4AF37] rotate-180"
-                                  aria-hidden="true"
-                                />
-                                <span className="truncate text-[9px] font-bold tracking-[0.1em] text-[#D4AF37]/90">
-                                  ASSINADO DIGITALMENTE
-                                </span>
-                              </div>
                               <img
-                                src="/iti-certificacao.png"
-                                alt="Selo ITI — Instituto Tecnológico"
-                                className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/40"
+                                src="/biometria-watermark.png"
+                                alt=""
+                                aria-hidden="true"
                                 draggable={false}
+                                className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[62%] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.18]"
                               />
-                            </div>
-                            <div
-                              className="relative z-10 h-[1px] shrink-0 bg-[#D4AF37]/60"
-                              aria-hidden="true"
-                            />
-                            <div className="relative z-10 flex min-w-0 flex-1 items-end gap-2 px-2.5 pt-1 pb-1.5">
-                              <div className="relative min-w-0 flex-1">
-                                <div className="line-clamp-2 break-words text-[10px] font-bold leading-tight text-[var(--pv-text)]">
-                                  {selectedCert?.holderName ?? ''}
+                              {/* Cabeçalho do carimbo */}
+                              <div className="relative z-10 flex shrink-0 items-center justify-between gap-2 px-2.5 py-1.5 bg-[#1b1a17] text-[#ece9e2]">
+                                <div className="flex min-w-0 items-center gap-1.5">
+                                  <GripHorizontal
+                                    className="h-3 w-3 shrink-0 text-[#D4AF37] rotate-180"
+                                    aria-hidden="true"
+                                  />
+                                  <span className="truncate text-[9px] font-bold tracking-[0.1em] text-[#D4AF37]/90">
+                                    ASSINADO DIGITALMENTE
+                                  </span>
                                 </div>
-                                {selectedCert ? (
-                                  <div className="mt-0.5 truncate text-[8px] font-bold text-[var(--pv-text)]">
-                                    {formatCpfCnpj(
-                                      selectedCert.document,
-                                      selectedCert.documentType,
-                                    )}
-                                  </div>
-                                ) : null}
-                                {selectedCert ? (
-                                  <div
-                                    className="truncate text-[8px] font-bold text-[var(--pv-muted)]"
-                                    title={selectedCert.issuerDn}
-                                  >
-                                    Emissor: {issuerShort(selectedCert.issuerDn)}
-                                  </div>
-                                ) : null}
-                                <div className="truncate text-[8px] font-bold text-[var(--pv-muted)]">
-                                  Data: {new Date().toLocaleDateString('pt-BR')} -03:00
-                                </div>
-                              </div>
-                              {qrDataUrl ? (
                                 <img
-                                  src={qrDataUrl}
-                                  alt="QR Code para validar em validar.iti.gov.br"
-                                  className="h-12 w-12 shrink-0 rounded-sm ring-1 ring-[var(--pv-border-strong)]/60"
+                                  src="/iti-certificacao.png"
+                                  alt="Selo ITI — Instituto Tecnológico"
+                                  className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/40"
                                   draggable={false}
                                 />
-                              ) : (
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm border border-dashed border-[var(--pv-border-strong)] text-[8px] text-[var(--pv-faint)]">
-                                  QR
+                              </div>
+                              <div
+                                className="relative z-10 h-[1px] shrink-0 bg-[#D4AF37]/60"
+                                aria-hidden="true"
+                              />
+                              <div className="relative z-10 flex min-w-0 flex-1 items-end gap-2 px-2.5 pt-1 pb-1.5">
+                                <div className="relative min-w-0 flex-1">
+                                  <div className="line-clamp-2 break-words text-[10px] font-bold leading-tight text-[var(--pv-text)]">
+                                    {selectedCert?.holderName ?? ''}
+                                  </div>
+                                  {selectedCert ? (
+                                    <div className="mt-0.5 truncate text-[8px] font-bold text-[var(--pv-text)]">
+                                      {formatCpfCnpj(
+                                        selectedCert.document,
+                                        selectedCert.documentType,
+                                      )}
+                                    </div>
+                                  ) : null}
+                                  {selectedCert ? (
+                                    <div
+                                      className="truncate text-[8px] font-bold text-[var(--pv-muted)]"
+                                      title={selectedCert.issuerDn}
+                                    >
+                                      Emissor: {issuerShort(selectedCert.issuerDn)}
+                                    </div>
+                                  ) : null}
+                                  <div className="truncate text-[8px] font-bold text-[var(--pv-muted)]">
+                                    Data: {new Date().toLocaleDateString('pt-BR')} -03:00
+                                  </div>
                                 </div>
-                              )}
-                            </div>
+                                {qrDataUrl ? (
+                                  <img
+                                    src={qrDataUrl}
+                                    alt="QR Code para validar em validar.iti.gov.br"
+                                    className="h-12 w-12 shrink-0 rounded-sm ring-1 ring-[var(--pv-border-strong)]/60"
+                                    draggable={false}
+                                  />
+                                ) : (
+                                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm border border-dashed border-[var(--pv-border-strong)] text-[8px] text-[var(--pv-faint)]">
+                                    QR
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                           {renderingPage ? (
@@ -2274,8 +2274,8 @@ export default function AssinaturasPage() {
       {/* Step 4: Revisar, assinar e concluir */}
       {step === 4 ? (
         result ? (
-          <Card className="p-6 sm:p-8">
-            <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 text-center">
+          <Card className="flex min-h-[440px] flex-col justify-center p-6 sm:p-8">
+            <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-3 text-center pv-anim-slide-up">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--pv-success-soft)] text-[var(--pv-success)] ring-1 ring-[var(--pv-success-border)]/20 dark:bg-[var(--pv-success-soft)]">
                 <CheckCircle2 className="h-8 w-8" />
               </span>
@@ -2375,8 +2375,11 @@ export default function AssinaturasPage() {
             </div>
           </Card>
         ) : signing ? (
-          <Card className="p-6 sm:p-8" aria-live="polite">
-            <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-8 text-center">
+          <Card
+            className="flex min-h-[440px] flex-col justify-center p-6 sm:p-8"
+            aria-live="polite"
+          >
+            <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-4 text-center pv-anim-slide-up">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--pv-accent-soft)] text-[var(--pv-accent)] ring-1 ring-brand-600/20">
                 <Loader2 className="h-7 w-7 animate-spin" aria-hidden="true" />
               </span>
@@ -2393,7 +2396,7 @@ export default function AssinaturasPage() {
                     >
                       {done ? (
                         <CheckCircle2
-                          className="h-5 w-5 shrink-0 text-emerald-600"
+                          className="h-5 w-5 shrink-0 text-[var(--pv-success)]"
                           aria-hidden="true"
                         />
                       ) : active ? (
@@ -2427,7 +2430,7 @@ export default function AssinaturasPage() {
             </div>
           </Card>
         ) : (
-          <Card className="p-6">
+          <Card className="flex min-h-[440px] flex-col justify-center p-6">
             <div className="mb-4 flex items-center gap-2">
               <PenLine className="h-5 w-5 text-[var(--pv-accent)]" />
               <h2 className="text-base font-semibold">Revisar e assinar</h2>

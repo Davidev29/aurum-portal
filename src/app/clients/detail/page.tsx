@@ -210,7 +210,7 @@ export default function ClientDetailPage() {
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[var(--pv-radius)] bg-[var(--pv-accent-solid)] text-lg font-bold text-[var(--pv-on-accent)] shadow-lg">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[var(--pv-radius)] bg-[var(--pv-accent-solid)] text-lg font-semibold text-[var(--pv-on-accent)] shadow-md">
             {initials(client.name)}
           </div>
           <div className="min-w-0">
@@ -783,9 +783,11 @@ function Metric({
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300">
           {icon}
         </div>
-        <div>
-          <div className="text-xs text-[var(--pv-muted)]">{label}</div>
-          <div className="text-lg font-semibold">{value}</div>
+        <div className="min-w-0">
+          <div className="text-[11px] font-medium uppercase leading-snug tracking-[0.05em] text-[var(--pv-faint)]">
+            {label}
+          </div>
+          <div className="pv-num text-lg font-semibold">{value}</div>
         </div>
       </CardContent>
     </Card>

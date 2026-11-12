@@ -1,173 +1,180 @@
 @import 'tailwindcss';
 
+/* Tema escuro por classe (.dark) — alinhado ao seletor claro/escuro do app
+ * (ThemeSync), não ao prefers-color-scheme do SO. Sem isto, utilitários
+ * dark: do Tailwind refletiriam a mídia do SO e divergiriam do tema escolhido. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ==========================================================================
-   AurumBit Portal — Sistema de cor (colorimetria)
+   AurumBit Portal — Design system "quiet luxury software"
    --------------------------------------------------------------------------
-   Princípios (WCAG 2.2 AA + conforto visual)
-   - Texto principal ≥ 7:1 sobre fundo/painel; texto secundário ≥ 4.5:1.
-   - Croma ≤ 15% nos neutros (evita fadiga cromática): chumbo quente
-     (cinza levemente alaranjado, nunca preto puro nem azul-slate).
-   - Light: fundo chumbo-linho #ECEAE5; painel aquecido #FAF9F6.
-     Dark: chumbo profundo #1B1A17; hierarquia bg < panel < panel-2 < panel-3.
-   - Acento: champanhe (#C9A962) — ouro velho dessaturado. Botões sólidos
-     usam texto chumbo (--pv-on-accent), nunca branco sobre champanhe.
-   - Semânticos: light usa tom 700; dark usa tom 300. Aviso vira laranja
-     queimado (se separa do dourado do acento). Destrutivo ganha peso 700.
-   - Texto ≠ fundo sólido: --pv-accent/--pv-success/--pv-danger são COR DE
-     TEXTO. Fundo sólido com texto usa --pv-*-solid (bronze/champanhe,
-     verde #15803D, vermelho #991B1B).
+   Linguagem derivada da referência Linear (catálogo awesome-design-md),
+   adaptada para app desktop de uso prolongado:
+
+   - Canvas dark #101014 (tinta quase-preta com viés índigo — nunca #000).
+     Ladder de superfícies panel < panel-2 < panel-3 carrega a hierarquia;
+     hairline 1px delimita, sem sombras pesadas.
+   - Light derivado dos inverse-* tokens: canvas #F6F6F8 frio, painéis
+     brancos, hairlines #E2E2E7.
+   - Um único acento cromático: lavanda Linear #5E6AD2 (CTA/foco/ativo).
+     Nada de segundo acento decorativo; semânticos só para estado.
+   - Radii enxutos: controles 8px, cards 12px, painéis 16px, pílula p/ status.
+   - Tipografia: Inter (substitute aberta do Linear), tracking negativo em
+     títulos, eyebrow com tracking positivo. Corpo 14px, denso e legível.
+   - Texto AA: primário ≥ 7:1, secundário ≥ 4.5:1 nos dois temas.
+   - Cor de TEXTO ≠ fundo sólido: --pv-accent/--pv-success/... são texto;
+     fundo sólido com texto usa --pv-*-solid (champanhe descartado).
    ========================================================================== */
 
 @theme {
   --font-sans:
-    'Segoe UI', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont,
+    'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 
-  /* Champanhe/bronze — escala dessaturada, de papel envelhecido a quase-negro quente */
-  --color-brand-50: #faf7ec;
-  --color-brand-100: #f4edd8;
-  --color-brand-200: #e9dcae;
-  --color-brand-300: #dcc987;
-  --color-brand-400: #c9a962;
-  --color-brand-500: #a8853f;
-  --color-brand-600: #7e6327;
-  --color-brand-700: #66521f;
-  --color-brand-800: #50401c;
-  --color-brand-900: #3d3118;
+  /* Lavanda Linear — escala dessaturada (referência de linguagem, não marca) */
+  --color-brand-50: #f0f0fc;
+  --color-brand-100: #e3e3fa;
+  --color-brand-200: #c7c8f5;
+  --color-brand-300: #a5adff;
+  --color-brand-400: #828fff;
+  --color-brand-500: #5e6ad2;
+  --color-brand-600: #4e56c4;
+  --color-brand-700: #3f46a8;
+  --color-brand-800: #2f348a;
+  --color-brand-900: #23255f;
 }
 
 :root {
   color-scheme: light;
 
-  /* Fundo — chumbo-linho: of-white aquecido, sem azul, sem brilho */
-  --pv-bg: #eceae5;
-  /* Painel — branco aquecido (não #FFF puro) */
-  --pv-panel: #faf9f6;
-  /* Painel secundário dentro de cards */
-  --pv-panel-2: #f0eee9;
-  /* Painel terciário (sub-grupos, cabeçalhos internos) */
-  --pv-panel-3: #e3e0da;
-  --pv-inset: #d9d6cf;
+  /* Fundo — inverse-canvas frio da referência; painéis brancos "folha" */
+  --pv-bg: #f6f6f8;
+  --pv-panel: #ffffff;
+  --pv-panel-2: #f1f1f4;
+  --pv-panel-3: #e8e8ec;
+  --pv-inset: #ededf1;
 
-  /* Bordas — chumbo médio, delimita sem pesar */
-  --pv-border: #cbc8bf;
-  --pv-border-strong: #a6a298;
-  --pv-border-subtle: #dfdcd5;
+  /* Hairlines — delimita sem pesar */
+  --pv-border: #e2e2e7;
+  --pv-border-strong: #c7c7ce;
+  --pv-border-subtle: #ececf1;
 
-  /* Texto — chumbo profundo (contraste ≥ 7:1) */
-  --pv-text: #26241f;
-  /* Texto secundário — chumbo médio (≥ 4.5:1) */
-  --pv-muted: #4b4840;
-  /* Texto fraco — recuado mas legível */
-  --pv-faint: #706c62;
+  /* Texto — tinta quase-preta (≥ 7:1) */
+  --pv-text: #17181c;
+  /* Secundário ≥ 4.5:1 */
+  --pv-muted: #4e5058;
+  --pv-faint: #6e707a;
 
-  /* Acento — bronze escuro como texto; champanhe como sólido (com texto chumbo) */
-  --pv-accent: #7e6327;
-  --pv-accent-solid: #c9a962;
-  --pv-accent-solid-hover: #b99b52;
-  --pv-accent-strong: #66521f;
-  --pv-accent-2: #5f5230;
-  --pv-accent-soft: #f3edda;
-  --pv-accent-soft-border: #e2d3a4;
-  /* Texto sobre --pv-accent-solid (champanhe) — nunca branco */
-  --pv-on-accent: #262013;
+  /* Acento — lavanda; texto usa o tom AA, sólido usa o primary Linear */
+  --pv-accent: #4e56c4;
+  --pv-accent-solid: #5e6ad2;
+  --pv-accent-solid-hover: #4e56c4;
+  --pv-accent-strong: #3f46a8;
+  --pv-accent-2: #575e8a;
+  --pv-accent-soft: #ededfc;
+  --pv-accent-soft-border: #d9d9f2;
+  /* Texto sobre --pv-accent-solid (lavanda) — sempre branco */
+  --pv-on-accent: #ffffff;
 
-  --pv-success: #15803d;
-  --pv-success-solid: #15803d;
+  --pv-success: #17753c;
+  --pv-success-solid: #1f7a3d;
   --pv-success-soft: #edf7ef;
-  --pv-success-border: #a9d9bb;
+  --pv-success-border: #bfe5cc;
 
-  --pv-warning: #c2410c;
-  --pv-warning-soft: #fdf0e7;
-  --pv-warning-border: #f5b48c;
+  --pv-warning: #b45309;
+  --pv-warning-soft: #fbf3e4;
+  --pv-warning-border: #f0d7a8;
 
-  --pv-danger: #b91c1c;
-  --pv-danger-solid: #991b1b;
-  --pv-danger-strong: #7f1d1d;
-  --pv-danger-soft: #fdf2f0;
-  --pv-danger-border: #efc3bd;
+  --pv-danger: #b3261e;
+  --pv-danger-solid: #d92d20;
+  --pv-danger-strong: #991b1b;
+  --pv-danger-soft: #fcedeb;
+  --pv-danger-border: #f3c0b8;
 
   --pv-info: #3f4c5e;
-  --pv-info-soft: #eef0f4;
-  --pv-info-border: #c9cedb;
+  --pv-info-soft: #eef0f5;
+  --pv-info-border: #ccd2de;
 
-  --pv-shadow-sm: 0 1px 2px rgba(38, 36, 31, 0.07);
-  --pv-shadow: 0 1px 2px rgba(38, 36, 31, 0.07), 0 8px 24px rgba(38, 36, 31, 0.07);
-  --pv-shadow-md: 0 2px 6px rgba(38, 36, 31, 0.08), 0 12px 32px rgba(38, 36, 31, 0.1);
-  --pv-shadow-lg: 0 4px 10px rgba(38, 36, 31, 0.09), 0 20px 52px rgba(38, 36, 31, 0.14);
-  --pv-ring: 0 0 0 3px rgba(168, 133, 63, 0.35);
-  --pv-ring-danger: 0 0 0 3px rgba(185, 28, 28, 0.25);
+  --pv-shadow-sm: 0 1px 2px rgba(23, 24, 28, 0.06);
+  --pv-shadow: 0 1px 2px rgba(23, 24, 28, 0.05), 0 6px 16px rgba(23, 24, 28, 0.06);
+  --pv-shadow-md: 0 2px 6px rgba(23, 24, 28, 0.06), 0 10px 28px rgba(23, 24, 28, 0.09);
+  --pv-shadow-lg: 0 4px 10px rgba(23, 24, 28, 0.08), 0 18px 44px rgba(23, 24, 28, 0.13);
+  --pv-ring: 0 0 0 3px rgba(94, 106, 210, 0.35);
+  --pv-ring-danger: 0 0 0 3px rgba(179, 38, 30, 0.28);
 
-  --pv-radius: 18px;
-  --pv-radius-sm: 12px;
-  --pv-overlay: rgba(27, 26, 23, 0.5);
+  --pv-radius: 12px;
+  --pv-radius-sm: 8px;
+  --pv-radius-xs: 6px;
+  --pv-radius-control: 8px;
+  --pv-radius-panel: 16px;
+  --pv-overlay: rgba(16, 16, 20, 0.44);
 }
 
 .dark {
   color-scheme: dark;
 
-  /* Fundo — chumbo profundo e quente (nunca preto puro, nunca azul) */
-  --pv-bg: #1b1a17;
-  /* Painel — chumbo elevado */
-  --pv-panel: #242220;
-  /* Painel secundário — hierarquia clareando */
-  --pv-panel-2: #2c2a27;
-  /* Painel terciário */
-  --pv-panel-3: #373530;
-  --pv-inset: #201f1c;
+  /* Canvas — tinta quase-preta com viés índigo (nunca #000 puro) */
+  --pv-bg: #101014;
+  /* Surface ladder 1..3 */
+  --pv-panel: #17171c;
+  --pv-panel-2: #1d1d24;
+  --pv-panel-3: #23232b;
+  --pv-inset: #0b0b0f;
 
-  /* Bordas — chumbo metálico, delimitam sem 'friaca' */
-  --pv-border: #3b3833;
-  --pv-border-strong: #52504a;
-  --pv-border-subtle: #2b2925;
+  /* Hairlines — metálicas, sem "friagem" azul */
+  --pv-border: #25252d;
+  --pv-border-strong: #383845;
+  --pv-border-subtle: #1d1d24;
 
-  /* Texto — of-white aquecido, alto contraste */
-  --pv-text: #ece9e2;
-  /* Texto secundário — greige claro */
-  --pv-muted: #b3afa3;
-  /* Texto fraco — recuado mas legível */
-  --pv-faint: #847f74;
+  /* Texto — off-white aquecido */
+  --pv-text: #f2f2f6;
+  --pv-muted: #bec0ca;
+  --pv-faint: #8b8e99;
 
-  /* Acento — champanhe claro como texto; champanhe clássico como sólido */
-  --pv-accent: #dcc987;
-  --pv-accent-solid: #c9a962;
-  --pv-accent-solid-hover: #dcc987;
-  --pv-accent-strong: #a8853f;
-  --pv-accent-2: #b0a06d;
-  --pv-accent-soft: rgba(220, 201, 135, 0.13);
-  --pv-accent-soft-border: rgba(220, 201, 135, 0.3);
-  /* Texto sobre --pv-accent-solid (champanhe) — nunca branco */
-  --pv-on-accent: #262013;
+  /* Acento — lavanda clara sobre escuro; o CTA mantém o primary Linear */
+  --pv-accent: #a5adff;
+  --pv-accent-solid: #5e6ad2;
+  --pv-accent-solid-hover: #6e77de;
+  --pv-accent-strong: #828fff;
+  --pv-accent-2: #8e94c8;
+  --pv-accent-soft: rgba(133, 141, 255, 0.13);
+  --pv-accent-soft-border: rgba(140, 149, 255, 0.32);
+  --pv-on-accent: #ffffff;
 
-  --pv-success: #3ddc97;
-  --pv-success-solid: #15803d;
-  --pv-success-soft: rgba(61, 220, 151, 0.12);
-  --pv-success-border: rgba(61, 220, 151, 0.28);
+  --pv-success: #3dd68c;
+  --pv-success-solid: #1f7a3d;
+  --pv-success-soft: rgba(61, 214, 140, 0.12);
+  --pv-success-border: rgba(61, 214, 140, 0.28);
 
-  --pv-warning: #fb923c;
-  --pv-warning-soft: rgba(251, 146, 60, 0.12);
-  --pv-warning-border: rgba(251, 146, 60, 0.28);
+  --pv-warning: #fbb03b;
+  --pv-warning-soft: rgba(251, 176, 59, 0.11);
+  --pv-warning-border: rgba(251, 176, 59, 0.28);
 
-  --pv-danger: #f87171;
-  --pv-danger-solid: #991b1b;
-  --pv-danger-strong: #7f1d1d;
-  --pv-danger-soft: rgba(248, 113, 113, 0.13);
-  --pv-danger-border: rgba(248, 113, 113, 0.32);
+  --pv-danger: #ff6369;
+  --pv-danger-solid: #d92d20;
+  --pv-danger-strong: #b02a20;
+  --pv-danger-soft: rgba(255, 99, 105, 0.12);
+  --pv-danger-border: rgba(255, 99, 105, 0.3);
 
-  --pv-info: #b9c6d6;
-  --pv-info-soft: rgba(185, 198, 214, 0.12);
-  --pv-info-border: rgba(185, 198, 214, 0.26);
+  --pv-info: #a9b4cc;
+  --pv-info-soft: rgba(169, 180, 204, 0.12);
+  --pv-info-border: rgba(169, 180, 204, 0.26);
 
-  --pv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --pv-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.35);
-  --pv-shadow-md: 0 2px 6px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.42);
-  --pv-shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.55), 0 20px 52px rgba(0, 0, 0, 0.55);
-  --pv-ring: 0 0 0 3px rgba(220, 201, 135, 0.3);
-  --pv-ring-danger: 0 0 0 3px rgba(248, 113, 113, 0.3);
-  --pv-overlay: rgba(15, 14, 11, 0.64);
+  --pv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --pv-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.02);
+  --pv-shadow-md: 0 2px 6px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --pv-shadow-lg: 0 6px 14px rgba(0, 0, 0, 0.5), 0 22px 52px rgba(0, 0, 0, 0.5);
+  --pv-ring: 0 0 0 3px rgba(130, 143, 255, 0.38);
+  --pv-ring-danger: 0 0 0 3px rgba(255, 99, 105, 0.32);
+  --pv-overlay: rgba(5, 5, 8, 0.62);
 }
 
-* {
-  border-color: var(--pv-border);
+@layer base {
+  /* Borda padrão do sistema — especificidade baixa para utilitários ganharem */
+  * {
+    border-color: var(--pv-border);
+  }
 }
 
 html,
@@ -193,38 +200,41 @@ body {
   letter-spacing: -0.011em;
 }
 
-/* Atmosfera sutil — brilho mínimo, sem arco-íris (reduz fadiga) */
+/* Atmosfera — um único véu de índigo, quase imperceptível (nunca um arco-íris) */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(900px 400px at 85% -10%, rgba(168, 133, 63, 0.09), transparent 65%),
-    radial-gradient(700px 320px at -5% 105%, rgba(201, 169, 98, 0.08), transparent 62%);
+    radial-gradient(900px 420px at 78% -12%, rgba(94, 106, 210, 0.08), transparent 65%),
+    radial-gradient(720px 360px at -8% 112%, rgba(94, 106, 210, 0.06), transparent 62%);
   z-index: -1;
 }
 
 .dark body::before {
   background:
-    radial-gradient(900px 400px at 85% -10%, rgba(220, 201, 135, 0.09), transparent 65%),
-    radial-gradient(700px 320px at -5% 105%, rgba(201, 169, 98, 0.06), transparent 62%);
+    radial-gradient(900px 420px at 78% -12%, rgba(130, 143, 255, 0.1), transparent 65%),
+    radial-gradient(720px 360px at -8% 112%, rgba(94, 106, 210, 0.09), transparent 62%);
 }
 
 ::selection {
-  background: rgba(168, 133, 63, 0.32);
+  background: rgba(94, 106, 210, 0.28);
   color: inherit;
 }
 
 .dark ::selection {
-  background: rgba(220, 201, 135, 0.34);
+  background: rgba(133, 141, 255, 0.34);
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+@layer base {
+  /* Controles herdam a fonte — base, não utilities */
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
 }
 
 ::placeholder {
@@ -255,9 +265,33 @@ select {
   border: 3px solid transparent;
 }
 
-:focus-visible {
-  outline: none;
-  box-shadow: var(--pv-ring);
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--pv-accent-solid);
+    outline-offset: 2px;
+    transition: outline-color var(--pv-dur-fast) ease;
+  }
+}
+
+/* Números tabulares — alinhamento mestre em métricas e relógio */
+.pv-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    'tnum' on,
+    'ss01' on,
+    'cv11' on;
+}
+
+/* Títulos equilibrados — evita viúva/órfão de uma palavra na última linha.
+ * Na camada utilities para perder por especificidade (.truncate = 2 classes
+ * no h3 vence 0,0,1): text-wrap é shorthand que reseta text-wrap-mode, e um
+ * h3 truncado precisa continuar nowrap. */
+@layer utilities {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
 }
 
 /* ---------- Superfícies reutilizáveis ---------- */
@@ -271,8 +305,14 @@ select {
 
 .pv-surface-raised {
   border: 1px solid var(--pv-border);
-  background: linear-gradient(180deg, var(--pv-panel), var(--pv-panel-2));
-  border-radius: var(--pv-radius);
+  background: var(--pv-panel);
+  border-radius: var(--pv-radius-panel);
+  box-shadow: var(--pv-shadow-md);
+}
+
+/* Light: elevar uma superfície é sombra; dark: elevar é subir a ladder */
+.dark .pv-surface-raised {
+  background: var(--pv-panel-2);
   box-shadow: var(--pv-shadow-md);
 }
 
@@ -285,7 +325,7 @@ select {
 
 .pv-surface-hover:hover {
   border-color: var(--pv-border-strong);
-  box-shadow: var(--pv-shadow-lg);
+  box-shadow: var(--pv-shadow-md);
 }
 
 .pv-btn--link {
@@ -297,9 +337,9 @@ select {
 }
 
 .pv-eyebrow {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--pv-faint);
 }
@@ -349,13 +389,13 @@ select {
   border: 1px solid var(--pv-border-strong);
   background: var(--pv-panel);
   color: var(--pv-text);
-  border-radius: 12px;
+  border-radius: var(--pv-radius-control);
   box-shadow: var(--pv-shadow-sm);
 }
 
 .pv-input:focus-visible,
 .pv-input:focus {
-  border-color: var(--pv-accent);
+  border-color: var(--pv-accent-solid);
   box-shadow: var(--pv-ring);
 }
 
@@ -372,7 +412,7 @@ select {
   background: linear-gradient(
     100deg,
     transparent 20%,
-    rgba(255, 255, 255, 0.65) 50%,
+    rgba(255, 255, 255, 0.55) 50%,
     transparent 80%
   );
   animation: pv-shimmer 1.4s infinite;
@@ -382,7 +422,7 @@ select {
   background: linear-gradient(
     100deg,
     transparent 20%,
-    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.06) 50%,
     transparent 80%
   );
 }
@@ -647,13 +687,13 @@ select {
 
 @keyframes pv-pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.45);
+    box-shadow: 0 0 0 0 rgba(31, 122, 61, 0.45);
   }
   70% {
-    box-shadow: 0 0 0 8px rgba(21, 128, 61, 0);
+    box-shadow: 0 0 0 8px rgba(31, 122, 61, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(21, 128, 61, 0);
+    box-shadow: 0 0 0 0 rgba(31, 122, 61, 0);
   }
 }
 
@@ -727,19 +767,21 @@ select {
   animation-delay: 270ms;
 }
 
-/* Botão — base táctil global (aplica-se a todo <button> sem classe customizada).
- * `scale` (propriedade individual) compõe com `transform` sem conflitos. */
-button,
-[role='button'] {
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  scale: 1;
-  transition: scale var(--pv-dur-micro) var(--pv-ease-out-expo);
-}
+@layer base {
+  /* Base táctil global (aplica-se a todo <button> sem classe customizada).
+   * `scale` (propriedade individual) compõe com `transform` sem conflitos. */
+  button,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    scale: 1;
+    transition: scale var(--pv-dur-micro) var(--pv-ease-out-expo);
+  }
 
-button:active,
-[role='button']:active {
-  scale: 0.96;
+  button:active,
+  [role='button']:active {
+    scale: 0.96;
+  }
 }
 
 /* Botão — família .pv-btn (usada pelo componente Button) */
@@ -763,7 +805,7 @@ button:active,
   bottom: 0;
   left: 0;
   width: 45%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
   transform: translateX(-130%) skewX(-18deg);
   pointer-events: none;
   z-index: 1;
@@ -774,11 +816,11 @@ button:active,
 }
 
 .pv-btn:hover {
-  filter: brightness(1.04);
+  filter: brightness(1.03);
 }
 
 .pv-btn:active {
-  filter: brightness(0.96);
+  filter: brightness(0.97);
   scale: 0.97;
 }
 
@@ -786,9 +828,11 @@ button:active,
   flex-shrink: 0;
 }
 
-/* Link de navegação — menu lateral (hover estável, sem deslocamento) */
+/* Link de navegação — menu lateral (hover estável, sem deslocamento).
+ * Estado ativo = superfície suave + barra lavanda (currentColor). */
 .pv-nav-link {
   position: relative;
+  color: var(--pv-muted);
   transition:
     background-color var(--pv-dur-fast) ease,
     color var(--pv-dur-fast) ease,
@@ -796,41 +840,33 @@ button:active,
     scale var(--pv-dur-micro) var(--pv-ease-out-expo);
 }
 
+.pv-nav-link:hover {
+  color: var(--pv-text);
+  background: var(--pv-panel-2);
+}
+
 .pv-nav-link:active {
   scale: 0.98;
 }
 
-.pv-nav-link::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 3px;
-  height: 0;
-  border-radius: 999px;
-  background: currentColor;
-  transform: translateY(-50%) scaleY(0);
-  transition:
-    height var(--pv-dur-base) var(--pv-ease-spring-soft),
-    transform var(--pv-dur-base) var(--pv-ease-spring-soft);
-  opacity: 0.8;
-}
-
-.pv-nav-link:hover::before {
-  height: 20px;
-  transform: translateY(-50%) scaleY(1);
-}
-
-.pv-nav-link.is-active::before {
-  height: 22px;
-  opacity: 1;
-  transform: translateY(-50%) scaleY(1);
+.pv-nav-link.is-active {
+  color: var(--pv-text);
+  background: var(--pv-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--pv-accent-soft-border);
 }
 
 .pv-nav-link .pv-nav-icon {
   transition:
     background-color var(--pv-dur-fast) ease,
-    color var(--pv-dur-fast) ease;
+    color var(--pv-dur-fast) ease,
+    box-shadow var(--pv-dur-fast) ease,
+    border-color var(--pv-dur-fast) ease;
+}
+
+.pv-nav-link.is-active .pv-nav-icon {
+  color: var(--pv-accent);
+  background: color-mix(in srgb, var(--pv-accent-solid) 18%, transparent);
+  border-color: var(--pv-accent-soft-border);
 }
 
 /* Cartões e cards — hover estável: sem "levantar", só sombra/borda.
@@ -843,7 +879,7 @@ button:active,
 }
 
 .pv-lift:hover {
-  box-shadow: var(--pv-shadow-lg);
+  box-shadow: var(--pv-shadow-md);
   border-color: var(--pv-border-strong);
 }
 
@@ -863,33 +899,15 @@ button:active,
 }
 
 .pv-service-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
   border-color: var(--pv-border-strong);
-  box-shadow:
-    0 1px 2px rgba(38, 36, 31, 0.06),
-    0 10px 20px rgba(38, 36, 31, 0.09),
-    0 26px 52px rgba(38, 36, 31, 0.17);
-}
-
-.dark .pv-service-card:hover {
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.42),
-    0 12px 24px rgba(0, 0, 0, 0.36),
-    0 30px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--pv-shadow-lg);
 }
 
 .pv-service-card:active {
-  transform: translateY(-2px) scale(0.985);
+  transform: translateY(-1px) scale(0.985);
   transition-duration: 180ms;
-  box-shadow:
-    0 1px 2px rgba(38, 36, 31, 0.07),
-    0 10px 22px rgba(38, 36, 31, 0.11);
-}
-
-.dark .pv-service-card:active {
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.45),
-    0 12px 26px rgba(0, 0, 0, 0.42);
+  box-shadow: var(--pv-shadow-md);
 }
 
 /* Tile do logo: leve "respiração" no hover do card (mola suave) */
@@ -898,7 +916,7 @@ button:active,
 }
 
 .pv-service-card:hover .pv-service-logo {
-  transform: scale(1.07);
+  transform: scale(1.06);
 }
 
 /* Ponto "ao vivo" (sessões abertas) — pulso suave */
@@ -935,7 +953,7 @@ button:active,
   animation: pv-star-pop 420ms var(--pv-ease-spring) both;
 }
 
-/* Chip GOV.BR — identidade do ecossistema gov.br no card */
+/* Chip do ecossistema gov.br no card */
 .pv-gov-chip {
   display: inline-flex;
   align-items: center;
@@ -957,7 +975,12 @@ button:active,
   transition:
     background-color var(--pv-dur-fast) ease,
     color var(--pv-dur-fast) ease,
+    box-shadow var(--pv-dur-fast) ease,
     scale var(--pv-dur-micro) var(--pv-ease-out-expo);
+}
+
+.pv-icon-btn:hover {
+  box-shadow: var(--pv-shadow-sm);
 }
 
 .pv-icon-btn:active {
@@ -986,7 +1009,7 @@ button:active,
 .pv-ripple {
   position: absolute;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.28);
   transform: scale(0);
   animation: pv-ripple-out 520ms ease-out forwards;
   pointer-events: none;
@@ -994,7 +1017,7 @@ button:active,
 }
 
 .pv-ripple--dark {
-  background: rgba(38, 36, 31, 0.14);
+  background: rgba(23, 24, 28, 0.12);
 }
 
 /* Dialog & Overlay — estados Radix */
@@ -1051,15 +1074,10 @@ button:active,
 }
 
 .pv-row-hover:hover {
-  background-color: color-mix(in srgb, var(--pv-accent-soft) 55%, transparent);
+  background-color: color-mix(in srgb, var(--pv-accent-soft) 60%, transparent);
 }
 
-/* Focus visível — anel (sem deslocamento) */
-:focus-visible {
-  outline: none;
-  box-shadow: var(--pv-ring);
-  transition: box-shadow var(--pv-dur-fast) ease;
-}
+/* Focus visível é definido na camada base (ver topo do arquivo) */
 
 .pv-ring-soft {
   box-shadow: 0 0 0 1px var(--pv-border) inset;

@@ -13,7 +13,7 @@ export function TabsList({
   return (
     <TabsPrimitive.List
       className={cn(
-        'inline-flex max-w-full flex-wrap items-center gap-1 rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)] p-1.5 shadow-sm',
+        'inline-flex max-w-full flex-wrap items-center gap-1 rounded-[var(--pv-radius)] border border-[var(--pv-border)] bg-[var(--pv-panel-2)] p-1',
         className,
       )}
       {...props}
@@ -28,7 +28,7 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'pv-pressable inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium text-[var(--pv-muted)] hover:text-[var(--pv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 data-[state=active]:bg-[var(--pv-accent-solid)] data-[state=active]:font-semibold data-[state=active]:text-[var(--pv-on-accent)] data-[state=active]:shadow-sm',
+        'pv-pressable inline-flex h-8 items-center gap-1.5 rounded-[var(--pv-radius-control)] px-3.5 text-[13px] font-medium text-[var(--pv-muted)] hover:text-[var(--pv-text)] focus-visible:ring-2 focus-visible:ring-brand-500 data-[state=active]:bg-[var(--pv-panel)] data-[state=active]:font-semibold data-[state=active]:text-[var(--pv-text)] data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-[var(--pv-border)]',
         className,
       )}
       {...props}
@@ -43,7 +43,7 @@ export function TabsContent({
   return (
     <TabsPrimitive.Content
       className={cn(
-        'pv-tabs-content mt-5 outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+        'pv-tabs-content mt-5 focus-visible:ring-2 focus-visible:ring-brand-500',
         className,
       )}
       {...props}

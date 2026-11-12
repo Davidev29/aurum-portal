@@ -3,20 +3,20 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'pv-btn group inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 [&>svg]:shrink-0',
+  'pv-btn group inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-[var(--pv-radius-control)] text-sm font-semibold focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 [&>svg]:shrink-0',
   {
     variants: {
       variant: {
         default:
-          'bg-[var(--pv-accent-solid)] text-[var(--pv-on-accent)] shadow-[0_2px_10px_rgba(126,99,39,0.32)] hover:bg-[var(--pv-accent-solid-hover)] hover:shadow-[0_6px_20px_rgba(126,99,39,0.4)] focus-visible:ring-brand-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pv-bg)] dark:focus-visible:ring-brand-300/50',
+          'bg-[var(--pv-accent-solid)] text-[var(--pv-on-accent)] hover:bg-[var(--pv-accent-solid-hover)] hover:shadow-md focus-visible:ring-brand-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pv-bg)] dark:focus-visible:ring-brand-300/50',
         secondary:
-          'border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] text-[var(--pv-text)] shadow-sm hover:border-[var(--pv-accent)] hover:bg-[var(--pv-accent-soft)] hover:shadow-md focus-visible:ring-brand-500/40 focus-visible:ring-offset-1',
+          'border border-[var(--pv-border-strong)] bg-[var(--pv-panel)] text-[var(--pv-text)] shadow-sm hover:border-[var(--pv-accent-solid)] hover:text-[var(--pv-accent)] hover:bg-[var(--pv-accent-soft)] focus-visible:ring-brand-500/40 focus-visible:ring-offset-1',
         ghost:
           'pv-icon-btn text-[var(--pv-muted)] hover:bg-[var(--pv-panel-2)] hover:text-[var(--pv-text)] focus-visible:ring-brand-500/40',
         outline:
           'border border-[var(--pv-border-strong)] bg-transparent text-[var(--pv-text)] hover:border-[var(--pv-accent)] hover:bg-[var(--pv-accent-soft)] hover:shadow-sm focus-visible:ring-brand-500/40',
         destructive:
-          'bg-[var(--pv-danger-solid)] text-white font-bold shadow-[0_2px_10px_rgba(153,27,27,0.28)] hover:brightness-110 hover:shadow-[0_6px_20px_rgba(153,27,27,0.36)] focus-visible:ring-red-600/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pv-bg)]',
+          'bg-[var(--pv-danger-solid)] text-white font-semibold shadow-sm hover:brightness-[1.08] hover:shadow-md focus-visible:ring-red-600/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pv-bg)]',
         soft: 'bg-[var(--pv-accent-soft)] text-[var(--pv-accent)] border border-[var(--pv-accent-soft-border)] hover:shadow-sm hover:brightness-[0.98] focus-visible:ring-brand-500/40',
         link: 'pv-btn--link h-auto gap-1 rounded-none p-0 text-[var(--pv-accent)] underline-offset-4 hover:underline focus-visible:ring-brand-500/40',
       },

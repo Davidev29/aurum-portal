@@ -44,7 +44,7 @@ export function HolidayPresentationPicker({
                 aria-label={`Ícone ${label}`}
                 onClick={() => onIconChange(key)}
                 className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30',
+                  'flex h-8 w-8 items-center justify-center rounded-lg border transition-[background-color,border-color,color] duration-150 focus-visible:ring-2 focus-visible:ring-brand-600/30',
                   selected
                     ? 'border-[var(--pv-accent-solid)] bg-[var(--pv-accent-soft)] text-[var(--pv-accent)] shadow-sm'
                     : 'border-[var(--pv-border)] text-[var(--pv-muted)] hover:border-[var(--pv-accent)] hover:text-[var(--pv-accent)]',
@@ -78,7 +78,7 @@ export function HolidayPresentationPicker({
                 onClick={() => onColorChange(swatch)}
                 style={{ backgroundColor: swatch }}
                 className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-lg border-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30',
+                  'flex h-8 w-8 items-center justify-center rounded-lg border-2 transition-[background-color,border-color,color] duration-150 focus-visible:ring-2 focus-visible:ring-brand-600/30',
                   selected
                     ? 'scale-110 border-[var(--pv-text)] shadow-md'
                     : 'border-transparent hover:scale-105',
