@@ -4,7 +4,7 @@ import path from 'node:path'
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { createDatabase } from '../../../electron/main/db/database'
 import { services } from '../../../electron/main/db/schema'
-import { saveRecipe } from '../../../electron/main/db/repositories/recipes'
+import { recipes } from '../../../electron/main/db/schema'
 import type { RecipeDefinition, RecipeStep } from '../../../shared/recipe'
 
 export interface LaunchOptions {
@@ -106,7 +106,26 @@ export function seedDatabase(dbPath: string, options: SeedOptions): void {
       })
       .run()
     if (options.withRecipe) {
-      saveRecipe(database.db, options.serviceId, E2E_LOGIN_RECIPE)
+      // NB: o heal executado no boot do app (healCustomServiceRecipes)
+      // reescreve toda receita customizada com status diferente de
+      // 'verified' cuja definicao difere da gerada automaticamente — o que
+      // descartaria este E2E_LOGIN_RECIPE (autoSubmit=false) e faria o
+      // portal auto-enviar o formulario no lugar do fluxo manual. Por isso a
+      // receita semeada nasce 'verified', igual as aprovadas pelo operador.
+      database.db
+        .insert(recipes)
+        .values({
+          id: `recipe-e2e-${options.serviceId}`,
+          serviceId: options.serviceId,
+          version: 1,
+          definition: E2E_LOGIN_RECIPE,
+          autoSubmit: E2E_LOGIN_RECIPE.autoSubmit,
+          status: 'verified',
+          lastVerifiedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run()
     }
   } finally {
     database.close()

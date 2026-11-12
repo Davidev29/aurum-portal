@@ -296,7 +296,14 @@ test.describe('AurumBit Portal - E2E', () => {
         ),
       ).rejects.toThrow(/allowlist do servico/)
 
-      await sessionWindow.locator('button[title="Fechar sessão"]').click()
+      // O clique em "Fechar sessão" dispara o encerramento da janela na
+      // mesma ação; o alvo morre em meio ao dispatch e o Playwright por
+      // vezes reporta "Target closed" para uma ação que já foi aplicada.
+      // A verificação real é o poll de janelas abaixo.
+      await sessionWindow
+        .locator('button[title="Fechar sessão"]')
+        .click({ noWaitAfter: true })
+        .catch(() => undefined)
       await expect.poll(() => app.windows().length, { timeout: 10_000 }).toBe(1)
     } finally {
       await app.close()
