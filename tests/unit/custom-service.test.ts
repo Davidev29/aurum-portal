@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  buildActionScript,
-  isSensitiveStep,
-  recipeValues,
-} from '../../electron/main/recipes/core'
+import { buildActionScript, isSensitiveStep, recipeValues } from '../../electron/main/recipes/core'
 import {
   buildAutoRecipe,
   deriveAllowedDomains,
@@ -24,8 +20,9 @@ const EXTERNAL_URL = 'https://portal.empresa.com.br/'
 
 describe('stripVolatileQueryParams / volatileQueryParamsIn', () => {
   it('remove cid e afins preservando o path e outros parâmetros', () => {
-    expect(stripVolatileQueryParams('https://iss.fortaleza.ce.gov.br/grpfor/login.seam?cid=252675'))
-      .toEqual({ url: 'https://iss.fortaleza.ce.gov.br/grpfor/login.seam', stripped: ['cid'] })
+    expect(
+      stripVolatileQueryParams('https://iss.fortaleza.ce.gov.br/grpfor/login.seam?cid=252675'),
+    ).toEqual({ url: 'https://iss.fortaleza.ce.gov.br/grpfor/login.seam', stripped: ['cid'] })
   })
   it('remove session_code/tab_id/authorization_id e mantém o restante', () => {
     expect(
@@ -34,10 +31,15 @@ describe('stripVolatileQueryParams / volatileQueryParamsIn', () => {
     ).toBe('https://x.gov.br/login?mensalidade=2026')
   })
   it('não mexe em query comum', () => {
-    expect(stripVolatileQueryParams('https://x.gov.br/p?a=1&b=2').url).toBe('https://x.gov.br/p?a=1&b=2')
+    expect(stripVolatileQueryParams('https://x.gov.br/p?a=1&b=2').url).toBe(
+      'https://x.gov.br/p?a=1&b=2',
+    )
   })
   it('volatileQueryParamsIn lista os efêmeros presentes', () => {
-    expect(volatileQueryParamsIn('https://x.gov.br/p?cid=1&foo=bar&tab_id=9')).toEqual(['cid', 'tab_id'])
+    expect(volatileQueryParamsIn('https://x.gov.br/p?cid=1&foo=bar&tab_id=9')).toEqual([
+      'cid',
+      'tab_id',
+    ])
     expect(volatileQueryParamsIn('https://x.gov.br/p?foo=bar')).toEqual([])
   })
   it('normalizeBaseUrlInput já devolve a URL limpa', () => {
@@ -111,14 +113,22 @@ describe('deriveAllowedDomains', () => {
 
 describe('deriveServiceDefaults', () => {
   it('deriva categoria e métodos para site do governo', () => {
-    const defaults = deriveServiceDefaults({ name: 'e-CAC teste', baseUrl: GOVBR_URL, loginFlow: 'both' })
+    const defaults = deriveServiceDefaults({
+      name: 'e-CAC teste',
+      baseUrl: GOVBR_URL,
+      loginFlow: 'both',
+    })
     expect(defaults.category).toBe('Governo Federal')
     expect(defaults.authMethods).toEqual(['certificate', 'password'])
     expect(defaults.defaultAuth).toBe('certificate')
     expect(defaults.slug).toBe('e-cac-teste')
   })
   it('site externo com senha cai em Outros e método padrão senha', () => {
-    const defaults = deriveServiceDefaults({ name: 'Portal X', baseUrl: EXTERNAL_URL, loginFlow: 'password' })
+    const defaults = deriveServiceDefaults({
+      name: 'Portal X',
+      baseUrl: EXTERNAL_URL,
+      loginFlow: 'password',
+    })
     expect(defaults.category).toBe('Outros')
     expect(defaults.authMethods).toEqual(['password'])
     expect(defaults.defaultAuth).toBe('password')
@@ -135,13 +145,19 @@ describe('deriveServiceCategory', () => {
 describe('stepCarriesCredentials', () => {
   it('detecta passos que carregam segredos', () => {
     expect(stepCarriesCredentials({ action: 'fill', value: '{{credential.password}}' })).toBe(true)
-    expect(stepCarriesCredentials({ action: 'evaluate', script: 'x {{credential.username}} y' })).toBe(true)
+    expect(
+      stepCarriesCredentials({ action: 'evaluate', script: 'x {{credential.username}} y' }),
+    ).toBe(true)
     expect(stepCarriesCredentials({ action: 'click', selectors: ['#a'] })).toBe(false)
     expect(stepCarriesCredentials({ action: 'fill', value: 'texto fixo' })).toBe(false)
   })
 })
 
-const MATRIX: Array<{ baseUrl: string; authMethods: Array<'certificate' | 'password'>; label: string }> = [
+const MATRIX: Array<{
+  baseUrl: string
+  authMethods: Array<'certificate' | 'password'>
+  label: string
+}> = [
   { baseUrl: GOVBR_URL, authMethods: ['certificate'], label: 'gov.br + certificado' },
   { baseUrl: GOVBR_URL, authMethods: ['password'], label: 'gov.br + senha' },
   { baseUrl: GOVBR_URL, authMethods: ['certificate', 'password'], label: 'gov.br + os dois' },
@@ -153,7 +169,11 @@ const MATRIX: Array<{ baseUrl: string; authMethods: Array<'certificate' | 'passw
 describe('buildAutoRecipe', () => {
   for (const item of MATRIX) {
     it(`gera receita válida: ${item.label}`, () => {
-      const recipe = buildAutoRecipe({ slug: 'teste', baseUrl: item.baseUrl, authMethods: item.authMethods })
+      const recipe = buildAutoRecipe({
+        slug: 'teste',
+        baseUrl: item.baseUrl,
+        authMethods: item.authMethods,
+      })
       expect(() => recipeDefinitionSchema.parse(recipe)).not.toThrow()
       expect(recipe.autoSubmit).toBe(item.authMethods.includes('password'))
       expect(recipe.onFailure).toBe('manual')
@@ -164,8 +184,14 @@ describe('buildAutoRecipe', () => {
   it('gov.br + certificado: usa o fluxo gov.br (clique no SSO)', () => {
     const recipe = buildAutoRecipe({ slug: 'x', baseUrl: GOVBR_URL, authMethods: ['certificate'] })
     expect(recipe.auth).toBe('certificate')
-    expect(recipe.steps.some((s) => s.action === 'evaluate' && (s.script ?? '').includes('login-certificate'))).toBe(true)
-    expect(recipe.postLogin.urlExcludes).toEqual(expect.arrayContaining(['login', 'autenticacao', 'auth/realms']))
+    expect(
+      recipe.steps.some(
+        (s) => s.action === 'evaluate' && (s.script ?? '').includes('login-certificate'),
+      ),
+    ).toBe(true)
+    expect(recipe.postLogin.urlExcludes).toEqual(
+      expect.arrayContaining(['login', 'autenticacao', 'auth/realms']),
+    )
   })
 
   it('gov.br + senha: clica o botão de entrada (Fazer login) e preenche no SSO', () => {
@@ -174,17 +200,25 @@ describe('buildAutoRecipe', () => {
     expect(recipe.steps[0]?.action).toBe('evaluate')
     expect(recipe.steps[0]?.script).toContain('smart-entry')
     expect(recipe.steps.some((s) => (s.script ?? '').includes('login-certificate'))).toBe(false)
-    expect(recipe.steps.some((s) => (s.script ?? '').includes('{{credential.username}}'))).toBe(true)
+    expect(recipe.steps.some((s) => (s.script ?? '').includes('{{credential.username}}'))).toBe(
+      true,
+    )
     // Não existe CTA específico de gov.br: o clique de entrada é genérico
     // (vale para ISS/portais municipais com própria tela de login).
   })
 
   it('gov.br + os dois: clique de entrada + fluxo certificado + smart fill', () => {
-    const recipe = buildAutoRecipe({ slug: 'x', baseUrl: GOVBR_URL, authMethods: ['certificate', 'password'] })
+    const recipe = buildAutoRecipe({
+      slug: 'x',
+      baseUrl: GOVBR_URL,
+      authMethods: ['certificate', 'password'],
+    })
     expect(recipe.auth).toBe('certificate')
     expect(recipe.steps[0]?.script).toContain('smart-entry')
     expect(recipe.steps.some((s) => (s.script ?? '').includes('login-certificate'))).toBe(true)
-    expect(recipe.steps.some((s) => (s.script ?? '').includes('{{credential.username}}'))).toBe(true)
+    expect(recipe.steps.some((s) => (s.script ?? '').includes('{{credential.username}}'))).toBe(
+      true,
+    )
     // Na sessão de certificado, os passos com segredos são descartados e o
     // fluxo permanece intacto (clique de entrada + SSO).
     const certSteps = recipe.steps.filter((step) => !stepCarriesCredentials(step))
@@ -198,13 +232,19 @@ describe('buildAutoRecipe', () => {
     expect(recipe.auth).toBe('password')
     expect(recipe.steps[0]?.action).toBe('evaluate')
     expect(recipe.steps[0]?.script).toContain('smart-entry')
-    expect(recipe.steps.some((s) => (s.script ?? '').includes('{{credential.username}}'))).toBe(true)
+    expect(recipe.steps.some((s) => (s.script ?? '').includes('{{credential.username}}'))).toBe(
+      true,
+    )
     expect(recipe.postLogin.selectors).toContain('a[href*="logout"]')
     expect(recipe.postLogin.selectors).not.toContain('body')
   })
 
   it('externo + certificado: sem passos; watcher de pós-login via mTLS', () => {
-    const recipe = buildAutoRecipe({ slug: 'x', baseUrl: EXTERNAL_URL, authMethods: ['certificate'] })
+    const recipe = buildAutoRecipe({
+      slug: 'x',
+      baseUrl: EXTERNAL_URL,
+      authMethods: ['certificate'],
+    })
     expect(recipe.auth).toBe('certificate')
     expect(recipe.steps).toHaveLength(0)
     expect(recipe.postLogin.selectors).toContain('a[href*="logout"]')
@@ -249,7 +289,9 @@ describe('buildActionScript com placeholders em evaluate', () => {
   })
 
   it('evaluate com senha é passo sensível', () => {
-    expect(isSensitiveStep({ action: 'evaluate', script: 'x {{credential.password}} y' })).toBe(true)
+    expect(isSensitiveStep({ action: 'evaluate', script: 'x {{credential.password}} y' })).toBe(
+      true,
+    )
     expect(isSensitiveStep({ action: 'evaluate', script: 'return 1' })).toBe(false)
   })
 })

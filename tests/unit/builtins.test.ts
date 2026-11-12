@@ -17,7 +17,10 @@ describe('serviços nativos (store)', () => {
 
   it('BUILTIN_SERVICE_IDS aponta para seeds existentes', () => {
     for (const id of Object.values(BUILTIN_SERVICE_IDS)) {
-      expect(BUILTIN_SERVICES.some((s) => s.id === id), id).toBe(true)
+      expect(
+        BUILTIN_SERVICES.some((s) => s.id === id),
+        id,
+      ).toBe(true)
     }
   })
 

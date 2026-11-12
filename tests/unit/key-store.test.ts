@@ -61,9 +61,7 @@ describe('SafeStorageKeyStore', () => {
     const file = path.join(directory, 'vault.key')
     expect(existsSync(file)).toBe(true)
     const encoded = readFileSync(file, 'utf8')
-    expect(Buffer.from(encoded, 'base64').toString('utf8')).toBe(
-      `enc:${key.toString('base64')}`,
-    )
+    expect(Buffer.from(encoded, 'base64').toString('utf8')).toBe(`enc:${key.toString('base64')}`)
     expect(existsSync(`${file}.tmp`)).toBe(false)
   })
 

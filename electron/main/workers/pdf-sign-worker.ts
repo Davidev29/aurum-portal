@@ -50,7 +50,11 @@ async function run(): Promise<void> {
   const input = (workerData ?? {}) as PdfSignWorkerInput
   // Entradas mínimas — falha rápida e sem vazar conteúdo.
   if (!input.pfx?.length || !input.pdfBytes?.length || !input.password || !input.certificate) {
-    parentPort?.postMessage({ type: 'result', ok: false, message: 'Dados de assinatura incompletos' } satisfies PdfSignWorkerResult)
+    parentPort?.postMessage({
+      type: 'result',
+      ok: false,
+      message: 'Dados de assinatura incompletos',
+    } satisfies PdfSignWorkerResult)
     return
   }
 

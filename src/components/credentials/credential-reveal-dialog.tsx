@@ -6,7 +6,14 @@ import { Copy, Eye } from 'lucide-react'
 import type { Credential } from '@shared/types'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
 import { useInvalidate } from '@/lib/queries'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -88,7 +95,9 @@ export function CredentialRevealDialog({
         <DialogHeader>
           <DialogTitle>Senha da credencial</DialogTitle>
           <DialogDescription>
-            {credential ? `${credential.label} — ${credential.clientName} / ${credential.serviceName}` : ''}
+            {credential
+              ? `${credential.label} — ${credential.clientName} / ${credential.serviceName}`
+              : ''}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">

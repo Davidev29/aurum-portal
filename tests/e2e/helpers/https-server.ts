@@ -106,8 +106,7 @@ export async function startTestPortal(): Promise<TestPortalServer> {
     if (method === 'POST' && pathname === '/login') {
       void readBody(request).then((body) => {
         const form = new URLSearchParams(body)
-        const valid =
-          form.get('username') === TEST_USER && form.get('password') === TEST_PASSWORD
+        const valid = form.get('username') === TEST_USER && form.get('password') === TEST_PASSWORD
         if (!valid) {
           response.writeHead(401, { 'content-type': 'text/html; charset=utf-8' })
           response.end('<h1>Credenciais invalidas</h1>')

@@ -13,14 +13,34 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import type { Certificate, CertificateRenewalEntry } from '@shared/types'
-import { computeRenewalInfo, getExpiryInfo, daysBetweenUtc, toRenewalEntry, certificateEffectiveValidToOf } from '@shared/certificate-renewal'
+import {
+  computeRenewalInfo,
+  getExpiryInfo,
+  daysBetweenUtc,
+  toRenewalEntry,
+  certificateEffectiveValidToOf,
+} from '@shared/certificate-renewal'
 import { formatDate, formatDateTime, formatDocumentMasked } from '@/lib/utils'
 import { useCertificateDetails } from '@/lib/queries'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CertificateStatusBadge } from '@/components/status-badges'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 /** Badge de renovação: "Renovado" quando já há sucessor válido, "Aguardando renovação" quando vencido sem sucessor. */
 export function CertificateRenewalBadge({ certificate }: { certificate: Certificate }) {
@@ -36,7 +56,8 @@ export function CertificateRenewalBadge({ certificate }: { certificate: Certific
   }
   if (expired) return <Badge variant="danger">Aguardando renovação</Badge>
   if (expiring) return <Badge variant="warning">A vencer — renovar</Badge>
-  if (certificate.hasOlderCertificate) return <Badge variant="info">Atual (renovação de anterior)</Badge>
+  if (certificate.hasOlderCertificate)
+    return <Badge variant="info">Atual (renovação de anterior)</Badge>
   return <Badge variant="outline">Em vigor, sem renovação pendente</Badge>
 }
 
@@ -65,13 +86,16 @@ export function CertificateDetailsDialog({
     if (!certificate) return null
     const universe = allCertificates && allCertificates.length > 0 ? allCertificates : [certificate]
     const info = computeRenewalInfo(certificate, universe)
-    const history = info.history.map((entry) => toRenewalEntry(entry as Certificate, certificate.id))
+    const history = info.history.map((entry) =>
+      toRenewalEntry(entry as Certificate, certificate.id),
+    )
     return { info, history }
   }, [certificate, allCertificates])
 
   const current: Certificate | null = details?.certificate ?? certificate
   const history: CertificateRenewalEntry[] = details?.history ?? localInfo?.history ?? []
-  const isRenewed: boolean = details?.isRenewed ?? localInfo?.info.isRenewed ?? current?.isRenewed ?? false
+  const isRenewed: boolean =
+    details?.isRenewed ?? localInfo?.info.isRenewed ?? current?.isRenewed ?? false
   const renewedBy: CertificateRenewalEntry | null = details?.renewedBy ?? null
 
   // Vencimento exibido = fim efetivo da cadeia de renovação (último certificado válido),
@@ -79,7 +103,8 @@ export function CertificateDetailsDialog({
   const effectiveValidTo = current ? certificateEffectiveValidToOf(current) : null
 
   const expiry = React.useMemo(
-    () => (current && effectiveValidTo ? getExpiryInfo({ ...current, validTo: effectiveValidTo }) : null),
+    () =>
+      current && effectiveValidTo ? getExpiryInfo({ ...current, validTo: effectiveValidTo }) : null,
     [current, effectiveValidTo],
   )
 
@@ -125,7 +150,9 @@ export function CertificateDetailsDialog({
               <span>• {current.installed ? 'Instalado' : 'No cofre'}</span>
             </DialogDescription>
           ) : (
-            <DialogDescription>Dados completos do certificado e histórico de renovação.</DialogDescription>
+            <DialogDescription>
+              Dados completos do certificado e histórico de renovação.
+            </DialogDescription>
           )}
         </DialogHeader>
 
@@ -170,7 +197,9 @@ export function CertificateDetailsDialog({
                   <div className={`text-2xl font-extrabold tabular-nums leading-none ${toneText}`}>
                     {expiry?.expired ? Math.abs(expiry.daysUntilExpiry) : expiry?.daysUntilExpiry}
                   </div>
-                  <div className={`mt-1 text-[10px] font-semibold uppercase tracking-wide ${toneText}`}>
+                  <div
+                    className={`mt-1 text-[10px] font-semibold uppercase tracking-wide ${toneText}`}
+                  >
                     {expiry?.expired ? 'dias vencido' : 'dias restantes'}
                   </div>
                 </div>
@@ -199,8 +228,8 @@ export function CertificateDetailsDialog({
                       Renovado em{' '}
                       <span className="font-semibold" title={formatDateTime(renewedBy.createdAt)}>
                         {formatDate(renewedBy.createdAt)}
-                      </span>
-                      {' '}— válido até {formatDate(effectiveValidTo)}
+                      </span>{' '}
+                      — válido até {formatDate(effectiveValidTo)}
                     </>
                   ) : (
                     <>Renovado — válido até {formatDate(effectiveValidTo)}</>
@@ -223,7 +252,8 @@ export function CertificateDetailsDialog({
             <section aria-label="Histórico de renovação">
               <div className="mb-1 flex items-center justify-between gap-2">
                 <h3 className="flex items-center gap-1.5 text-xs font-semibold text-[var(--pv-text)]">
-                  <History className="h-3.5 w-3.5 text-brand-600 dark:text-brand-300" /> Histórico de renovação
+                  <History className="h-3.5 w-3.5 text-brand-600 dark:text-brand-300" /> Histórico
+                  de renovação
                   <span className="text-[var(--pv-muted)]">({history.length})</span>
                 </h3>
                 {detailsQuery.isLoading ? (
@@ -240,10 +270,18 @@ export function CertificateDetailsDialog({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-[var(--pv-panel-2)]">
-                        <TableHead className="h-8 px-3 text-[10px] uppercase tracking-wide">Certificado</TableHead>
-                        <TableHead className="h-8 px-3 text-[10px] uppercase tracking-wide">Emissão</TableHead>
-                        <TableHead className="h-8 px-3 text-[10px] uppercase tracking-wide">Vencimento</TableHead>
-                        <TableHead className="h-8 px-3 text-[10px] uppercase tracking-wide">Situação</TableHead>
+                        <TableHead className="h-8 px-3 text-[10px] uppercase tracking-wide">
+                          Certificado
+                        </TableHead>
+                        <TableHead className="h-8 px-3 text-[10px] uppercase tracking-wide">
+                          Emissão
+                        </TableHead>
+                        <TableHead className="h-8 px-3 text-[10px] uppercase tracking-wide">
+                          Vencimento
+                        </TableHead>
+                        <TableHead className="h-8 px-3 text-[10px] uppercase tracking-wide">
+                          Situação
+                        </TableHead>
                         <TableHead className="h-8 w-10 px-1" aria-label="Ações" />
                       </TableRow>
                     </TableHeader>
@@ -255,7 +293,9 @@ export function CertificateDetailsDialog({
                         return (
                           <TableRow
                             key={entry.id}
-                            className={isCurrent ? 'bg-brand-50/60 dark:bg-brand-500/10' : undefined}
+                            className={
+                              isCurrent ? 'bg-brand-50/60 dark:bg-brand-500/10' : undefined
+                            }
                           >
                             <TableCell className="px-3 py-1.5">
                               <div className="flex items-center gap-1.5">
@@ -263,7 +303,10 @@ export function CertificateDetailsDialog({
                                   aria-hidden="true"
                                   className={`h-2 w-2 shrink-0 rounded-full ${isCurrent ? 'bg-brand-600' : expired ? 'bg-[var(--pv-danger-solid)]' : 'bg-[var(--pv-success-solid)]'}`}
                                 />
-                                <span className="max-w-[140px] truncate text-xs font-medium" title={entry.label}>
+                                <span
+                                  className="max-w-[140px] truncate text-xs font-medium"
+                                  title={entry.label}
+                                >
                                   {entry.label}
                                 </span>
                               </div>
@@ -276,13 +319,21 @@ export function CertificateDetailsDialog({
                             </TableCell>
                             <TableCell className="px-3 py-1.5">
                               {isCurrent ? (
-                                <Badge variant="default" className="px-1.5 py-0 text-[10px]">Este certificado</Badge>
+                                <Badge variant="default" className="px-1.5 py-0 text-[10px]">
+                                  Este certificado
+                                </Badge>
                               ) : isRenewedBy ? (
-                                <Badge variant="success" className="px-1.5 py-0 text-[10px]">Renovou o atual</Badge>
+                                <Badge variant="success" className="px-1.5 py-0 text-[10px]">
+                                  Renovou o atual
+                                </Badge>
                               ) : expired ? (
-                                <Badge variant="danger" className="px-1.5 py-0 text-[10px]">Vencido</Badge>
+                                <Badge variant="danger" className="px-1.5 py-0 text-[10px]">
+                                  Vencido
+                                </Badge>
                               ) : (
-                                <Badge variant="success" className="px-1.5 py-0 text-[10px]">Válido</Badge>
+                                <Badge variant="success" className="px-1.5 py-0 text-[10px]">
+                                  Válido
+                                </Badge>
                               )}
                             </TableCell>
                             <TableCell className="px-1 py-1.5 text-center">
@@ -293,7 +344,9 @@ export function CertificateDetailsDialog({
                                   title={`Ver ${entry.label}`}
                                   aria-label={`Ver ${entry.label}`}
                                   onClick={() => {
-                                    const next = allCertificates.find((item) => item.id === entry.id)
+                                    const next = allCertificates.find(
+                                      (item) => item.id === entry.id,
+                                    )
                                     if (next) onSelectCertificate(next)
                                   }}
                                 >
@@ -319,23 +372,54 @@ export function CertificateDetailsDialog({
               </summary>
               <div className="border-t border-[var(--pv-border)] p-3">
                 <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
-                  <Data label="Serial (hex)" value={current.serialHex || '—'} copyValue={current.serialHex || undefined} mono />
+                  <Data
+                    label="Serial (hex)"
+                    value={current.serialHex || '—'}
+                    copyValue={current.serialHex || undefined}
+                    mono
+                  />
                   <Data label="Cadeia" value={current.chainStatus ?? 'Não registrada'} />
                   <Data label="Importado em" value={formatDateTime(current.createdAt)} />
-                  <Data label="Instalado em" value={current.installedAt ? formatDateTime(current.installedAt) : '—'} />
-                  <Data label="Última presença no Windows" value={current.lastSeenAt ? formatDateTime(current.lastSeenAt) : '—'} />
+                  <Data
+                    label="Instalado em"
+                    value={current.installedAt ? formatDateTime(current.installedAt) : '—'}
+                  />
+                  <Data
+                    label="Última presença no Windows"
+                    value={current.lastSeenAt ? formatDateTime(current.lastSeenAt) : '—'}
+                  />
                   <Data label="Atualizado em" value={formatDateTime(current.updatedAt)} />
                   <div className="sm:col-span-2">
-                    <Data label="Assunto (Subject DN)" value={current.subjectDn || '—'} copyValue={current.subjectDn || undefined} mono />
+                    <Data
+                      label="Assunto (Subject DN)"
+                      value={current.subjectDn || '—'}
+                      copyValue={current.subjectDn || undefined}
+                      mono
+                    />
                   </div>
                   <div className="sm:col-span-2">
-                    <Data label="Emissor (Issuer DN)" value={current.issuerDn || '—'} copyValue={current.issuerDn || undefined} mono />
+                    <Data
+                      label="Emissor (Issuer DN)"
+                      value={current.issuerDn || '—'}
+                      copyValue={current.issuerDn || undefined}
+                      mono
+                    />
                   </div>
                   <div className="sm:col-span-2">
-                    <Data label="Thumbprint SHA-256" value={current.thumbprintSha256 || '—'} copyValue={current.thumbprintSha256 || undefined} mono />
+                    <Data
+                      label="Thumbprint SHA-256"
+                      value={current.thumbprintSha256 || '—'}
+                      copyValue={current.thumbprintSha256 || undefined}
+                      mono
+                    />
                   </div>
                   <div className="sm:col-span-2">
-                    <Data label="Thumbprint SHA-1" value={current.thumbprintSha1 || '—'} copyValue={current.thumbprintSha1 || undefined} mono />
+                    <Data
+                      label="Thumbprint SHA-1"
+                      value={current.thumbprintSha1 || '—'}
+                      copyValue={current.thumbprintSha1 || undefined}
+                      mono
+                    />
                   </div>
                 </dl>
               </div>
@@ -372,7 +456,9 @@ function Data({
   return (
     <div className="min-w-0">
       <dt className="text-[10px] text-[var(--pv-muted)]">{label}</dt>
-      <dd className={`mt-0.5 flex items-start gap-1.5 text-xs ${mono ? 'break-all font-mono text-[10px]' : ''}`}>
+      <dd
+        className={`mt-0.5 flex items-start gap-1.5 text-xs ${mono ? 'break-all font-mono text-[10px]' : ''}`}
+      >
         <span className="min-w-0 flex-1 break-words">{value}</span>
         {copyValue ? (
           <button

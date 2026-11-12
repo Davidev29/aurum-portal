@@ -81,7 +81,8 @@ describe('KnowledgeBase - process', () => {
     expect(resposta.cacheHit).toBe(false)
     expect(resposta.stats.nodeCount).toBeGreaterThan(0)
     expect(resposta.enrichedPayload._knowledgeBase).toBeDefined()
-    expect(resposta.enrichedPayload._knowledgeBase.entityIds).toBeDefined()
+    const enriched = resposta.enrichedPayload._knowledgeBase as { entityIds: unknown }
+    expect(enriched.entityIds).toBeDefined()
   })
 
   it('cache hit em solicitação repetida', () => {
@@ -207,7 +208,7 @@ describe('middleware', () => {
     const resultado = await handler(request)
 
     expect(next).toHaveBeenCalledTimes(1)
-    const requestEnriquecido = next.mock.calls[0][0]
+    const requestEnriquecido = next.mock.calls[0]![0]
     expect(requestEnriquecido.payload._knowledgeBase).toBeDefined()
     expect(requestEnriquecido.payload._knowledgeBase.entityIds).toBeDefined()
     expect(resultado).toEqual({ sucesso: true })
@@ -228,7 +229,7 @@ describe('middleware', () => {
       timestamp: new Date().toISOString(),
     }
 
-    const resultado = await handler(request)
+    const resultado = (await handler(request)) as { knowledgeBase: { context: unknown } }
 
     expect(resultado).toHaveProperty('shortCircuited', true)
     expect(resultado).toHaveProperty('knowledgeBase')

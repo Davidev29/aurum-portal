@@ -7,7 +7,14 @@ import type { Credential, CredentialCreateInput, UsernameType } from '@shared/ty
 import { aurumBitPortal, errorMessage } from '@/lib/api'
 import { useClients, useInvalidate, useServices } from '@/lib/queries'
 import { passwordStrength } from '@/lib/utils'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -195,7 +202,11 @@ export function CredentialFormDialog({
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Rotulo" required hint="Ex.: Matriz, Filial SP, e-CAC principal">
-              <Input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={100} />
+              <Input
+                value={label}
+                onChange={(event) => setLabel(event.target.value)}
+                maxLength={100}
+              />
             </Field>
             <Field label="Tipo de usuario">
               <Select
@@ -238,7 +249,12 @@ export function CredentialFormDialog({
                 <Wand2 className="h-4 w-4" />
                 Gerar
               </Button>
-              <Button variant="secondary" size="icon" onClick={() => void copy()} disabled={!password}>
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={() => void copy()}
+                disabled={!password}
+              >
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
@@ -256,11 +272,17 @@ export function CredentialFormDialog({
               <Input value={loginField} onChange={(event) => setLoginField(event.target.value)} />
             </Field>
             <Field label="Campo de senha" hint="Nome do input no portal">
-              <Input value={passwordField} onChange={(event) => setPasswordField(event.target.value)} />
+              <Input
+                value={passwordField}
+                onChange={(event) => setPasswordField(event.target.value)}
+              />
             </Field>
           </div>
           <Field label="Campos adicionais" hint="Um por linha: nome=valor (opcional)">
-            <Textarea value={extraFields} onChange={(event) => setExtraFields(event.target.value)} />
+            <Textarea
+              value={extraFields}
+              onChange={(event) => setExtraFields(event.target.value)}
+            />
           </Field>
           <Field label="Notas">
             <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} />

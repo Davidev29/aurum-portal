@@ -43,9 +43,13 @@ export function listServiceRows(db: AppDatabase, filter: ServiceFilter = {}): Se
     .filter((row) => {
       if (filter.enabledOnly && !row.enabled) return false
       if (filter.favorite && !row.favorite) return false
-      if (filter.category && filter.category !== 'all' && row.category !== filter.category) return false
+      if (filter.category && filter.category !== 'all' && row.category !== filter.category)
+        return false
       if (!search) return true
-      return [row.name, row.slug, row.category, row.baseUrl].join(' ').toLowerCase().includes(search)
+      return [row.name, row.slug, row.category, row.baseUrl]
+        .join(' ')
+        .toLowerCase()
+        .includes(search)
     })
     .sort(
       (a, b) =>
@@ -209,18 +213,9 @@ export function duplicateService(db: AppDatabase, id: string): ServiceRow {
   return row
 }
 
-export function setServiceLogo(
-  db: AppDatabase,
-  id: string,
-  logoPath: string | null,
-): ServiceRow {
+export function setServiceLogo(db: AppDatabase, id: string, logoPath: string | null): ServiceRow {
   const current = getServiceRow(db, id)
   const now = new Date().toISOString()
-  db.update(services)
-    .set({ logoPath, updatedAt: now })
-    .where(eq(services.id, id))
-    .run()
+  db.update(services).set({ logoPath, updatedAt: now }).where(eq(services.id, id)).run()
   return { ...current, logoPath, updatedAt: now }
 }
-
-

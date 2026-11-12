@@ -2,12 +2,27 @@
 
 import * as React from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, Plus, RefreshCw, Search, ShieldCheck, TriangleAlert, XCircle } from 'lucide-react'
+import {
+  CheckCircle2,
+  Plus,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  TriangleAlert,
+  XCircle,
+} from 'lucide-react'
 import type { WindowsCertificate, WindowsImportSummary } from '@shared/types'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
 import { useClients, useInvalidate } from '@/lib/queries'
 import { formatDate } from '@/lib/utils'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -45,9 +60,7 @@ export function WindowsCertificateDialog({
       // Importação em lote sem clicar um por um: já deixa marcados todos os
       // certificados que ainda não foram cadastrados.
       setSelected(
-        records
-          .filter((record) => !record.alreadyImported)
-          .map((record) => record.thumbprintSha1),
+        records.filter((record) => !record.alreadyImported).map((record) => record.thumbprintSha1),
       )
     } catch (caught) {
       setError(errorMessage(caught))
@@ -67,10 +80,7 @@ export function WindowsCertificateDialog({
     void load()
   }, [open, defaultClientId, load])
 
-  const importable = React.useMemo(
-    () => items.filter((item) => !item.alreadyImported),
-    [items],
-  )
+  const importable = React.useMemo(() => items.filter((item) => !item.alreadyImported), [items])
   const alreadyImportedCount = items.length - importable.length
   const expiredImportable = React.useMemo(
     () => importable.filter((item) => new Date(item.notAfter).getTime() <= Date.now()).length,
@@ -138,8 +148,8 @@ export function WindowsCertificateDialog({
           <DialogTitle>Importar do Windows</DialogTitle>
           <DialogDescription>
             Lista os certificados com chave privada em Cert:\CurrentUser\My. Use “Importar todos”
-            para registrar todos de uma vez, sem selecionar um por um — o PFX não é copiado: o
-            app guarda apenas a referencia pelo thumbprint.
+            para registrar todos de uma vez, sem selecionar um por um — o PFX não é copiado: o app
+            guarda apenas a referencia pelo thumbprint.
           </DialogDescription>
         </DialogHeader>
 
@@ -160,7 +170,10 @@ export function WindowsCertificateDialog({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--pv-muted)]" aria-hidden="true" />
+                  <Search
+                    className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--pv-muted)]"
+                    aria-hidden="true"
+                  />
                   <Input
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
@@ -169,7 +182,12 @@ export function WindowsCertificateDialog({
                     className="w-52 pl-8"
                   />
                 </div>
-                <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading || busy}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void load()}
+                  disabled={loading || busy}
+                >
                   <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
                   Atualizar
                 </Button>
@@ -188,10 +206,20 @@ export function WindowsCertificateDialog({
                   ) : null}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={selectAllImportable} disabled={busy || loading}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={selectAllImportable}
+                    disabled={busy || loading}
+                  >
                     Selecionar todos os novos
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={clearSelection} disabled={busy || loading || selectedCount === 0}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearSelection}
+                    disabled={busy || loading || selectedCount === 0}
+                  >
                     Limpar
                   </Button>
                 </div>
@@ -215,7 +243,9 @@ export function WindowsCertificateDialog({
                     <label
                       key={key}
                       className={`flex items-start gap-3 border-b border-[var(--pv-border)] p-3 text-sm last:border-0 ${
-                        disabled ? 'opacity-60' : 'cursor-pointer hover:bg-[var(--pv-accent-soft)] dark:hover:bg-[var(--pv-accent-soft)]'
+                        disabled
+                          ? 'opacity-60'
+                          : 'cursor-pointer hover:bg-[var(--pv-accent-soft)] dark:hover:bg-[var(--pv-accent-soft)]'
                       }`}
                     >
                       <Checkbox
@@ -233,9 +263,13 @@ export function WindowsCertificateDialog({
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium">{item.holderName}</span>
-                          {item.alreadyImported ? <Badge variant="secondary">Já cadastrado</Badge> : null}
+                          {item.alreadyImported ? (
+                            <Badge variant="secondary">Já cadastrado</Badge>
+                          ) : null}
                           {expired ? <Badge variant="danger">Vencido</Badge> : null}
-                          {!item.hasPrivateKey ? <Badge variant="danger">Sem chave privada</Badge> : null}
+                          {!item.hasPrivateKey ? (
+                            <Badge variant="danger">Sem chave privada</Badge>
+                          ) : null}
                         </div>
                         <div className="mt-0.5 truncate text-xs text-[var(--pv-muted)]">
                           {item.document ?? 'Documento não identificado'} • {item.issuer}
@@ -257,7 +291,11 @@ export function WindowsCertificateDialog({
                 label="Vincular a um cliente"
                 hint="Opcional; sem cliente, tenta casar automaticamente pelo CPF/CNPJ quando autorizado."
               >
-                <Select value={clientId} onChange={(event) => setClientId(event.target.value)} disabled={busy}>
+                <Select
+                  value={clientId}
+                  onChange={(event) => setClientId(event.target.value)}
+                  disabled={busy}
+                >
                   <option value="">Detectar automaticamente</option>
                   {clients?.map((client) => (
                     <option key={client.id} value={client.id}>
@@ -273,14 +311,16 @@ export function WindowsCertificateDialog({
                   onCheckedChange={(checked) => setConsent(checked === true)}
                 />
                 <span>
-                  Tenho autorização do titular. Para CNPJ, autorizo consultar a Brasil API (apenas
-                  o CNPJ) para gravar razão social, e-mail e telefone no cadastro do cliente.
+                  Tenho autorização do titular. Para CNPJ, autorizo consultar a Brasil API (apenas o
+                  CNPJ) para gravar razão social, e-mail e telefone no cadastro do cliente.
                 </span>
               </label>
             </div>
 
             {clientId && !consent ? (
-              <Alert variant="warning">O vínculo exige confirmação de autorização do titular.</Alert>
+              <Alert variant="warning">
+                O vínculo exige confirmação de autorização do titular.
+              </Alert>
             ) : null}
             {error ? (
               <Alert variant="danger" title="Falha ao ler o repositorio">

@@ -110,7 +110,10 @@ export function findCertificateBySha1(
   )
 }
 
-export function getCertificateLinks(db: AppDatabase, certificateId: string): CertificateClientLink[] {
+export function getCertificateLinks(
+  db: AppDatabase,
+  certificateId: string,
+): CertificateClientLink[] {
   return db
     .select({ id: clients.id, name: clients.name, document: clients.document })
     .from(certificateClients)
@@ -130,7 +133,10 @@ export function getCertificateView(db: AppDatabase, id: string): Certificate {
   return enrichWithRenewal(allViews, new Date()).find((item) => item.id === id) ?? view
 }
 
-export function enrichWithRenewal(certificatesToEnrich: Certificate[], now: Date = new Date()): Certificate[] {
+export function enrichWithRenewal(
+  certificatesToEnrich: Certificate[],
+  now: Date = new Date(),
+): Certificate[] {
   // O enriquecimento usa o universo completo informado (lista global), não apenas
   // o subconjunto filtrado, para que "já foi renovado" não dependa do filtro ativo.
   return certificatesToEnrich.map((certificate) => {
@@ -144,7 +150,9 @@ export function enrichWithRenewal(certificatesToEnrich: Certificate[], now: Date
       validTo: chainValidTo,
       source: certificate.source,
       installed: certificate.installed,
-      chainIncomplete: certificate.chainStatus ? !/^(ok|true|valid)$/i.test(certificate.chainStatus) : false,
+      chainIncomplete: certificate.chainStatus
+        ? !/^(ok|true|valid)$/i.test(certificate.chainStatus)
+        : false,
       now,
     })
     return {
@@ -164,7 +172,11 @@ export function enrichWithRenewal(certificatesToEnrich: Certificate[], now: Date
   })
 }
 
-export function getCertificateDetails(db: AppDatabase, id: string, now: Date = new Date()): CertificateDetails {
+export function getCertificateDetails(
+  db: AppDatabase,
+  id: string,
+  now: Date = new Date(),
+): CertificateDetails {
   const current = getCertificateView(db, id)
   // Para o histórico usamos TODOS os certificados (sem filtro e sem colapso
   // de renovação), pois a renovação pode estar vinculada a outro cliente
@@ -191,7 +203,11 @@ export function getCertificateDetails(db: AppDatabase, id: string, now: Date = n
   }
 }
 
-export function listCertificates(db: AppDatabase, filter: CertificateFilter = {}, now: Date = new Date()): Certificate[] {
+export function listCertificates(
+  db: AppDatabase,
+  filter: CertificateFilter = {},
+  now: Date = new Date(),
+): Certificate[] {
   const rows = db.select().from(certificates).all()
   const links = db
     .select({
@@ -267,7 +283,8 @@ export function createPfxCertificate(
 ): CertificateRow {
   const existing = findCertificateByThumbprint(db, input.parsed.thumbprintSha256)
   if (existing) {
-    if (input.clientId) linkClientToCertificate(db, existing.id, input.clientId, input.consent === true)
+    if (input.clientId)
+      linkClientToCertificate(db, existing.id, input.clientId, input.consent === true)
     throw new AppError(
       'CONFLICT',
       'Certificado ja importado',
@@ -375,7 +392,10 @@ export function createWindowsCertificate(
     updatedAt: now,
   }
   if (!row.thumbprintSha256 || row.thumbprintSha256.length !== 64) {
-    throw new AppError('VALIDATION', 'Thumbprint SHA-256 indisponivel para o certificado do Windows')
+    throw new AppError(
+      'VALIDATION',
+      'Thumbprint SHA-256 indisponivel para o certificado do Windows',
+    )
   }
   db.transaction(() => {
     db.insert(certificates).values(row).run()
@@ -481,10 +501,7 @@ export function setCertificateInstalled(
   return next
 }
 
-export function refreshWindowsPresence(
-  db: AppDatabase,
-  presentThumbprintsSha1: Set<string>,
-): void {
+export function refreshWindowsPresence(db: AppDatabase, presentThumbprintsSha1: Set<string>): void {
   const rows = db.select().from(certificates).all()
   const now = new Date().toISOString()
   db.transaction(() => {
@@ -501,10 +518,7 @@ export function refreshWindowsPresence(
           .where(eq(certificates.id, row.id))
           .run()
       } else if (installed) {
-        db.update(certificates)
-          .set({ lastSeenAt: now })
-          .where(eq(certificates.id, row.id))
-          .run()
+        db.update(certificates).set({ lastSeenAt: now }).where(eq(certificates.id, row.id)).run()
       }
     }
   })
@@ -528,16 +542,14 @@ export function certificateStats(db: AppDatabase): {
     expiring: list.filter((certificate) => certificate.status === 'expiring').length,
     expired: list.filter((certificate) => certificate.status === 'expired').length,
     missingWindows: list.filter(
-      (certificate) => certificate.status === 'missing_windows' || certificate.status === 'in_vault',
+      (certificate) =>
+        certificate.status === 'missing_windows' || certificate.status === 'in_vault',
     ).length,
     installed: list.filter((certificate) => certificate.installed).length,
   }
 }
 
-export function findClientsForCertificate(
-  db: AppDatabase,
-  document: string | null,
-): ClientRow[] {
+export function findClientsForCertificate(db: AppDatabase, document: string | null): ClientRow[] {
   if (!document) return []
   return db.select().from(clients).where(eq(clients.document, document)).all()
 }

@@ -383,10 +383,7 @@ function drawHeader(
     let barcodeW: number
     let barcodeX: number
     if (headerBarcode.image) {
-      barcodeW = Math.min(
-        168,
-        (headerBarcode.image.width / headerBarcode.image.height) * barcodeH,
-      )
+      barcodeW = Math.min(168, (headerBarcode.image.width / headerBarcode.image.height) * barcodeH)
       barcodeX = PAGE_W - MARGIN - barcodeW
       page.drawImage(headerBarcode.image, {
         x: barcodeX,
@@ -583,7 +580,9 @@ export async function generateReportPdf(input: GenerateReportInput): Promise<Gen
   const generatedAt = input.generatedAt ?? new Date()
   const doc = await PDFDocument.create()
   doc.setTitle(toWinAnsiSafe(input.title))
-  doc.setAuthor(toWinAnsiSafe(input.office.tradeName || input.office.legalName || 'AurumBit Portal'))
+  doc.setAuthor(
+    toWinAnsiSafe(input.office.tradeName || input.office.legalName || 'AurumBit Portal'),
+  )
   doc.setSubject(toWinAnsiSafe(`Codigo de rastreio ${trackingCode}`))
   doc.setProducer('AurumBit Portal')
   doc.setCreationDate(generatedAt)
@@ -604,15 +603,10 @@ export async function generateReportPdf(input: GenerateReportInput): Promise<Gen
 
   let page = doc.addPage([PAGE_W, PAGE_H])
   // Barcode: apenas na primeira página, no cabeçalho (à direita).
-  drawHeader(
-    page,
-    input.office,
-    input.letterhead,
-    fonts,
-    logo,
-    generatedAt,
-    { image: barcodeImage, trackingCode },
-  )
+  drawHeader(page, input.office, input.letterhead, fonts, logo, generatedAt, {
+    image: barcodeImage,
+    trackingCode,
+  })
   const titlePlan = planTitleBlock(input, fonts)
   let cursor = drawTitleBlock(page, input, fonts, trackingCode, titlePlan) // topo do corpo
 

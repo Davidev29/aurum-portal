@@ -51,7 +51,10 @@ describe('scripts de receita', () => {
   })
 
   it('evaluate com throw devolve mensagem real do erro', () => {
-    const script = buildActionScript(step({ action: 'evaluate', script: 'throw new Error("bruto")' }), values)
+    const script = buildActionScript(
+      step({ action: 'evaluate', script: 'throw new Error("bruto")' }),
+      values,
+    )
     expect(script).toContain('error?.message')
   })
 
@@ -66,9 +69,9 @@ describe('scripts de receita', () => {
     expect(
       buildActionScript(step({ action: 'evaluate', script: 'return 1 + 1' }), values),
     ).toContain('evaluate')
-    expect(
-      buildActionScript(step({ action: 'assert', selectors: ['#ok'] }), values),
-    ).toContain('assert por seletor')
+    expect(buildActionScript(step({ action: 'assert', selectors: ['#ok'] }), values)).toContain(
+      'assert por seletor',
+    )
   })
 
   it('usa defaults seguros para press e evaluate', () => {
@@ -160,15 +163,9 @@ describe('scripts de receita', () => {
   })
 
   it('marca apenas fill com senha como passo sensivel', () => {
-    expect(
-      isSensitiveStep(step({ action: 'fill', value: '{{credential.password}}' })),
-    ).toBe(true)
-    expect(isSensitiveStep(step({ action: 'fill', value: '{{credential.username}}' }))).toBe(
-      false,
-    )
-    expect(
-      isSensitiveStep(step({ action: 'click', value: '{{credential.password}}' })),
-    ).toBe(false)
+    expect(isSensitiveStep(step({ action: 'fill', value: '{{credential.password}}' }))).toBe(true)
+    expect(isSensitiveStep(step({ action: 'fill', value: '{{credential.username}}' }))).toBe(false)
+    expect(isSensitiveStep(step({ action: 'click', value: '{{credential.password}}' }))).toBe(false)
   })
 
   it('FINDER preserva \\s nos scripts injetados (String.raw)', () => {

@@ -39,7 +39,11 @@ export function updateSessionRow(
     .run()
 }
 
-export function closeSessionRow(db: AppDatabase, id: string, lastError: string | null = null): void {
+export function closeSessionRow(
+  db: AppDatabase,
+  id: string,
+  lastError: string | null = null,
+): void {
   db.update(sessions)
     .set({ status: 'closed', closedAt: new Date().toISOString(), lastError })
     .where(eq(sessions.id, id))
@@ -70,7 +74,11 @@ export function listSessionRows(
   if (filter.from) conditions.push(gte(sessions.openedAt, filter.from))
   if (filter.to) conditions.push(lte(sessions.openedAt, filter.to))
   return conditions.length
-    ? db.select().from(sessions).where(and(...conditions)).all()
+    ? db
+        .select()
+        .from(sessions)
+        .where(and(...conditions))
+        .all()
     : db.select().from(sessions).all()
 }
 

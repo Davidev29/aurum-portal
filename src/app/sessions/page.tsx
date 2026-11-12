@@ -96,7 +96,10 @@ export default function SessionsPage() {
         <div className="grid gap-4 lg:grid-cols-2 pv-stagger">
           {sessions.map((session) => (
             <Card key={session.id} className="overflow-hidden pv-surface-hover">
-              <div className="h-1 bg-gradient-to-r from-emerald-500 via-brand-500 to-brand-400" aria-hidden="true" />
+              <div
+                className="h-1 bg-gradient-to-r from-emerald-500 via-brand-500 to-brand-400"
+                aria-hidden="true"
+              />
               <CardContent className="flex flex-col gap-3 p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-200">
@@ -109,7 +112,8 @@ export default function SessionsPage() {
                       {session.loading ? <Badge variant="outline">Carregando</Badge> : null}
                     </div>
                     <div className="truncate text-xs text-[var(--pv-muted)]">
-                      {session.serviceName} • {session.authMethod === 'certificate' ? 'Certificado' : 'Senha'}
+                      {session.serviceName} •{' '}
+                      {session.authMethod === 'certificate' ? 'Certificado' : 'Senha'}
                     </div>
                   </div>
                 </div>
@@ -171,9 +175,9 @@ export default function SessionsPage() {
         title="Encerrar sessão?"
         description={
           <>
-            A janela de <strong>{closing?.clientName}</strong> em <strong>{closing?.serviceName}</strong>{' '}
-            será fechada e os cookies da partição serão descartados. O histórico de auditoria é
-            preservado.
+            A janela de <strong>{closing?.clientName}</strong> em{' '}
+            <strong>{closing?.serviceName}</strong> será fechada e os cookies da partição serão
+            descartados. O histórico de auditoria é preservado.
           </>
         }
         confirmLabel="Encerrar sessão"

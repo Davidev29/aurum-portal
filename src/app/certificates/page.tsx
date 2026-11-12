@@ -27,12 +27,7 @@ import type { Certificate, CertificateTestResult } from '@shared/types'
 import { CERTIFICATE_STATUSES } from '@shared/constants'
 import { certificateEffectiveValidToOf } from '@shared/certificate-renewal'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
-import {
-  useCertificates,
-  useCertificateStats,
-  useInvalidate,
-  useSettings,
-} from '@/lib/queries'
+import { useCertificates, useCertificateStats, useInvalidate, useSettings } from '@/lib/queries'
 import { generateReportPdf } from '@/lib/pdf/report-document'
 import { saveReportPdf } from '@/lib/pdf/save-report'
 import { useDebouncedValue, useSearchParam } from '@/lib/hooks'
@@ -43,9 +38,23 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input, Field } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Alert } from '@/components/ui/alert'
 import { CertificateDetailsDialog } from '@/components/certificates/certificate-details-dialog'
 import { CertificateImportWizard } from '@/components/certificates/certificate-import-wizard'
@@ -63,10 +72,14 @@ const statusLabels: Record<string, string> = {
 }
 
 /** Itens de paginação com reticências: 1 … 4 5 6 … 12 (sem listas gigantes). */
-function getPageItems(current: number, total: number): Array<number | 'ellipsis-start' | 'ellipsis-end'> {
+function getPageItems(
+  current: number,
+  total: number,
+): Array<number | 'ellipsis-start' | 'ellipsis-end'> {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
   if (current <= 4) return [1, 2, 3, 4, 5, 'ellipsis-end', total]
-  if (current >= total - 3) return [1, 'ellipsis-start', total - 4, total - 3, total - 2, total - 1, total]
+  if (current >= total - 3)
+    return [1, 'ellipsis-start', total - 4, total - 3, total - 2, total - 1, total]
   return [1, 'ellipsis-start', current - 1, current, current + 1, 'ellipsis-end', total]
 }
 
@@ -102,8 +115,10 @@ function renewalText(certificate: Certificate): { text: string; className: strin
     }
   }
   if (expired) return { text: 'Aguardando renovação', className: 'text-[var(--pv-danger)]' }
-  if (expiring) return { text: 'A vencer — renovar', className: 'text-amber-800 dark:text-amber-300' }
-  if (certificate.hasOlderCertificate) return { text: 'Atual (renovação de anterior)', className: 'text-[var(--pv-muted)]' }
+  if (expiring)
+    return { text: 'A vencer — renovar', className: 'text-amber-800 dark:text-amber-300' }
+  if (certificate.hasOlderCertificate)
+    return { text: 'Atual (renovação de anterior)', className: 'text-[var(--pv-muted)]' }
   return { text: 'Em vigor, sem renovação pendente', className: 'text-[var(--pv-muted)]' }
 }
 
@@ -116,7 +131,11 @@ export default function CertificatesPage() {
   const [status, setStatus] = React.useState<string>('all')
   const [page, setPage] = React.useState(1)
   const [pageSize, setPageSize] = React.useState(10)
-  const { data: certificates, isLoading, isFetching } = useCertificates({
+  const {
+    data: certificates,
+    isLoading,
+    isFetching,
+  } = useCertificates({
     search: debouncedSearch || undefined,
     status: (status === 'all' ? undefined : status) as
       | 'valid'
@@ -226,7 +245,11 @@ export default function CertificatesPage() {
     try {
       await aurumBitPortal().certificates.install(certificate.id)
       toast.success('Certificado instalado no repositório do Windows.')
-      await Promise.all([invalidate.certificates(), invalidate.certificateStats(), invalidate.audit()])
+      await Promise.all([
+        invalidate.certificates(),
+        invalidate.certificateStats(),
+        invalidate.audit(),
+      ])
     } catch (error) {
       toast.error(errorMessage(error))
     }
@@ -283,7 +306,11 @@ export default function CertificatesPage() {
         confirmation: 'REMOVER',
       })
       toast.success('Certificado removido do repositório do Windows.')
-      await Promise.all([invalidate.certificates(), invalidate.certificateStats(), invalidate.audit()])
+      await Promise.all([
+        invalidate.certificates(),
+        invalidate.certificateStats(),
+        invalidate.audit(),
+      ])
       setUninstallCertificate(null)
       setUninstallConfirm('')
     } catch (error) {
@@ -306,7 +333,9 @@ export default function CertificatesPage() {
     try {
       const certificates = await aurumBitPortal().certificates.list({ status: filter })
       if (certificates.length === 0) {
-        toast.info('Nenhum certificado corresponde ao filtro selecionado; nenhum arquivo foi criado.')
+        toast.info(
+          'Nenhum certificado corresponde ao filtro selecionado; nenhum arquivo foi criado.',
+        )
         return
       }
       const result = await generateReportPdf({
@@ -394,7 +423,11 @@ export default function CertificatesPage() {
       />
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total no cofre" value={stats?.total ?? 0} icon={<ShieldCheck className="h-4 w-4" />} />
+        <StatCard
+          label="Total no cofre"
+          value={stats?.total ?? 0}
+          icon={<ShieldCheck className="h-4 w-4" />}
+        />
         <StatCard
           label="A vencer"
           value={stats?.expiring ?? 0}
@@ -476,7 +509,9 @@ export default function CertificatesPage() {
       ) : !certificates || certificates.length === 0 ? (
         <EmptyState
           icon={<ShieldCheck className="h-5 w-5" />}
-          title={hasActiveFilters ? 'Nenhum certificado encontrado' : 'Nenhum certificado cadastrado'}
+          title={
+            hasActiveFilters ? 'Nenhum certificado encontrado' : 'Nenhum certificado cadastrado'
+          }
           description={
             hasActiveFilters
               ? 'Ajuste a busca ou o filtro de status para ver mais resultados.'
@@ -522,7 +557,10 @@ export default function CertificatesPage() {
                         {initials(certificate.holderName || certificate.label)}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate font-medium text-[var(--pv-text)]" title={certificate.label}>
+                        <span
+                          className="block truncate font-medium text-[var(--pv-text)]"
+                          title={certificate.label}
+                        >
                           {certificate.label}
                         </span>
                         <span
@@ -548,7 +586,9 @@ export default function CertificatesPage() {
                       <span className="font-semibold tabular-nums text-[var(--pv-text)]">
                         {formatDate(certificateEffectiveValidToOf(certificate))}
                       </span>
-                      <span className="text-xs text-[var(--pv-muted)]">Início {formatDate(certificate.validFrom)}</span>
+                      <span className="text-xs text-[var(--pv-muted)]">
+                        Início {formatDate(certificate.validFrom)}
+                      </span>
                       <span
                         className={`text-xs font-medium ${
                           certificate.status === 'expired'
@@ -588,7 +628,9 @@ export default function CertificatesPage() {
                       </span>
                       <span
                         className={`text-xs ${
-                          certificate.installed ? 'text-emerald-700 dark:text-emerald-300' : 'text-[var(--pv-muted)]'
+                          certificate.installed
+                            ? 'text-emerald-700 dark:text-emerald-300'
+                            : 'text-[var(--pv-muted)]'
                         }`}
                       >
                         {certificate.installed ? 'Instalado' : 'Não instalado'}
@@ -613,7 +655,10 @@ export default function CertificatesPage() {
                           ))}
                           {certificate.clients.length > 2 ? (
                             <span
-                              title={certificate.clients.slice(2).map((client) => client.name).join(', ')}
+                              title={certificate.clients
+                                .slice(2)
+                                .map((client) => client.name)
+                                .join(', ')}
                               className="text-xs text-[var(--pv-muted)]"
                             >
                               +{certificate.clients.length - 2} cliente(s)
@@ -721,8 +766,12 @@ export default function CertificatesPage() {
           <div className="flex flex-col gap-3 border-t border-[var(--pv-border)] bg-[var(--pv-panel-2)]/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-xs tabular-nums text-[var(--pv-muted)]" aria-live="polite">
-                Mostrando <strong className="font-semibold text-[var(--pv-text)]">{rangeStart}–{rangeEnd}</strong> de{' '}
-                <strong className="font-semibold text-[var(--pv-text)]">{total}</strong> certificado(s)
+                Mostrando{' '}
+                <strong className="font-semibold text-[var(--pv-text)]">
+                  {rangeStart}–{rangeEnd}
+                </strong>{' '}
+                de <strong className="font-semibold text-[var(--pv-text)]">{total}</strong>{' '}
+                certificado(s)
               </p>
               <label className="flex items-center gap-2 text-xs text-[var(--pv-muted)]">
                 <Select
@@ -839,7 +888,10 @@ export default function CertificatesPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              <Alert variant={testResult.ok ? 'success' : 'danger'} title={testResult.ok ? 'Certificado correto' : 'Falha no teste'}>
+              <Alert
+                variant={testResult.ok ? 'success' : 'danger'}
+                title={testResult.ok ? 'Certificado correto' : 'Falha no teste'}
+              >
                 {testResult.message}
               </Alert>
               <div className="space-y-2 text-xs">
@@ -853,7 +905,9 @@ export default function CertificatesPage() {
                     {testResult.presentedThumbprintSha256 ?? 'Nenhum certificado apresentado'}
                   </div>
                 </div>
-                <div className="text-[var(--pv-muted)]">Executado em {formatDateTime(testResult.testedAt)}</div>
+                <div className="text-[var(--pv-muted)]">
+                  Executado em {formatDateTime(testResult.testedAt)}
+                </div>
               </div>
             </div>
           )}
@@ -892,8 +946,8 @@ export default function CertificatesPage() {
               />
             </Field>
             <Alert variant="warning">
-              O arquivo .pvbackup poderá ser restaurado apenas com esta frase-senha. Não há recuperação
-              pelo suporte.
+              O arquivo .pvbackup poderá ser restaurado apenas com esta frase-senha. Não há
+              recuperação pelo suporte.
             </Alert>
           </div>
           <DialogFooter>
@@ -929,7 +983,10 @@ export default function CertificatesPage() {
               Sessões abertas com este certificado serão bloqueadas. Feche-as antes de remover.
             </Alert>
             <Field label="Digite REMOVER para confirmar" required>
-              <Input value={uninstallConfirm} onChange={(event) => setUninstallConfirm(event.target.value)} />
+              <Input
+                value={uninstallConfirm}
+                onChange={(event) => setUninstallConfirm(event.target.value)}
+              />
             </Field>
           </div>
           <DialogFooter>
@@ -947,10 +1004,7 @@ export default function CertificatesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={reportModalOpen}
-        onOpenChange={setReportModalOpen}
-      >
+      <Dialog open={reportModalOpen} onOpenChange={setReportModalOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Gerar relatorio de certificados</DialogTitle>

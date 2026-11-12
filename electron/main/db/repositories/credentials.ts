@@ -71,9 +71,7 @@ export function listCredentials(db: AppDatabase, filter: CredentialFilter = {}):
     .from(credentials)
     .innerJoin(clients, eq(clients.id, credentials.clientId))
     .innerJoin(services, eq(services.id, credentials.serviceId))
-  const rows = conditions.length
-    ? query.where(and(...conditions)).all()
-    : query.all()
+  const rows = conditions.length ? query.where(and(...conditions)).all() : query.all()
   const counts = fingerprintCounts(db)
   const search = filter.search?.trim().toLowerCase()
   return rows
@@ -85,15 +83,11 @@ export function listCredentials(db: AppDatabase, filter: CredentialFilter = {}):
         .includes(search)
     })
     .map((row) =>
-      mapCredential(
-        row.credential,
-        row.clientName,
-        row.serviceName,
-        row.serviceSlug,
-        counts,
-      ),
+      mapCredential(row.credential, row.clientName, row.serviceName, row.serviceSlug, counts),
     )
-    .sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR') || a.label.localeCompare(b.label))
+    .sort(
+      (a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR') || a.label.localeCompare(b.label),
+    )
 }
 
 export function getCredentialRow(db: AppDatabase, id: string): CredentialRow {
@@ -277,7 +271,10 @@ export function revealCredential(
 
 export function markCredentialUsed(db: AppDatabase, id: string): void {
   const now = new Date().toISOString()
-  db.update(credentials).set({ lastUsedAt: now, updatedAt: now }).where(eq(credentials.id, id)).run()
+  db.update(credentials)
+    .set({ lastUsedAt: now, updatedAt: now })
+    .where(eq(credentials.id, id))
+    .run()
 }
 
 export function findDefaultCredential(

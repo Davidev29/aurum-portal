@@ -36,7 +36,8 @@ async function deriveBackupKey(passphrase: string, salt: Buffer): Promise<Buffer
 }
 
 export async function encryptBackup(payload: Buffer, passphrase: string): Promise<string> {
-  if (passphrase.length < 12) throw new Error('A frase-senha do backup deve ter ao menos 12 caracteres')
+  if (passphrase.length < 12)
+    throw new Error('A frase-senha do backup deve ter ao menos 12 caracteres')
   const salt = randomBytes(SALT_BYTES)
   const iv = randomBytes(IV_BYTES)
   const key = await deriveBackupKey(passphrase, salt)

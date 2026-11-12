@@ -81,7 +81,11 @@ function truncate(text: string, max: number): string {
 }
 
 function issuerShort(dn: string): string {
-  const cn = dn.replace(/^.*?CN\s*=\s*/i, '').split(',')[0]?.trim() ?? dn
+  const cn =
+    dn
+      .replace(/^.*?CN\s*=\s*/i, '')
+      .split(',')[0]
+      ?.trim() ?? dn
   return truncate(cn, 44)
 }
 
@@ -90,10 +94,14 @@ function digitsOnly(value: string): string {
 }
 
 /** Itens de paginação com reticências: 1 … 4 5 6 … 12 (sem listas gigantes). */
-function getPageItems(current: number, total: number): Array<number | 'ellipsis-start' | 'ellipsis-end'> {
+function getPageItems(
+  current: number,
+  total: number,
+): Array<number | 'ellipsis-start' | 'ellipsis-end'> {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
   if (current <= 4) return [1, 2, 3, 4, 5, 'ellipsis-end', total]
-  if (current >= total - 3) return [1, 'ellipsis-start', total - 4, total - 3, total - 2, total - 1, total]
+  if (current >= total - 3)
+    return [1, 'ellipsis-start', total - 4, total - 3, total - 2, total - 1, total]
   return [1, 'ellipsis-start', current - 1, current, current + 1, 'ellipsis-end', total]
 }
 
@@ -162,7 +170,12 @@ export default function AssinaturasPage() {
   // Começa SEM carimbo (fluxo Adobe): o usuario desenha o bloco sobre o local
   // da assinatura e o sistema coloca a assinatura dentro dele. Nao vem com um
   // quadro predeterminado grande que precise ser arrastado e diminuido.
-  const [stampPt, setStampPt] = React.useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  const [stampPt, setStampPt] = React.useState<{
+    x: number
+    y: number
+    w: number
+    h: number
+  } | null>(null)
   const [zoomMode, setZoomMode] = React.useState<'width' | 'page' | 'custom'>('width')
   const [zoom, setZoom] = React.useState(1)
   // Texto exibido no controle de zoom, dependendo do modo ativo.
@@ -203,7 +216,19 @@ export default function AssinaturasPage() {
     wrapperRect: DOMRect | null
     raf: number | null
     pending: { x: number; y: number; w: number; h: number } | null
-  }>({ active: false, mode: 'move', startX: 0, startY: 0, startW: 0, startH: 0, startClientX: 0, startClientY: 0, wrapperRect: null, raf: null, pending: null })
+  }>({
+    active: false,
+    mode: 'move',
+    startX: 0,
+    startY: 0,
+    startW: 0,
+    startH: 0,
+    startClientX: 0,
+    startClientY: 0,
+    wrapperRect: null,
+    raf: null,
+    pending: null,
+  })
   // Elemento do bloco (box) que o usuario desenha sobre o PDF (fluxo Adobe).
   const boxRef = React.useRef<HTMLDivElement | null>(null)
   const boxDragRef = React.useRef<{
@@ -215,7 +240,16 @@ export default function AssinaturasPage() {
     wrapperRect: DOMRect | null
     raf: number | null
     pending: { x: number; y: number; w: number; h: number } | null
-  }>({ active: false, startX: 0, startY: 0, startClientX: 0, startClientY: 0, wrapperRect: null, raf: null, pending: null })
+  }>({
+    active: false,
+    startX: 0,
+    startY: 0,
+    startClientX: 0,
+    startClientY: 0,
+    wrapperRect: null,
+    raf: null,
+    pending: null,
+  })
   // Arrastar (pan) da vista do PDF: clique simples move o carimbo; arrastar move a vista.
   const panRef = React.useRef<{
     pointerId: number
@@ -240,10 +274,7 @@ export default function AssinaturasPage() {
     [certs, selectedCertId],
   )
 
-  const clientById = React.useMemo(
-    () => new Map(clients.map((c) => [c.id, c] as const)),
-    [clients],
-  )
+  const clientById = React.useMemo(() => new Map(clients.map((c) => [c.id, c] as const)), [clients])
 
   const selectedClientName = React.useMemo(() => {
     if (!selectedCert) return null
@@ -310,15 +341,15 @@ export default function AssinaturasPage() {
   const canAdvanceFromCert = Boolean(selectedCert && isEligibleCert(selectedCert))
   const stampValid = Boolean(
     Number.isFinite(stampRect.x) &&
-      Number.isFinite(stampRect.y) &&
-      Number.isFinite(stampRect.w) &&
-      Number.isFinite(stampRect.h) &&
-      stampRect.x >= 0 &&
-      stampRect.y >= 0 &&
-      stampRect.w >= minFracs.w &&
-      stampRect.h >= minFracs.h &&
-      stampRect.x + stampRect.w <= 1.0001 &&
-      stampRect.y + stampRect.h <= 1.0001,
+    Number.isFinite(stampRect.y) &&
+    Number.isFinite(stampRect.w) &&
+    Number.isFinite(stampRect.h) &&
+    stampRect.x >= 0 &&
+    stampRect.y >= 0 &&
+    stampRect.w >= minFracs.w &&
+    stampRect.h >= minFracs.h &&
+    stampRect.x + stampRect.w <= 1.0001 &&
+    stampRect.y + stampRect.h <= 1.0001,
   )
   const pageValid = Boolean(picked && currentPage >= 1 && currentPage <= picked.pageCount)
   const canAdvanceFromStamp = Boolean(
@@ -329,10 +360,7 @@ export default function AssinaturasPage() {
   )
 
   // Tabela paginada: apenas certificados válidos (elegíveis), sem cartões grandes.
-  const eligibleCerts = React.useMemo(
-    () => certs.filter((c) => isEligibleCert(c)),
-    [certs],
-  )
+  const eligibleCerts = React.useMemo(() => certs.filter((c) => isEligibleCert(c)), [certs])
   const totalCerts = certs.length
   const totalEligible = eligibleCerts.length
   const hiddenCount = totalCerts - totalEligible
@@ -399,7 +427,9 @@ export default function AssinaturasPage() {
     try {
       const [list, activeClients] = await Promise.all([
         aurumBitPortal().certificates.list(),
-        aurumBitPortal().clients.list({ status: 'active' }).catch(() => [] as Client[]),
+        aurumBitPortal()
+          .clients.list({ status: 'active' })
+          .catch(() => [] as Client[]),
       ])
       // Mantém TODOS os certificados da aplicação na lista: elegíveis
       // selecionáveis, não elegíveis visíveis com motivo. Filtrar aqui
@@ -636,9 +666,7 @@ export default function AssinaturasPage() {
         prevH: canvas?.offsetHeight ?? 0,
       }
       setZoomMode('custom')
-      setZoom((z) =>
-        Math.min(4, Math.max(0.5, z * (event.deltaY < 0 ? 1.15 : 1 / 1.15))),
-      )
+      setZoom((z) => Math.min(4, Math.max(0.5, z * (event.deltaY < 0 ? 1.15 : 1 / 1.15))))
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
@@ -788,16 +816,19 @@ export default function AssinaturasPage() {
   // Aplica estilos diretamente no DOM durante o arrasto — sem re-render do React
   // a cada frame. Isso elimina o lag de interação do mouse.
   // recebe pt absolutos e converte para % com base no tamanho da pagina atual.
-  const applyStampDom = React.useCallback((rect: { x: number; y: number; w: number; h: number }) => {
-    const el = stampRef.current
-    if (!el) return
-    const pageW = currentPageSizePt?.width ?? 595
-    const pageH = currentPageSizePt?.height ?? 842
-    el.style.left = `${(rect.x / pageW) * 100}%`
-    el.style.top = `${(rect.y / pageH) * 100}%`
-    el.style.width = `${(rect.w / pageW) * 100}%`
-    el.style.height = `${(rect.h / pageH) * 100}%`
-  }, [currentPageSizePt])
+  const applyStampDom = React.useCallback(
+    (rect: { x: number; y: number; w: number; h: number }) => {
+      const el = stampRef.current
+      if (!el) return
+      const pageW = currentPageSizePt?.width ?? 595
+      const pageH = currentPageSizePt?.height ?? 842
+      el.style.left = `${(rect.x / pageW) * 100}%`
+      el.style.top = `${(rect.y / pageH) * 100}%`
+      el.style.width = `${(rect.w / pageW) * 100}%`
+      el.style.height = `${(rect.h / pageH) * 100}%`
+    },
+    [currentPageSizePt],
+  )
 
   // Clamp em pt absolutos: mantem o carimbo dentro da pagina e acima do minimo premium.
   // O zoom nunca entra neste calculo, entao o tamanho fisico e estavel em qualquer escala.
@@ -829,11 +860,20 @@ export default function AssinaturasPage() {
   const getWrapperRect = React.useCallback((): DOMRect | null => {
     const wrapper = pageWrapperRef.current
     if (!wrapper) return null
-    return dragRef.current.wrapperRect ?? boxDragRef.current.wrapperRect ?? wrapper.getBoundingClientRect()
+    return (
+      dragRef.current.wrapperRect ??
+      boxDragRef.current.wrapperRect ??
+      wrapper.getBoundingClientRect()
+    )
   }, [])
 
   const rectFromClient = React.useCallback(
-    (clientX: number, clientY: number, start: { x: number; y: number; w: number; h: number }, mode: 'move' | 'nw' | 'ne' | 'sw' | 'se'): { x: number; y: number; w: number; h: number } | null => {
+    (
+      clientX: number,
+      clientY: number,
+      start: { x: number; y: number; w: number; h: number },
+      mode: 'move' | 'nw' | 'ne' | 'sw' | 'se',
+    ): { x: number; y: number; w: number; h: number } | null => {
       const rect = getWrapperRect()
       if (!rect) return null
       if (rect.width <= 0 || rect.height <= 0) return null
@@ -906,16 +946,19 @@ export default function AssinaturasPage() {
 
   // Aplica estilos diretamente no DOM durante o desenho do bloco (sem re-render
   // do React a cada frame). recebe pt absolutos e converte para % da pagina.
-  const applyBoxDom = React.useCallback((rect: { x: number; y: number; w: number; h: number }) => {
-    const el = boxRef.current
-    if (!el) return
-    const pageW = currentPageSizePt?.width ?? 595
-    const pageH = currentPageSizePt?.height ?? 842
-    el.style.left = `${(rect.x / pageW) * 100}%`
-    el.style.top = `${(rect.y / pageH) * 100}%`
-    el.style.width = `${Math.max(rect.w, 0) / pageW * 100}%`
-    el.style.height = `${Math.max(rect.h, 0) / pageH * 100}%`
-  }, [currentPageSizePt])
+  const applyBoxDom = React.useCallback(
+    (rect: { x: number; y: number; w: number; h: number }) => {
+      const el = boxRef.current
+      if (!el) return
+      const pageW = currentPageSizePt?.width ?? 595
+      const pageH = currentPageSizePt?.height ?? 842
+      el.style.left = `${(rect.x / pageW) * 100}%`
+      el.style.top = `${(rect.y / pageH) * 100}%`
+      el.style.width = `${(Math.max(rect.w, 0) / pageW) * 100}%`
+      el.style.height = `${(Math.max(rect.h, 0) / pageH) * 100}%`
+    },
+    [currentPageSizePt],
+  )
 
   // Durante o arrasto: atualiza o DOM diretamente (sem re-render do React)
   // para evitar lag. O estado do React e sincronizado somente em commitDrag.
@@ -984,7 +1027,12 @@ export default function AssinaturasPage() {
   const handleStampPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragRef.current.active) return
     const { mode, startX, startY, startW, startH } = dragRef.current
-    const next = rectFromClient(event.clientX, event.clientY, { x: startX, y: startY, w: startW, h: startH }, mode)
+    const next = rectFromClient(
+      event.clientX,
+      event.clientY,
+      { x: startX, y: startY, w: startW, h: startH },
+      mode,
+    )
     if (next) scheduleStampPt(next)
   }
 
@@ -1220,11 +1268,16 @@ export default function AssinaturasPage() {
         <TableCell className="font-mono text-xs whitespace-nowrap">
           {formatCpfCnpj(cert.document, cert.documentType)}
         </TableCell>
-        <TableCell className="max-w-[220px] truncate text-xs text-[var(--pv-muted)]" title={cert.issuerDn}>
+        <TableCell
+          className="max-w-[220px] truncate text-xs text-[var(--pv-muted)]"
+          title={cert.issuerDn}
+        >
           {issuerShort(cert.issuerDn)}
         </TableCell>
         <TableCell className="whitespace-nowrap text-xs">
-          <div className="text-sm font-medium">{formatDate(certificateEffectiveValidToOf(cert))}</div>
+          <div className="text-sm font-medium">
+            {formatDate(certificateEffectiveValidToOf(cert))}
+          </div>
           <div className="text-[var(--pv-muted)]">início {formatDate(cert.validFrom)}</div>
         </TableCell>
         <TableCell>
@@ -1323,7 +1376,9 @@ export default function AssinaturasPage() {
   const resetFlow = () => {
     const token = picked?.token
     if (token) {
-      void aurumBitPortal().pdf.release(token).catch(() => undefined)
+      void aurumBitPortal()
+        .pdf.release(token)
+        .catch(() => undefined)
     }
     setPicked(null)
     setPreview(null)
@@ -1503,7 +1558,8 @@ export default function AssinaturasPage() {
               </div>
               {!previewMatchesPicked && !loadingPreview ? (
                 <Alert variant="warning" title="Prévia indisponível">
-                  Não foi possível carregar a pré-visualização. Escolha o PDF novamente antes de continuar.
+                  Não foi possível carregar a pré-visualização. Escolha o PDF novamente antes de
+                  continuar.
                 </Alert>
               ) : (
                 <p className="text-[11px] text-[var(--pv-muted)]">
@@ -1628,7 +1684,10 @@ export default function AssinaturasPage() {
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden gap-3">
               <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)] p-3">
                 <div className="relative min-w-[260px] flex-1">
-                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pv-muted)]" aria-hidden="true" />
+                  <Search
+                    className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pv-muted)]"
+                    aria-hidden="true"
+                  />
                   <Input
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
@@ -1671,13 +1730,24 @@ export default function AssinaturasPage() {
               </div>
 
               {selectedCert ? (
-                <p className="flex shrink-0 items-center gap-1.5 text-xs text-[var(--pv-muted)]" aria-live="polite">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-[var(--pv-accent)]" aria-hidden="true" />
+                <p
+                  className="flex shrink-0 items-center gap-1.5 text-xs text-[var(--pv-muted)]"
+                  aria-live="polite"
+                >
+                  <CheckCircle2
+                    className="h-3.5 w-3.5 text-[var(--pv-accent)]"
+                    aria-hidden="true"
+                  />
                   <span className="truncate">
-                    Selecionado: <strong className="font-semibold text-[var(--pv-text)]">{selectedCert.holderName}</strong>
+                    Selecionado:{' '}
+                    <strong className="font-semibold text-[var(--pv-text)]">
+                      {selectedCert.holderName}
+                    </strong>
                     {' • '}
                     {formatCpfCnpj(selectedCert.document, selectedCert.documentType)}
-                    {!paginatedCerts.some((cert) => cert.id === selectedCert.id) ? ' • fora desta página' : ''}
+                    {!paginatedCerts.some((cert) => cert.id === selectedCert.id)
+                      ? ' • fora desta página'
+                      : ''}
                   </span>
                 </p>
               ) : null}
@@ -1723,7 +1793,8 @@ export default function AssinaturasPage() {
                   <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <p className="text-xs tabular-nums text-[var(--pv-muted)]">
-                        Mostrando {certRangeStart}–{certRangeEnd} de {visibleCerts.length} certificado(s)
+                        Mostrando {certRangeStart}–{certRangeEnd} de {visibleCerts.length}{' '}
+                        certificado(s)
                       </p>
                       <label className="flex items-center gap-2 text-xs text-[var(--pv-muted)]">
                         <Select
@@ -1739,7 +1810,10 @@ export default function AssinaturasPage() {
                       </label>
                     </div>
                     {certTotalPages > 1 ? (
-                      <nav className="flex items-center gap-1" aria-label="Paginação de certificados">
+                      <nav
+                        className="flex items-center gap-1"
+                        aria-label="Paginação de certificados"
+                      >
                         <Button
                           variant="secondary"
                           size="sm"
@@ -1752,7 +1826,11 @@ export default function AssinaturasPage() {
                         </Button>
                         {certPageItems.map((item, index) =>
                           item === 'ellipsis-start' || item === 'ellipsis-end' ? (
-                            <span key={`${item}-${index}`} className="px-1 text-[var(--pv-muted)]" aria-hidden="true">
+                            <span
+                              key={`${item}-${index}`}
+                              className="px-1 text-[var(--pv-muted)]"
+                              aria-hidden="true"
+                            >
                               …
                             </span>
                           ) : (
@@ -1808,10 +1886,13 @@ export default function AssinaturasPage() {
                 <FileSignature className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-base font-semibold tracking-tight">Posição do carimbo de assinatura</h2>
+                <h2 className="text-base font-semibold tracking-tight">
+                  Posição do carimbo de assinatura
+                </h2>
                 <p className="text-xs text-[var(--pv-muted)]">
-                  Desenhe um bloco sobre o campo de assinatura e o sistema coloca a assinatura dentro dele,
-                  igual ao Adobe. O tamanho do bloco define o tamanho do carimbo no documento (minimo 200 x 84 pt).
+                  Desenhe um bloco sobre o campo de assinatura e o sistema coloca a assinatura
+                  dentro dele, igual ao Adobe. O tamanho do bloco define o tamanho do carimbo no
+                  documento (minimo 200 x 84 pt).
                 </p>
               </div>
             </div>
@@ -1830,7 +1911,8 @@ export default function AssinaturasPage() {
               {!previewMatchesPicked && !loadingPreview ? (
                 <div className="px-6 py-4">
                   <Alert variant="danger" title="Prévia indisponível">
-                    A pré-visualização não corresponde ao documento selecionado. Volte ao documento e escolha o PDF novamente.
+                    A pré-visualização não corresponde ao documento selecionado. Volte ao documento
+                    e escolha o PDF novamente.
                   </Alert>
                 </div>
               ) : (
@@ -1926,7 +2008,10 @@ export default function AssinaturasPage() {
                             {/* Cabeçalho do carimbo */}
                             <div className="flex shrink-0 items-center justify-between gap-2 px-2.5 py-1.5 bg-[#1b1a17] text-[#ece9e2]">
                               <div className="flex min-w-0 items-center gap-1.5">
-                                <GripHorizontal className="h-3 w-3 shrink-0 text-[#D4AF37] rotate-180" aria-hidden="true" />
+                                <GripHorizontal
+                                  className="h-3 w-3 shrink-0 text-[#D4AF37] rotate-180"
+                                  aria-hidden="true"
+                                />
                                 <span className="truncate text-[9px] font-bold tracking-[0.1em] text-[#D4AF37]/90">
                                   ASSINADO DIGITALMENTE
                                 </span>
@@ -1946,11 +2031,17 @@ export default function AssinaturasPage() {
                                 </div>
                                 {selectedCert ? (
                                   <div className="mt-0.5 truncate text-[8px] text-[var(--pv-muted)]">
-                                    {formatCpfCnpj(selectedCert.document, selectedCert.documentType)}
+                                    {formatCpfCnpj(
+                                      selectedCert.document,
+                                      selectedCert.documentType,
+                                    )}
                                   </div>
                                 ) : null}
                                 {selectedCert ? (
-                                  <div className="truncate text-[8px] text-[var(--pv-faint)]" title={selectedCert.issuerDn}>
+                                  <div
+                                    className="truncate text-[8px] text-[var(--pv-faint)]"
+                                    title={selectedCert.issuerDn}
+                                  >
                                     Emissor: {issuerShort(selectedCert.issuerDn)}
                                   </div>
                                 ) : null}
@@ -1983,7 +2074,11 @@ export default function AssinaturasPage() {
 
                     {/* Barra de controle: páginas + zoom */}
                     <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 rounded-b-xl border border-[var(--pv-border)] bg-[var(--pv-panel)] px-4 py-3">
-                      <div className="flex items-center gap-1" role="group" aria-label="Escolher página">
+                      <div
+                        className="flex items-center gap-1"
+                        role="group"
+                        aria-label="Escolher página"
+                      >
                         <Button
                           variant="secondary"
                           size="sm"
@@ -1996,7 +2091,11 @@ export default function AssinaturasPage() {
                         {getPageItems(currentPage, picked.pageCount).map((item) => {
                           if (item === 'ellipsis-start' || item === 'ellipsis-end') {
                             return (
-                              <span key={`ell-${item}`} className="px-1 text-[var(--pv-muted)] text-xs" aria-hidden="true">
+                              <span
+                                key={`ell-${item}`}
+                                className="px-1 text-[var(--pv-muted)] text-xs"
+                                aria-hidden="true"
+                              >
                                 …
                               </span>
                             )
@@ -2027,8 +2126,15 @@ export default function AssinaturasPage() {
                       <span className="text-xs tabular-nums text-[var(--pv-muted)]">
                         {currentPage} de {picked.pageCount}
                       </span>
-                      <div className="mx-1 hidden h-5 w-px bg-[var(--pv-border)] sm:block" aria-hidden="true" />
-                      <div className="flex items-center gap-1" role="group" aria-label="Zoom do PDF">
+                      <div
+                        className="mx-1 hidden h-5 w-px bg-[var(--pv-border)] sm:block"
+                        aria-hidden="true"
+                      />
+                      <div
+                        className="flex items-center gap-1"
+                        role="group"
+                        aria-label="Zoom do PDF"
+                      >
                         <Button
                           variant="secondary"
                           size="sm"
@@ -2039,7 +2145,10 @@ export default function AssinaturasPage() {
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
-                        <span className="min-w-10 text-center text-xs font-semibold tabular-nums text-[var(--pv-muted)]" aria-live="polite">
+                        <span
+                          className="min-w-10 text-center text-xs font-semibold tabular-nums text-[var(--pv-muted)]"
+                          aria-live="polite"
+                        >
                           {zoomDisplay}
                         </span>
                         <Button
@@ -2075,7 +2184,8 @@ export default function AssinaturasPage() {
                         className="ml-auto hidden text-[11px] tabular-nums text-[var(--pv-faint)] md:inline"
                         title="Ctrl + scroll para zoom; arraste o fundo para mover a vista. Arraste o carimbo para mover; alças redimensionam. Teclado: setas movem, Alt + setas redimensiona."
                       >
-                        Carimbo {stampPt ? `${Math.round(stampPt.w)} × ${Math.round(stampPt.h)} pt` : '—'}
+                        Carimbo{' '}
+                        {stampPt ? `${Math.round(stampPt.w)} × ${Math.round(stampPt.h)} pt` : '—'}
                       </span>
                     </div>
                   </div>
@@ -2089,7 +2199,10 @@ export default function AssinaturasPage() {
               <ArrowLeft className="h-4 w-4" />
               Voltar
             </Button>
-            <Button disabled={!canAdvanceFromStamp} onClick={() => canAdvanceFromStamp && setStep(4)}>
+            <Button
+              disabled={!canAdvanceFromStamp}
+              onClick={() => canAdvanceFromStamp && setStep(4)}
+            >
               Próximo
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -2113,17 +2226,25 @@ export default function AssinaturasPage() {
               <div className="w-full space-y-2 rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel)] p-4 text-left text-sm">
                 <div className="flex items-center justify-between gap-4">
                   <span className="shrink-0 text-[var(--pv-muted)]">Arquivo gerado</span>
-                  <span className="min-w-0 truncate text-right font-semibold">{result.outputFileName}</span>
+                  <span className="min-w-0 truncate text-right font-semibold">
+                    {result.outputFileName}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="shrink-0 text-[var(--pv-muted)]">Local</span>
-                  <span className="min-w-0 truncate text-right font-mono text-xs" title={result.outputPath}>
+                  <span
+                    className="min-w-0 truncate text-right font-mono text-xs"
+                    title={result.outputPath}
+                  >
                     {result.outputPath}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="shrink-0 text-[var(--pv-muted)]">SHA-256</span>
-                  <span className="min-w-0 truncate text-right font-mono text-xs" title={result.sha256}>
+                  <span
+                    className="min-w-0 truncate text-right font-mono text-xs"
+                    title={result.sha256}
+                  >
                     {result.sha256.slice(0, 24)}…
                   </span>
                 </div>
@@ -2155,7 +2276,9 @@ export default function AssinaturasPage() {
                   <Copy className="h-4 w-4" />
                   Copiar SHA-256
                 </Button>
-                <Button variant="secondary" onClick={resetFlow}>Assinar outro PDF</Button>
+                <Button variant="secondary" onClick={resetFlow}>
+                  Assinar outro PDF
+                </Button>
               </div>
               {autoReturnLeft !== null ? (
                 <div
@@ -2202,11 +2325,21 @@ export default function AssinaturasPage() {
                   const done = index < signPhase
                   const active = index === signPhase
                   return (
-                    <li key={label} className="flex items-center gap-3" aria-current={active ? 'step' : undefined}>
+                    <li
+                      key={label}
+                      className="flex items-center gap-3"
+                      aria-current={active ? 'step' : undefined}
+                    >
                       {done ? (
-                        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+                        <CheckCircle2
+                          className="h-5 w-5 shrink-0 text-emerald-600"
+                          aria-hidden="true"
+                        />
                       ) : active ? (
-                        <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[var(--pv-accent)]" aria-hidden="true" />
+                        <Loader2
+                          className="h-5 w-5 shrink-0 animate-spin text-[var(--pv-accent)]"
+                          aria-hidden="true"
+                        />
                       ) : (
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--pv-border-strong)] bg-[var(--pv-panel-2)] text-[10px] font-semibold text-[var(--pv-muted)]">
                           {index + 1}
@@ -2227,7 +2360,9 @@ export default function AssinaturasPage() {
                   )
                 })}
               </ol>
-              <p className="text-xs text-[var(--pv-muted)]">Finalizando a geração do documento assinado…</p>
+              <p className="text-xs text-[var(--pv-muted)]">
+                Finalizando a geração do documento assinado…
+              </p>
             </div>
           </Card>
         ) : (
@@ -2240,7 +2375,14 @@ export default function AssinaturasPage() {
               <Alert variant="warning" title="Verificação incompleta" className="mb-4">
                 <span className="flex items-center gap-1.5">
                   <TriangleAlert className="h-4 w-4" />
-                  {[!canAdvanceFromDoc && 'documento/prévia não conferem', !canAdvanceFromCert && 'certificado não elegível', !pageValid && 'página inválida', !stampValid && 'posição inválida'].filter(Boolean).join(' • ') || 'aguarde'}
+                  {[
+                    !canAdvanceFromDoc && 'documento/prévia não conferem',
+                    !canAdvanceFromCert && 'certificado não elegível',
+                    !pageValid && 'página inválida',
+                    !stampValid && 'posição inválida',
+                  ]
+                    .filter(Boolean)
+                    .join(' • ') || 'aguarde'}
                 </span>
               </Alert>
             ) : null}
@@ -2283,10 +2425,7 @@ export default function AssinaturasPage() {
                 <ArrowLeft className="h-4 w-4" />
                 Voltar
               </Button>
-              <Button
-                disabled={!canSign}
-                onClick={() => void handleSign()}
-              >
+              <Button disabled={!canSign} onClick={() => void handleSign()}>
                 {signing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (

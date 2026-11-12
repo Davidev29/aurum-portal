@@ -21,16 +21,24 @@ export function parsePfxFilesInWorker(
       void worker.terminate()
       reject(new Error('Tempo esgotado ao ler os PFX em segundo plano'))
     }, 120_000)
-    worker.on('message', (message: { type?: string; results?: WorkerParseResult[]; index?: number; total?: number }) => {
-      if (message.type === 'progress' && typeof message.index === 'number') {
-        onProgress?.(message.index + 1, message.total ?? files.length)
-      }
-      if (message.type === 'result' && message.results) {
-        clearTimeout(timeout)
-        void worker.terminate()
-        resolve(message.results)
-      }
-    })
+    worker.on(
+      'message',
+      (message: {
+        type?: string
+        results?: WorkerParseResult[]
+        index?: number
+        total?: number
+      }) => {
+        if (message.type === 'progress' && typeof message.index === 'number') {
+          onProgress?.(message.index + 1, message.total ?? files.length)
+        }
+        if (message.type === 'result' && message.results) {
+          clearTimeout(timeout)
+          void worker.terminate()
+          resolve(message.results)
+        }
+      },
+    )
     worker.on('error', (error) => {
       clearTimeout(timeout)
       logger.warn('pfx.worker.failed', { message: error.message })

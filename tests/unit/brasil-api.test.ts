@@ -26,11 +26,12 @@ describe('lookupCompanyByCnpj (opt-in)', () => {
     }
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify(payload), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
       ),
     )
     const result = await lookupCompanyByCnpj(CNPJ, { enabled: true })
@@ -49,11 +50,12 @@ describe('lookupCompanyByCnpj (opt-in)', () => {
   it('recusa resposta com content-length acima do limite', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response('{}', {
-          status: 200,
-          headers: { 'content-length': String(1024 * 1024) },
-        }),
+      vi.fn(
+        async () =>
+          new Response('{}', {
+            status: 200,
+            headers: { 'content-length': String(1024 * 1024) },
+          }),
       ),
     )
     expect(await lookupCompanyByCnpj(CNPJ, { enabled: true })).toBeNull()
@@ -61,15 +63,24 @@ describe('lookupCompanyByCnpj (opt-in)', () => {
 
   it('recusa corpo que excede o limite durante a leitura do stream', async () => {
     const big = 'x'.repeat(128 * 1024)
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(big, { status: 200 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(big, { status: 200 })),
+    )
     expect(await lookupCompanyByCnpj(CNPJ, { enabled: true })).toBeNull()
   })
 
   it('lida com JSON inválido e status HTTP de erro', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>erro</html>', { status: 200 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('<html>erro</html>', { status: 200 })),
+    )
     expect(await lookupCompanyByCnpj(CNPJ, { enabled: true })).toBeNull()
 
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('erro', { status: 500 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('erro', { status: 500 })),
+    )
     expect(await lookupCompanyByCnpj(CNPJ, { enabled: true })).toBeNull()
   })
 
@@ -84,7 +95,10 @@ describe('lookupCompanyByCnpj (opt-in)', () => {
   })
 
   it('rejeita array JSON no lugar de objeto', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('[1,2,3]', { status: 200 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('[1,2,3]', { status: 200 })),
+    )
     expect(await lookupCompanyByCnpj(CNPJ, { enabled: true })).toBeNull()
   })
 })

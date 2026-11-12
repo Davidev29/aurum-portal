@@ -8,7 +8,14 @@ import { formatDate, formatDocumentMasked } from '@/lib/utils'
 import { certificateEffectiveValidToOf } from '@shared/certificate-renewal'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
 import { useClients, useInvalidate } from '@/lib/queries'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -81,7 +88,7 @@ export function CertificateImportWizard({
     try {
       const selected = files.map((filePath) => ({
         filePath,
-        password: useShared ? sharedPassword : passwords[filePath] ?? '',
+        password: useShared ? sharedPassword : (passwords[filePath] ?? ''),
       }))
       const interval = setInterval(() => setProgress((current) => Math.min(90, current + 7)), 400)
       const result = await aurumBitPortal()
@@ -116,7 +123,9 @@ export function CertificateImportWizard({
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{renewalCertificate ? 'Renovar certificado' : 'Importar certificados A1'}</DialogTitle>
+          <DialogTitle>
+            {renewalCertificate ? 'Renovar certificado' : 'Importar certificados A1'}
+          </DialogTitle>
           <DialogDescription>
             {renewalCertificate
               ? 'Importe o novo PFX/P12 com data válida. Ele será vinculado pelo mesmo documento e este certificado passará a “Renovado”, ficando no histórico de renovação.'
@@ -129,14 +138,21 @@ export function CertificateImportWizard({
             <span className="inline-flex items-center gap-1.5">
               <RefreshCw className="h-3.5 w-3.5" />
               {renewalCertificate.holderName}
-              {renewalCertificate.document ? ` • ${formatDocumentMasked(renewalCertificate.document)}` : ''} — válido até{' '}
-              {formatDate(certificateEffectiveValidToOf(renewalCertificate))}.
-              {renewalCertificate.isRenewed ? ' Este já está renovado; importe apenas se for uma nova emissão.' : ' Ao importar um novo com data válida, este ficará como “Renovado”.'}
+              {renewalCertificate.document
+                ? ` • ${formatDocumentMasked(renewalCertificate.document)}`
+                : ''}{' '}
+              — válido até {formatDate(certificateEffectiveValidToOf(renewalCertificate))}.
+              {renewalCertificate.isRenewed
+                ? ' Este já está renovado; importe apenas se for uma nova emissão.'
+                : ' Ao importar um novo com data válida, este ficará como “Renovado”.'}
             </span>
           </Alert>
         ) : null}
 
-        <ol className="flex flex-wrap items-center gap-1.5 text-xs font-medium" aria-label="Etapas da importação">
+        <ol
+          className="flex flex-wrap items-center gap-1.5 text-xs font-medium"
+          aria-label="Etapas da importação"
+        >
           {(
             [
               ['files', '1. Arquivos'],
@@ -253,7 +269,10 @@ export function CertificateImportWizard({
               </Select>
             </Field>
             <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-              <Checkbox checked={install} onCheckedChange={(checked) => setInstall(checked === true)} />
+              <Checkbox
+                checked={install}
+                onCheckedChange={(checked) => setInstall(checked === true)}
+              />
               Instalar no repositório do Windows (Cert:\CurrentUser\My) com chave não exportável
             </label>
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--pv-border)] p-3.5 text-sm leading-relaxed transition-colors hover:border-brand-300 hover:bg-[var(--pv-accent-soft)] dark:hover:bg-[var(--pv-accent-soft)]">
@@ -264,9 +283,9 @@ export function CertificateImportWizard({
               />
               <span>
                 Confirmo que o escritorio tem autorizacao do titular para importar e usar este
-                certificado. Para CNPJ, autorizo consultar a Brasil API (apenas o CNPJ) para
-                gravar razão social, e-mail e telefone no cadastro. O consentimento será
-                registrado na auditoria no primeiro vínculo.
+                certificado. Para CNPJ, autorizo consultar a Brasil API (apenas o CNPJ) para gravar
+                razão social, e-mail e telefone no cadastro. O consentimento será registrado na
+                auditoria no primeiro vínculo.
               </span>
             </label>
             {clientId && !consent ? (
@@ -297,7 +316,10 @@ export function CertificateImportWizard({
                 </thead>
                 <tbody>
                   {report.items.map((item, index) => (
-                    <tr key={`${item.filePath}-${index}`} className="border-t border-[var(--pv-border)]">
+                    <tr
+                      key={`${item.filePath}-${index}`}
+                      className="border-t border-[var(--pv-border)]"
+                    >
                       <td className="px-3 py-2">{item.fileName}</td>
                       <td className="px-3 py-2">{item.holderName ?? '—'}</td>
                       <td className="px-3 py-2">
@@ -320,7 +342,8 @@ export function CertificateImportWizard({
                         </Badge>
                       </td>
                       <td className="px-3 py-2 text-xs text-[var(--pv-muted)]">
-                        {item.message ?? (item.installed ? 'Instalado no Windows' : 'Somente cofre')}
+                        {item.message ??
+                          (item.installed ? 'Instalado no Windows' : 'Somente cofre')}
                       </td>
                     </tr>
                   ))}
@@ -333,7 +356,9 @@ export function CertificateImportWizard({
         {busy ? (
           <div className="space-y-1">
             <Progress value={progress} />
-            <p className="text-xs text-[var(--pv-muted)]">Processando arquivos em segundo plano...</p>
+            <p className="text-xs text-[var(--pv-muted)]">
+              Processando arquivos em segundo plano...
+            </p>
           </div>
         ) : null}
 
@@ -356,7 +381,9 @@ export function CertificateImportWizard({
                   variant="secondary"
                   disabled={busy}
                   onClick={() =>
-                    setStep(step === 'options' ? 'passwords' : step === 'passwords' ? 'files' : 'files')
+                    setStep(
+                      step === 'options' ? 'passwords' : step === 'passwords' ? 'files' : 'files',
+                    )
                   }
                 >
                   Voltar

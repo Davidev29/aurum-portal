@@ -35,7 +35,10 @@ export interface BrasilApiEnrichmentOptions {
  * operador atualiza pela Brasil API, esses nomes devem ser substituídos pela
  * razão social oficial gována apenas pelo CNPJ.
  */
-export function isPlaceholderClientName(name: string | null | undefined, document: string): boolean {
+export function isPlaceholderClientName(
+  name: string | null | undefined,
+  document: string,
+): boolean {
   const digits = onlyDigits(document ?? '')
   const value = (name ?? '').trim()
   if (!value) return true
@@ -108,7 +111,7 @@ export function pickBestClientNameFromCertificates(certs: Certificate[]): string
   const withName = certs.filter((c) => c.holderName?.trim())
   if (withName.length === 0) return null
   withName.sort((a, b) => new Date(b.validTo).getTime() - new Date(a.validTo).getTime())
-  return withName[0].holderName!.trim()
+  return withName[0]!.holderName!.trim()
 }
 
 /**

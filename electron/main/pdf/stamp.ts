@@ -21,11 +21,7 @@ import {
   stampContentsMatrix,
 } from './page-geometry'
 import { create as createQr } from 'qrcode'
-import {
-  concatTransformationMatrix,
-  popGraphicsState,
-  pushGraphicsState,
-} from 'pdf-lib'
+import { concatTransformationMatrix, popGraphicsState, pushGraphicsState } from 'pdf-lib'
 
 /**
  * Desenho do carimbo visual PAdES premium (informativo — a validade juridica
@@ -143,7 +139,11 @@ export function resolveStampRect(
   size: SignatureStampSize,
 ): StampRect {
   const view = getPageView(page)
-  const { width: scaledW, height: scaledH } = scaledStampSize(view.displayWidth, view.displayHeight, size)
+  const { width: scaledW, height: scaledH } = scaledStampSize(
+    view.displayWidth,
+    view.displayHeight,
+    size,
+  )
   const displayW = view.displayWidth
   const displayH = view.displayHeight
   const w = Math.min(scaledW, displayW)
@@ -228,12 +228,7 @@ export function wrapText(text: string, font: PDFFont, size: number, maxWidth: nu
   return lines
 }
 
-function truncateToWidth(
-  text: string,
-  font: PDFFont,
-  fontSize: number,
-  maxWidth: number,
-): string {
+function truncateToWidth(text: string, font: PDFFont, fontSize: number, maxWidth: number): string {
   if (font.widthOfTextAtSize(text, fontSize) <= maxWidth) return text
   let end = text.length
   while (end > 1) {
@@ -329,12 +324,42 @@ export function computeStampLayout(input: {
   const bodyMaxWidth = Math.max(60, width - PAD * 2 - qrSize - qrColumnGap)
 
   const specs: DataSpec[] = [
-    { text: input.signerName, font: 'bold', size: 10.5, minSize: 6.2, color: COLOR_NAME, afterGap: 3 },
+    {
+      text: input.signerName,
+      font: 'bold',
+      size: 10.5,
+      minSize: 6.2,
+      color: COLOR_NAME,
+      afterGap: 3,
+    },
     ...(input.documentLine
-      ? [{ text: input.documentLine, font: 'regular' as const, size: 7.5, minSize: 5.4, color: COLOR_BODY, afterGap: 2 }]
+      ? [
+          {
+            text: input.documentLine,
+            font: 'regular' as const,
+            size: 7.5,
+            minSize: 5.4,
+            color: COLOR_BODY,
+            afterGap: 2,
+          },
+        ]
       : []),
-    { text: input.issuerLine, font: 'regular', size: 7, minSize: 5.4, color: COLOR_MUTED, afterGap: 2 },
-    { text: `Data: ${formatSignedAt(input.signedAt)} -03:00`, font: 'regular', size: 7, minSize: 5.4, color: COLOR_BODY, afterGap: 1 },
+    {
+      text: input.issuerLine,
+      font: 'regular',
+      size: 7,
+      minSize: 5.4,
+      color: COLOR_MUTED,
+      afterGap: 2,
+    },
+    {
+      text: `Data: ${formatSignedAt(input.signedAt)} -03:00`,
+      font: 'regular',
+      size: 7,
+      minSize: 5.4,
+      color: COLOR_BODY,
+      afterGap: 1,
+    },
   ]
 
   const build = (scale: number): { lines: FittedLine[]; bottom: number } => {
@@ -343,7 +368,9 @@ export function computeStampLayout(input: {
     for (const spec of specs) {
       const size = Math.max(spec.size * scale, 4.2)
       const wrapped = wrapText(spec.text, fontFor(fonts, spec.font), size, bodyMaxWidth)
-      for (const chunk of wrapped.length > 0 ? wrapped : [truncateToWidth(spec.text, fontFor(fonts, spec.font), size, bodyMaxWidth)]) {
+      for (const chunk of wrapped.length > 0
+        ? wrapped
+        : [truncateToWidth(spec.text, fontFor(fonts, spec.font), size, bodyMaxWidth)]) {
         const baseline = cursorTop - size
         lines.push({ text: chunk, font: spec.font, size, color: spec.color, x: PAD, y: baseline })
         cursorTop -= size * 1.15
@@ -372,7 +399,10 @@ export function computeStampLayout(input: {
   // de dados (nunca o nome) para nunca vazar do quadro.
   while (!fits(best) && best.lines.length > 1) {
     best.lines.pop()
-    best = { lines: best.lines, bottom: best.lines[best.lines.length - 1]?.y ?? height - headerH - goldH - 5 }
+    best = {
+      lines: best.lines,
+      bottom: best.lines[best.lines.length - 1]?.y ?? height - headerH - goldH - 5,
+    }
   }
 
   // Título no cabeçalho (branco sobre azul-marinho) + selo ITI à direita.
@@ -413,7 +443,12 @@ export function drawSignatureStamp(input: StampInput): void {
   // Geometria unica: cropBox∩mediaBox + /Rotate — mesma base da previa.
   const view = getPageView(page)
   const rotation = view.rotation
-  const rectUser = { x, y, width: input.widthPt && input.widthPt > 0 ? input.widthPt : 0, height: input.heightPt && input.heightPt > 0 ? input.heightPt : 0 }
+  const rectUser = {
+    x,
+    y,
+    width: input.widthPt && input.widthPt > 0 ? input.widthPt : 0,
+    height: input.heightPt && input.heightPt > 0 ? input.heightPt : 0,
+  }
   const fallback = scaledStampSize(view.displayWidth, view.displayHeight, size)
   const fallbackUser = displayRectToUserRect(view, 0, 0, fallback.width, fallback.height)
   const userWidth = rectUser.width > 0 ? rectUser.width : fallbackUser.width
@@ -461,9 +496,23 @@ export function drawSignatureStamp(input: StampInput): void {
 
   // Faixa superior azul-marinho com filete dourado e selo ITI.
   if (layout.headerH > 0) {
-    page.drawRectangle({ x: ox, y: oy + height - layout.headerH, width, height: layout.headerH, color: COLOR_NAVY, opacity: 1 })
+    page.drawRectangle({
+      x: ox,
+      y: oy + height - layout.headerH,
+      width,
+      height: layout.headerH,
+      color: COLOR_NAVY,
+      opacity: 1,
+    })
   }
-  page.drawRectangle({ x: ox, y: oy + height - layout.headerH - 1.2, width, height: 1.2, color: COLOR_GOLD, opacity: 1 })
+  page.drawRectangle({
+    x: ox,
+    y: oy + height - layout.headerH - 1.2,
+    width,
+    height: 1.2,
+    color: COLOR_GOLD,
+    opacity: 1,
+  })
   if (seal && layout.sealSide > 0) {
     try {
       page.drawImage(seal, {
@@ -482,7 +531,16 @@ export function drawSignatureStamp(input: StampInput): void {
   const qrSize = layout.qrSize
   const qrX = ox + layout.qrX
   const qrY = oy + layout.qrY
-  page.drawRectangle({ x: qrX - 2, y: qrY - 2, width: qrSize + 4, height: qrSize + 4, borderWidth: 0.75, borderColor: COLOR_BORDER, color: COLOR_WHITE, opacity: 1 })
+  page.drawRectangle({
+    x: qrX - 2,
+    y: qrY - 2,
+    width: qrSize + 4,
+    height: qrSize + 4,
+    borderWidth: 0.75,
+    borderColor: COLOR_BORDER,
+    color: COLOR_WHITE,
+    opacity: 1,
+  })
   try {
     const { size: modules, data } = qrModuleCountAndData()
     const cell = qrSize / modules
@@ -506,7 +564,13 @@ export function drawSignatureStamp(input: StampInput): void {
 
   const drawLine = (line: FittedLine): void => {
     const font = fontFor(fonts, line.font)
-    page.drawText(line.text, { x: ox + line.x, y: oy + line.y, size: line.size, font, color: line.color })
+    page.drawText(line.text, {
+      x: ox + line.x,
+      y: oy + line.y,
+      size: line.size,
+      font,
+      color: line.color,
+    })
   }
   for (const line of layout.headerLines) drawLine(line)
   for (const line of layout.lines) drawLine(line)

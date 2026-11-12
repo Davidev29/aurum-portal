@@ -34,10 +34,7 @@ export function saveRecipe(
   const service = db.select().from(services).where(eq(services.id, serviceId)).get()
   if (!service) throw new AppError('NOT_FOUND', 'Servico nao encontrado')
   if (!service.authMethods.includes(parsed.auth)) {
-    throw new AppError(
-      'VALIDATION',
-      'O tipo de autenticacao da receita nao e aceito pelo servico',
-    )
+    throw new AppError('VALIDATION', 'O tipo de autenticacao da receita nao e aceito pelo servico')
   }
   const existing = getRecipeByService(db, serviceId)
   const now = new Date().toISOString()

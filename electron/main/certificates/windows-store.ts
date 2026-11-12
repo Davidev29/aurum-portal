@@ -143,7 +143,8 @@ export function parseWindowsCertificateRecords(payload: unknown): WindowsCertifi
       const subject = String(item.subject ?? '')
       const found = findDocumentInText(subject)
       const holderMatch = subject.match(/(?:^|,\s*)CN=([^,]+)/i)
-      const holderName = holderMatch?.[1]?.replace(/:\s*\d[\d.\-/\s]{9,20}\d\s*$/, '').trim() ?? 'Titular'
+      const holderName =
+        holderMatch?.[1]?.replace(/:\s*\d[\d.\-/\s]{9,20}\d\s*$/, '').trim() ?? 'Titular'
       return {
         thumbprintSha1: String(item.thumbprintSha1 ?? '').toUpperCase(),
         thumbprintSha256: String(item.thumbprintSha256 ?? '').toUpperCase(),
@@ -172,7 +173,15 @@ export async function runPowerShell(script: string, timeoutMs = 60_000): Promise
     let settled = false
     const child = spawn(
       'powershell.exe',
-      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath],
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        scriptPath,
+      ],
       { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
     )
     const timer = setTimeout(() => {
@@ -333,7 +342,9 @@ export async function exportPfxFromWindowsStore(
           'A chave privada nao pode ser exportada do Windows e nao foi incluida no cofre — instale novamente como exportavel ou importe o PFX para assinar.',
         )
       }
-      throw new Error(`Nao foi possivel usar o certificado instalado no Windows: ${detail.slice(0, 300)}`)
+      throw new Error(
+        `Nao foi possivel usar o certificado instalado no Windows: ${detail.slice(0, 300)}`,
+      )
     }
     const pfx = await readFile(filePath)
     if (!pfx.length) {

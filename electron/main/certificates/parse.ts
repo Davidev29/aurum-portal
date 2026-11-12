@@ -25,7 +25,10 @@ function attributesToDn(attributes: unknown): string {
   return attributes
     .map((attribute) => attribute as ForgeAttribute)
     .filter((attribute) => attribute.value)
-    .map((attribute) => `${(attribute.shortName ?? attribute.name ?? '?').toUpperCase()}=${attribute.value}`)
+    .map(
+      (attribute) =>
+        `${(attribute.shortName ?? attribute.name ?? '?').toUpperCase()}=${attribute.value}`,
+    )
     .join(', ')
 }
 
@@ -128,8 +131,7 @@ export function parsePfx(pfx: Buffer, password: string): ParsedPfx {
   }
 
   const certBagOid = forge.pki.oids.certBag ?? '1.2.840.113549.1.12.10.1.3'
-  const shroudedKeyBagOid =
-    forge.pki.oids.pkcs8ShroudedKeyBag ?? '1.2.840.113549.1.12.10.1.2'
+  const shroudedKeyBagOid = forge.pki.oids.pkcs8ShroudedKeyBag ?? '1.2.840.113549.1.12.10.1.2'
   const keyBagOid = forge.pki.oids.keyBag ?? '1.2.840.113549.1.12.10.1.1'
 
   const certBags = (
@@ -138,8 +140,8 @@ export function parsePfx(pfx: Buffer, password: string): ParsedPfx {
   if (certBags.length === 0) throw new Error('O arquivo nao contem certificado')
 
   const keyBags = [
-    ...((p12.getBags({ bagType: shroudedKeyBagOid })[shroudedKeyBagOid] ?? []) as
-      forge.pkcs12.Bag[]),
+    ...((p12.getBags({ bagType: shroudedKeyBagOid })[shroudedKeyBagOid] ??
+      []) as forge.pkcs12.Bag[]),
     ...((p12.getBags({ bagType: keyBagOid })[keyBagOid] ?? []) as forge.pkcs12.Bag[]),
   ]
 
@@ -164,7 +166,8 @@ export function parsePfx(pfx: Buffer, password: string): ParsedPfx {
   const organization = readAttributeField(cert, 'O')
   const document = chooseDocument(cn, extractSanCandidates(cert))
   const holderNameRaw = cn ?? organization ?? 'Titular sem nome'
-  const holderName = holderNameRaw.replace(/:\s*\d[\d.\-/\s]{9,20}\d\s*$/, '').trim() || holderNameRaw
+  const holderName =
+    holderNameRaw.replace(/:\s*\d[\d.\-/\s]{9,20}\d\s*$/, '').trim() || holderNameRaw
 
   const validFrom = cert.validity.notBefore.toISOString()
   const validTo = cert.validity.notAfter.toISOString()

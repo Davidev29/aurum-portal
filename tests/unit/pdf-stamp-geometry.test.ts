@@ -21,7 +21,13 @@ import { pdfSignSchema } from '../../shared/contracts'
 const PFX_PATH = path.resolve(process.cwd(), 'scripts/spike/.certs/spike-a1-test.pfx')
 const PFX_PASSWORD = 'SpikeSenha123!'
 
-async function makePdf(spec: { rotate?: number; mediaBox?: [number, number, number, number]; cropBox?: [number, number, number, number]; pageWidth?: number; pageHeight?: number }) {
+async function makePdf(spec: {
+  rotate?: number
+  mediaBox?: [number, number, number, number]
+  cropBox?: [number, number, number, number]
+  pageWidth?: number
+  pageHeight?: number
+}) {
   const doc = await PDFDocument.create()
   const page = doc.addPage([spec.pageWidth ?? 400, spec.pageHeight ?? 600])
   if (spec.mediaBox) page.setMediaBox(...spec.mediaBox)
@@ -215,14 +221,21 @@ describe('inspectPdf (contrato da prévia)', () => {
   it('cropBox menor vira a view da prévia', async () => {
     const { bytes } = await makePdf({ mediaBox: [50, 60, 400, 600], cropBox: [100, 110, 300, 400] })
     const result = await inspectPdf(bytes)
-    expect(result.pages[0].width).toBe(300)
-    expect(result.pages[0].height).toBe(400)
-    expect(result.pages[0].viewBox).toEqual({ x: 100, y: 110, width: 300, height: 400 })
+    expect(result.pages[0]!.width).toBe(300)
+    expect(result.pages[0]!.height).toBe(400)
+    expect(result.pages[0]!.viewBox).toEqual({ x: 100, y: 110, width: 300, height: 400 })
   })
 })
 
 describe('pdfSignSchema', () => {
-  const base = { token: 't', certificateId: 'c', page: 1, size: 'medium' as const, xPct: 0.1, yPct: 0.1 }
+  const base = {
+    token: 't',
+    certificateId: 'c',
+    page: 1,
+    size: 'medium' as const,
+    xPct: 0.1,
+    yPct: 0.1,
+  }
 
   it('aceita o payload válido do frontend', () => {
     const r = pdfSignSchema.safeParse({ ...base, widthPct: 0.4, heightPct: 0.1 })
@@ -251,18 +264,30 @@ describe('assinatura end-to-end: posição do widget == prévia', () => {
 
   beforeAll(() => {
     pfxBuffer = readFileSync(PFX_PATH)
-    const p12 = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(pfxBuffer.toString('binary')), false, PFX_PASSWORD)
-    const keyBags = (p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag as string })[forge.pki.oids.pkcs8ShroudedKeyBag as string] ?? []) as any[]
-    const certBags = (p12.getBags({ bagType: forge.pki.oids.certBag as string })[forge.pki.oids.certBag as string] ?? []) as any[]
+    const p12 = forge.pkcs12.pkcs12FromAsn1(
+      forge.asn1.fromDer(pfxBuffer.toString('binary')),
+      false,
+      PFX_PASSWORD,
+    )
+    const keyBags = (p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag as string })[
+      forge.pki.oids.pkcs8ShroudedKeyBag as string
+    ] ?? []) as any[]
+    const certBags = (p12.getBags({ bagType: forge.pki.oids.certBag as string })[
+      forge.pki.oids.certBag as string
+    ] ?? []) as any[]
     const privateKey = keyBags[0].key
-    const cert = certBags.find((b: any) => b.cert.publicKey.n.compareTo(privateKey.n) === 0)?.cert ?? certBags[0].cert
+    const cert =
+      certBags.find((b: any) => b.cert.publicKey.n.compareTo(privateKey.n) === 0)?.cert ??
+      certBags[0].cert
     material = {
       pfx: pfxBuffer,
       password: PFX_PASSWORD,
       holderName: 'SPIKE TESTE:12345678909',
       document: '12345678909',
       documentType: 'CPF',
-      issuerDn: cert.issuer.attributes.map((a: any) => `${a.shortName ?? a.name}=${a.value}`).join(', '),
+      issuerDn: cert.issuer.attributes
+        .map((a: any) => `${a.shortName ?? a.name}=${a.value}`)
+        .join(', '),
       thumbprintSha256: '052295E95BB4DB1BAFDC0A1FB2CB61A54FFD737FB159E4F02F25973C93FBDB01',
       validTo: '2027-11-04T11:18:17.628Z',
     }
@@ -276,7 +301,9 @@ describe('assinatura end-to-end: posição do widget == prévia', () => {
     })
   }
 
-  async function sigWidgetRects(pdfBytes: Buffer): Promise<Array<[number, number, number, number]>> {
+  async function sigWidgetRects(
+    pdfBytes: Buffer,
+  ): Promise<Array<[number, number, number, number]>> {
     const doc = await PDFDocument.load(pdfBytes, { updateMetadata: false })
     const rects: Array<[number, number, number, number]> = []
     for (const page of doc.getPages()) {

@@ -2,7 +2,10 @@ import { Badge } from '@/components/ui/badge'
 import type { CertificateStatus } from '@shared/constants'
 import type { SessionStatus } from '@shared/constants'
 
-const certificateLabels: Record<CertificateStatus, { label: string; variant: 'success' | 'warning' | 'danger' | 'secondary' | 'outline' }> = {
+const certificateLabels: Record<
+  CertificateStatus,
+  { label: string; variant: 'success' | 'warning' | 'danger' | 'secondary' | 'outline' }
+> = {
   valid: { label: 'Valido', variant: 'success' },
   expiring: { label: 'A vencer', variant: 'warning' },
   expired: { label: 'Vencido', variant: 'danger' },
@@ -16,7 +19,10 @@ export function CertificateStatusBadge({ status }: { status: CertificateStatus }
   return <Badge variant={config.variant}>{config.label}</Badge>
 }
 
-const sessionLabels: Record<SessionStatus, { label: string; variant: 'success' | 'warning' | 'danger' | 'secondary' | 'outline' }> = {
+const sessionLabels: Record<
+  SessionStatus,
+  { label: string; variant: 'success' | 'warning' | 'danger' | 'secondary' | 'outline' }
+> = {
   opening: { label: 'Abrindo', variant: 'secondary' },
   awaiting_login: { label: 'Aguardando login', variant: 'warning' },
   authenticated: { label: 'Autenticado', variant: 'success' },

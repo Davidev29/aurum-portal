@@ -94,9 +94,7 @@ export function ClientNotesManager({
           <CardTitle>Observações</CardTitle>
           {!isLoading && notes.length > 0 ? <Badge variant="outline">{notes.length}</Badge> : null}
         </div>
-        {clientName ? (
-          <CardDescription>Observações de {clientName}</CardDescription>
-        ) : null}
+        {clientName ? <CardDescription>Observações de {clientName}</CardDescription> : null}
       </CardHeader>
       <CardContent className="space-y-4">
         {isLoading ? (
@@ -110,12 +108,7 @@ export function ClientNotesManager({
             <p role="alert" className="text-sm font-medium text-[var(--pv-danger)]">
               {errorMessage(error) || 'Não foi possível carregar as observações.'}
             </p>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => void refetch()}
-            >
+            <Button type="button" variant="secondary" size="sm" onClick={() => void refetch()}>
               Tentar novamente
             </Button>
           </div>
@@ -159,7 +152,9 @@ export function ClientNotesManager({
                         onClick={() => void saveEdit()}
                         disabled={busy || !editingText.trim()}
                       >
-                        {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                        {busy ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : null}
                         Salvar
                       </Button>
                     </div>
@@ -167,7 +162,9 @@ export function ClientNotesManager({
                 ) : (
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="whitespace-pre-wrap text-sm text-[var(--pv-text)]">{note.text}</p>
+                      <p className="whitespace-pre-wrap text-sm text-[var(--pv-text)]">
+                        {note.text}
+                      </p>
                       <time
                         dateTime={note.createdAt}
                         className="mt-1.5 block text-xs text-[var(--pv-muted)]"
@@ -213,10 +210,7 @@ export function ClientNotesManager({
             void addNote()
           }}
         >
-          <label
-            htmlFor="new-note"
-            className="text-sm font-semibold text-[var(--pv-text)]"
-          >
+          <label htmlFor="new-note" className="text-sm font-semibold text-[var(--pv-text)]">
             Nova observação
           </label>
           <Textarea

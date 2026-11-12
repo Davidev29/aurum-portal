@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { createDatabase } from '../../electron/main/db/database'
-import { CertificateService, selectWindowsImportTargets } from '../../electron/main/certificates/service'
+import {
+  CertificateService,
+  selectWindowsImportTargets,
+} from '../../electron/main/certificates/service'
 import type { WindowsCertificateRecord } from '../../electron/main/certificates/windows-store'
 import type { VaultService } from '../../electron/main/vault/service'
 
-function windowsRecord(overrides: Partial<WindowsCertificateRecord> = {}): WindowsCertificateRecord {
+function windowsRecord(
+  overrides: Partial<WindowsCertificateRecord> = {},
+): WindowsCertificateRecord {
   const sha1 = overrides.thumbprintSha1 ?? 'A'.repeat(40)
   return {
     thumbprintSha1: sha1,
@@ -40,8 +45,18 @@ function makeService(records: WindowsCertificateRecord[]) {
 describe('importação em lote do Windows', () => {
   it('importAll importa todos os certificados instalados de uma vez', async () => {
     const records = [
-      windowsRecord({ thumbprintSha1: 'A'.repeat(40), thumbprintSha256: 'B'.repeat(64), holderName: 'Um', document: '52998224725' }),
-      windowsRecord({ thumbprintSha1: 'C'.repeat(40), thumbprintSha256: 'D'.repeat(64), holderName: 'Dois', document: '11144477735' }),
+      windowsRecord({
+        thumbprintSha1: 'A'.repeat(40),
+        thumbprintSha256: 'B'.repeat(64),
+        holderName: 'Um',
+        document: '52998224725',
+      }),
+      windowsRecord({
+        thumbprintSha1: 'C'.repeat(40),
+        thumbprintSha256: 'D'.repeat(64),
+        holderName: 'Dois',
+        document: '11144477735',
+      }),
     ]
     const { close, service } = makeService(records)
     try {
@@ -79,7 +94,11 @@ describe('importação em lote do Windows', () => {
   it('importação por thumbprints importa apenas a seleção', async () => {
     const records = [
       windowsRecord({ thumbprintSha1: 'A'.repeat(40), thumbprintSha256: 'B'.repeat(64) }),
-      windowsRecord({ thumbprintSha1: 'C'.repeat(40), thumbprintSha256: 'D'.repeat(64), holderName: 'Outro' }),
+      windowsRecord({
+        thumbprintSha1: 'C'.repeat(40),
+        thumbprintSha256: 'D'.repeat(64),
+        holderName: 'Outro',
+      }),
     ]
     const { close, service } = makeService(records)
     try {
@@ -95,15 +114,23 @@ describe('importação em lote do Windows', () => {
   it('um certificado sem SHA-256 não interrompe o lote', async () => {
     const records = [
       windowsRecord({ thumbprintSha1: 'A'.repeat(40), thumbprintSha256: '' }),
-      windowsRecord({ thumbprintSha1: 'C'.repeat(40), thumbprintSha256: 'D'.repeat(64), holderName: 'Bom' }),
+      windowsRecord({
+        thumbprintSha1: 'C'.repeat(40),
+        thumbprintSha256: 'D'.repeat(64),
+        holderName: 'Bom',
+      }),
     ]
     const { close, service } = makeService(records)
     try {
       const result = await service.importFromWindows({ importAll: true })
       expect(result.imported).toBe(1)
       expect(result.errors).toBe(1)
-      expect(result.items.find((item) => item.status === 'error')?.thumbprintSha1).toBe('A'.repeat(40))
-      expect(result.items.find((item) => item.status === 'imported')?.thumbprintSha1).toBe('C'.repeat(40))
+      expect(result.items.find((item) => item.status === 'error')?.thumbprintSha1).toBe(
+        'A'.repeat(40),
+      )
+      expect(result.items.find((item) => item.status === 'imported')?.thumbprintSha1).toBe(
+        'C'.repeat(40),
+      )
     } finally {
       close()
     }
@@ -127,7 +154,9 @@ describe('importação em lote do Windows', () => {
   it('exige seleção quando importAll não foi pedido', async () => {
     const { close, service } = makeService([windowsRecord()])
     try {
-      await expect(service.importFromWindows({ thumbprints: [] })).rejects.toThrow(/Nenhum certificado/)
+      await expect(service.importFromWindows({ thumbprints: [] })).rejects.toThrow(
+        /Nenhum certificado/,
+      )
       await expect(service.importFromWindows({})).rejects.toThrow(/Nenhum certificado/)
     } finally {
       close()
@@ -154,7 +183,11 @@ describe('importação em lote do Windows', () => {
 
   it('consentimento com documento cria/vincula cliente automaticamente', async () => {
     const records = [
-      windowsRecord({ thumbprintSha1: 'A'.repeat(40), thumbprintSha256: 'B'.repeat(64), document: '52998224725' }),
+      windowsRecord({
+        thumbprintSha1: 'A'.repeat(40),
+        thumbprintSha256: 'B'.repeat(64),
+        document: '52998224725',
+      }),
     ]
     const { close, service } = makeService(records)
     try {
@@ -182,7 +215,9 @@ describe('importação em lote do Windows', () => {
     const all = selectWindowsImportTargets(records, { importAll: true })
     expect(all.targets).toHaveLength(1)
 
-    const selected = selectWindowsImportTargets(records, { thumbprints: ['a'.repeat(40), 'A'.repeat(40), 'F'.repeat(40)] })
+    const selected = selectWindowsImportTargets(records, {
+      thumbprints: ['a'.repeat(40), 'A'.repeat(40), 'F'.repeat(40)],
+    })
     expect(selected.targets).toHaveLength(1)
     expect(selected.missingThumbprints).toEqual(['F'.repeat(40)])
 

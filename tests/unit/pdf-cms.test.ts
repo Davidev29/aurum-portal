@@ -11,7 +11,16 @@ const PFX_PATH = path.resolve(process.cwd(), 'scripts', 'spike', '.certs', 'spik
 const PFX_PASSWORD = 'SpikeSenha123!'
 
 let pfxBuffer: Buffer
-let material: { pfx: Buffer; password: string; holderName: string; document: string; documentType: 'CPF' | 'CNPJ' | 'OTHER'; issuerDn: string; thumbprintSha256: string; validTo: string }
+let material: {
+  pfx: Buffer
+  password: string
+  holderName: string
+  document: string
+  documentType: 'CPF' | 'CNPJ' | 'OTHER'
+  issuerDn: string
+  thumbprintSha256: string
+  validTo: string
+}
 let privateKey: any
 let cert: forge.pki.Certificate
 
@@ -19,17 +28,25 @@ beforeAll(() => {
   pfxBuffer = readFileSync(PFX_PATH)
   const p12Asn1 = forge.asn1.fromDer(pfxBuffer.toString('binary'))
   const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, PFX_PASSWORD)
-  const keyBags = (p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag as string })[forge.pki.oids.pkcs8ShroudedKeyBag as string] ?? []) as any[]
-  const certBags = (p12.getBags({ bagType: forge.pki.oids.certBag as string })[forge.pki.oids.certBag as string] ?? []) as any[]
+  const keyBags = (p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag as string })[
+    forge.pki.oids.pkcs8ShroudedKeyBag as string
+  ] ?? []) as any[]
+  const certBags = (p12.getBags({ bagType: forge.pki.oids.certBag as string })[
+    forge.pki.oids.certBag as string
+  ] ?? []) as any[]
   privateKey = keyBags[0].key
-  cert = certBags.find((b: any) => b.cert.publicKey.n.compareTo(privateKey.n) === 0)?.cert ?? certBags[0].cert
+  cert =
+    certBags.find((b: any) => b.cert.publicKey.n.compareTo(privateKey.n) === 0)?.cert ??
+    certBags[0].cert
   material = {
     pfx: pfxBuffer,
     password: PFX_PASSWORD,
     holderName: 'SPIKE TESTE:12345678909',
     document: '12345678909',
     documentType: 'CPF',
-    issuerDn: cert.issuer.attributes.map((a: any) => `${a.shortName ?? a.name}=${a.value}`).join(', '),
+    issuerDn: cert.issuer.attributes
+      .map((a: any) => `${a.shortName ?? a.name}=${a.value}`)
+      .join(', '),
     thumbprintSha256: '052295E95BB4DB1BAFDC0A1FB2CB61A54FFD737FB159E4F02F25973C93FBDB01',
     validTo: '2027-11-04T11:18:17.628Z',
   }
@@ -40,7 +57,7 @@ afterEach(() => vi.unstubAllGlobals())
 function makeTsaMock() {
   return vi.fn(async (url: string, init?: RequestInit) => {
     const body = init?.body as Buffer | Uint8Array
-    const req = pkijs.TimeStampReq.fromBER((body instanceof Buffer ? body : Buffer.from(body as any)))
+    const req = pkijs.TimeStampReq.fromBER(body instanceof Buffer ? body : Buffer.from(body as any))
     const imprint = req.messageImprint.hashedMessage.valueBlock.valueHex
     const crypto = pkijs.getCrypto(true)
 
@@ -57,22 +74,40 @@ function makeTsaMock() {
     })
 
     const certWithKey = {
-      certificate: pkijs.Certificate.fromBER(Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary')),
+      certificate: pkijs.Certificate.fromBER(
+        Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary'),
+      ),
       privateKey,
     }
     // Converte chave privada forge -> WebCrypto (PKCS#8).
     const rsaAsn1 = forge.pki.privateKeyToAsn1(privateKey)
     const rsaDer = forge.asn1.toDer(rsaAsn1).getBytes()
     const pkcs8 = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-      forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false, forge.asn1.integerToDer(0).getBytes()),
+      forge.asn1.create(
+        forge.asn1.Class.UNIVERSAL,
+        forge.asn1.Type.INTEGER,
+        false,
+        forge.asn1.integerToDer(0).getBytes(),
+      ),
       forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false, forge.asn1.oidToDer(forge.pki.oids.rsaEncryption as string).getBytes()),
+        forge.asn1.create(
+          forge.asn1.Class.UNIVERSAL,
+          forge.asn1.Type.OID,
+          false,
+          forge.asn1.oidToDer(forge.pki.oids.rsaEncryption as string).getBytes(),
+        ),
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
       ]),
       forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false, rsaDer),
     ])
     const pkcs8Der = forge.asn1.toDer(pkcs8).getBytes()
-    const webKey = await crypto.subtle.importKey('pkcs8', Buffer.from(pkcs8Der, 'binary'), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
+    const webKey = await crypto.subtle.importKey(
+      'pkcs8',
+      Buffer.from(pkcs8Der, 'binary'),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    )
 
     const cms = new pkijs.SignedData({
       version: 3,
@@ -80,19 +115,33 @@ function makeTsaMock() {
         eContentType: '1.2.840.113549.1.9.16.1.4',
         eContent: new asn1js.OctetString({ valueHex: tstInfo.toSchema().toBER() }),
       }),
-      signerInfos: [new pkijs.SignerInfo({ version: 1, sid: new pkijs.IssuerAndSerialNumber({ issuer: certWithKey.certificate.issuer, serialNumber: certWithKey.certificate.serialNumber }) })],
+      signerInfos: [
+        new pkijs.SignerInfo({
+          version: 1,
+          sid: new pkijs.IssuerAndSerialNumber({
+            issuer: certWithKey.certificate.issuer,
+            serialNumber: certWithKey.certificate.serialNumber,
+          }),
+        }),
+      ],
       certificates: [certWithKey.certificate],
     })
     await cms.sign(webKey, 0, 'SHA-256')
 
-    const cmsContent = new pkijs.ContentInfo({ contentType: '1.2.840.113549.1.7.2', content: cms.toSchema(true) })
+    const cmsContent = new pkijs.ContentInfo({
+      contentType: '1.2.840.113549.1.7.2',
+      content: cms.toSchema(true),
+    })
     const token = new pkijs.ContentInfo({ schema: cmsContent.toSchema() })
     const resp = new pkijs.TimeStampResp({
       status: new pkijs.PKIStatusInfo({ status: pkijs.PKIStatus.granted }),
       timeStampToken: token,
     })
     const der = resp.toSchema().toBER()
-    return new Response(Buffer.from(der), { status: 200, headers: { 'content-type': 'application/timestamp-reply' } })
+    return new Response(Buffer.from(der), {
+      status: 200,
+      headers: { 'content-type': 'application/timestamp-reply' },
+    })
   })
 }
 
@@ -183,7 +232,10 @@ describe('signPdfDocument', () => {
   })
 
   it('assina offline quando a TSA retorna 500 (sem carimbo)', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('erro', { status: 500 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('erro', { status: 500 })),
+    )
     const doc = await PDFDocument.create()
     doc.addPage([300, 400])
     const pdfBytes = Buffer.from(await doc.save())

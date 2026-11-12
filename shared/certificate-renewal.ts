@@ -69,7 +69,9 @@ export function sortRenewalHistory<T extends MinimalCertificateForRenewal>(items
  * não devem poluir listagens — eles continuam acessíveis no histórico de
  * renovação do modal de detalhes.
  */
-export function collapseToCurrentCertificates<T extends MinimalCertificateForRenewal>(items: T[]): T[] {
+export function collapseToCurrentCertificates<T extends MinimalCertificateForRenewal>(
+  items: T[],
+): T[] {
   const groups = new Map<string, T[]>()
   for (const item of items) {
     const key = renewalDocumentKey(item)
@@ -98,7 +100,9 @@ export function renewalHistoryFor<T extends MinimalCertificateForRenewal>(
   return sortRenewalHistory(all.filter((item) => renewalDocumentKey(item) === key))
 }
 
-export interface RenewalInfo<T extends MinimalCertificateForRenewal = MinimalCertificateForRenewal> {
+export interface RenewalInfo<
+  T extends MinimalCertificateForRenewal = MinimalCertificateForRenewal,
+> {
   history: T[]
   index: number
   previous: T | null
@@ -157,7 +161,10 @@ export interface ExpiryInfo {
   detail: string
 }
 
-export function getExpiryInfo(certificate: Pick<Certificate, 'validTo' | 'daysUntilExpiry'>, now: Date = new Date()): ExpiryInfo {
+export function getExpiryInfo(
+  certificate: Pick<Certificate, 'validTo' | 'daysUntilExpiry'>,
+  now: Date = new Date(),
+): ExpiryInfo {
   const validToMs = new Date(certificate.validTo).getTime()
   const days =
     Number.isFinite(validToMs) && !Number.isNaN(validToMs)

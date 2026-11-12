@@ -6,7 +6,9 @@ const LOWER = 'abcdefghijkmnopqrstuvwxyz'
 const NUMBERS = '23456789'
 const SYMBOLS = '!@#$%&*+-=?'
 
-export function generatePassword(options: Partial<PasswordGeneratorOptions> = {}): GeneratedPassword {
+export function generatePassword(
+  options: Partial<PasswordGeneratorOptions> = {},
+): GeneratedPassword {
   const config: PasswordGeneratorOptions = {
     length: options.length ?? 24,
     uppercase: options.uppercase ?? true,

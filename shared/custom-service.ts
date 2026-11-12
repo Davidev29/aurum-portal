@@ -10,11 +10,7 @@
  * execução, então funciona com portais diferentes sem configurar seletores.
  */
 import type { AuthMethod, ServiceCategory } from './constants'
-import {
-  isGovernmentHost,
-  normalizeHostname,
-  parseHttpUrl,
-} from './network'
+import { isGovernmentHost, normalizeHostname, parseHttpUrl } from './network'
 import type { RecipeDefinition, RecipeStep } from './recipe'
 import {
   certRecipeWithInterstitial,
@@ -187,7 +183,9 @@ export function stripVolatileQueryParams(raw: string): { url: string; stripped: 
     const parsed = new URL(raw)
     const stripped: string[] = []
     for (const key of [...parsed.searchParams.keys()]) {
-      if (VOLATILE_QUERY_PARAMS.includes(key.toLowerCase() as (typeof VOLATILE_QUERY_PARAMS)[number])) {
+      if (
+        VOLATILE_QUERY_PARAMS.includes(key.toLowerCase() as (typeof VOLATILE_QUERY_PARAMS)[number])
+      ) {
         stripped.push(key)
         parsed.searchParams.delete(key)
       }
@@ -267,7 +265,12 @@ export function buildAutoRecipe(input: AutoRecipeInput): RecipeDefinition {
       })
     }
     if (!wantsCertificate) {
-      return { ...common, auth: 'password', steps: unifiedPasswordSteps(), postLogin: postLoginGovBrHub }
+      return {
+        ...common,
+        auth: 'password',
+        steps: unifiedPasswordSteps(),
+        postLogin: postLoginGovBrHub,
+      }
     }
     return {
       ...common,

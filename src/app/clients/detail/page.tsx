@@ -31,7 +31,13 @@ import {
   useServices,
 } from '@/lib/queries'
 import { useSearchParam } from '@/lib/hooks'
-import { formatDate, formatDateTime, formatDocumentMasked, initials, clientTypeLabel } from '@/lib/utils'
+import {
+  formatDate,
+  formatDateTime,
+  formatDocumentMasked,
+  initials,
+  clientTypeLabel,
+} from '@/lib/utils'
 import { formatCentsToBRL } from '@shared/currency'
 import { certificateEffectiveValidToOf } from '@shared/certificate-renewal'
 import { AppShell } from '@/components/app-shell'
@@ -398,7 +404,8 @@ export default function ClientDetailPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
                           {!(certificate.isRenewed || certificate.hasNewerValid) &&
-                          (certificate.status === 'expired' || certificate.status === 'expiring') ? (
+                          (certificate.status === 'expired' ||
+                            certificate.status === 'expiring') ? (
                             <Button
                               variant="ghost"
                               size="sm"

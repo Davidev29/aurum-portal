@@ -107,7 +107,7 @@ const LOADING_STYLES = `
       overflow: hidden !important;
     }
   </style>
-`;
+`
 
 const LOADING_HTML = (message: string, progress: number) => `
   <div id="pv-loading-overlay">
@@ -126,7 +126,7 @@ const LOADING_HTML = (message: string, progress: number) => `
     </div>
     <div class="pv-hint" id="pv-loading-hint">Mantenha esta janela aberta enquanto finalizamos o acesso...</div>
   </div>
-`;
+`
 
 const LOADING_MESSAGES = [
   'Inicializando sessão isolada...',
@@ -137,13 +137,13 @@ const LOADING_MESSAGES = [
   'Autenticando identidade no gov.br...',
   'Confirmando sessão ativa...',
   'Finalizando acesso...',
-];
+]
 
 /** Tempo máximo (ms) que o overlay permanece antes de forçar remoção (modo manual). */
-export const LOADING_OVERLAY_MAX_MS = 45_000;
+export const LOADING_OVERLAY_MAX_MS = 45_000
 
 export function buildLoadingOverlayHtml(message: string, progress: number): string {
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8">${LOADING_STYLES}</head><body>${LOADING_HTML(message, progress)}</body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">${LOADING_STYLES}</head><body>${LOADING_HTML(message, progress)}</body></html>`
 }
 
 export function buildInjectScript(message: string, progress: number): string {
@@ -175,7 +175,7 @@ export function buildInjectScript(message: string, progress: number): string {
     // Guarda referencia do observer para remocao posterior
     (window as any).__pvLoadingObserver = observer;
     return 'overlay-injected';
-  })()`;
+  })()`
 }
 
 export function buildUpdateMessageScript(message: string, progress: number): string {
@@ -187,7 +187,7 @@ export function buildUpdateMessageScript(message: string, progress: number): str
     if (bar) bar.style.width = ${progress} + '%';
     if (hint && ${JSON.stringify(message)}.includes('Finalizando')) hint.textContent = 'Pouco instante...';
     return 'overlay-updated';
-  })()`;
+  })()`
 }
 
 export function buildRemoveOverlayScript(): string {
@@ -250,7 +250,7 @@ export function buildRemoveOverlayScript(): string {
       window.dispatchEvent(new Event('resize'));
     } catch {}
     return 'overlay-removed';
-  })()`;
+  })()`
 }
 
 export function buildIsAuthenticatedScript(selectors: string[]): string {
@@ -278,7 +278,7 @@ export function buildIsAuthenticatedScript(selectors: string[]): string {
       } catch {}
     }
     return false;
-  })()`;
+  })()`
 }
 
-export { LOADING_MESSAGES };
+export { LOADING_MESSAGES }

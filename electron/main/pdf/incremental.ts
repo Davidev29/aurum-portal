@@ -1,6 +1,27 @@
-import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFInvalidObject, PDFName, PDFNumber, PDFRef, PDFStream, PDFString, type PDFObject } from 'pdf-lib'
-import { SUBFILTER_ETSI_CADES_DETACHED, SIG_FLAGS, ANNOTATION_FLAGS, DEFAULT_BYTE_RANGE_PLACEHOLDER } from '@signpdf/utils'
-import { AURUMBIT_PLATFORM, VALIDATE_ITI_URL, type SignatureStampSize } from '../../../shared/signature'
+import {
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFHexString,
+  PDFInvalidObject,
+  PDFName,
+  PDFNumber,
+  PDFRef,
+  PDFStream,
+  PDFString,
+  type PDFObject,
+} from 'pdf-lib'
+import {
+  SUBFILTER_ETSI_CADES_DETACHED,
+  SIG_FLAGS,
+  ANNOTATION_FLAGS,
+  DEFAULT_BYTE_RANGE_PLACEHOLDER,
+} from '@signpdf/utils'
+import {
+  AURUMBIT_PLATFORM,
+  VALIDATE_ITI_URL,
+  type SignatureStampSize,
+} from '../../../shared/signature'
 import { create as createQr } from 'qrcode'
 import {
   computeStampLayout,
@@ -201,9 +222,11 @@ export async function createIncrementalPlaceholder(
     throw new CmsError('Nao foi possivel ler o PDF (arquivo corrompido ou formato nao suportado)')
   }
   const ctx: any = doc.context
-  const trailerInfo: { Root: PDFRef; Info?: PDFRef; ID?: unknown; Encrypt?: unknown } = ctx.trailerInfo ?? {}
+  const trailerInfo: { Root: PDFRef; Info?: PDFRef; ID?: unknown; Encrypt?: unknown } =
+    ctx.trailerInfo ?? {}
   const rootRef = trailerInfo.Root as PDFRef
-  if (!rootRef) throw new CmsError('Nao foi possivel ler o catalogo do PDF para assinatura incremental')
+  if (!rootRef)
+    throw new CmsError('Nao foi possivel ler o catalogo do PDF para assinatura incremental')
   const infoRef = trailerInfo.Info as PDFRef | undefined
   const idObject = trailerInfo.ID as PDFObject | undefined
   const prevStartXref = parseLastStartXref(originalBytes)
@@ -324,7 +347,9 @@ export async function createIncrementalPlaceholder(
   // /Rotate ≠ 0: a pagina gira na exibicao — o conteudo do AP precisa ser
   // "pre-rotacionado" para aparecer em pe, exatamente onde o usuario desenhou.
   const relative = stampContentsRelativeMatrix(rotation, rect)
-  const finalContentString = relative ? `q ${relative.join(' ')} cm\n${contentString}Q\n` : contentString
+  const finalContentString = relative
+    ? `q ${relative.join(' ')} cm\n${contentString}Q\n`
+    : contentString
   const contentBytes = Buffer.from(finalContentString, 'latin1')
   const resources: Record<string, unknown> = {
     Font: {
@@ -374,8 +399,13 @@ export async function createIncrementalPlaceholder(
     acro.set(PDFName.of('Fields'), fields)
   }
   ;(fields as PDFArray).push(widgetRef)
-  const oldFlags = acro.has(PDFName.of('SigFlags')) ? (acro.get(PDFName.of('SigFlags')) as PDFNumber).asNumber() : 0
-  acro.set(PDFName.of('SigFlags'), ctx.obj(oldFlags | SIG_FLAGS.SIGNATURES_EXIST | SIG_FLAGS.APPEND_ONLY))
+  const oldFlags = acro.has(PDFName.of('SigFlags'))
+    ? (acro.get(PDFName.of('SigFlags')) as PDFNumber).asNumber()
+    : 0
+  acro.set(
+    PDFName.of('SigFlags'),
+    ctx.obj(oldFlags | SIG_FLAGS.SIGNATURES_EXIST | SIG_FLAGS.APPEND_ONLY),
+  )
 
   // Objetos a gravar incrementalmente: (ref, objeto serializavel).
   const toWrite: Array<{ ref: PDFRef; object: PDFObject }> = [
@@ -462,7 +492,10 @@ export async function createIncrementalPlaceholder(
     trailerParts.push(`/ID ${idBytes.toString('latin1')}`)
   }
   trailerParts.push('>>')
-  const trailer = Buffer.from(`${trailerParts.join(' ')}\nstartxref\n${xrefOffset}\n%%EOF\n`, 'latin1')
+  const trailer = Buffer.from(
+    `${trailerParts.join(' ')}\nstartxref\n${xrefOffset}\n%%EOF\n`,
+    'latin1',
+  )
 
   return Buffer.concat([originalBytes, ...chunks, ...xrefChunks, trailer])
 }

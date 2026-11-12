@@ -128,9 +128,7 @@ export async function signPdfDocument(input: SignPdfDocumentInput): Promise<Sign
         : Buffer.from(rawPdfBytes)
       : (Buffer.alloc(0) as unknown as Buffer)
   const rawPfx = (input.certificate as unknown as { pfx?: unknown })?.pfx as
-    | Uint8Array
-    | null
-    | undefined
+    Uint8Array | null | undefined
   const certificate =
     rawPfx && rawPfx.length > 0 && !Buffer.isBuffer(rawPfx)
       ? { ...input.certificate, pfx: Buffer.from(rawPfx) }
@@ -143,7 +141,14 @@ export async function signPdfDocument(input: SignPdfDocumentInput): Promise<Sign
   if (pdfBytes.length > SIGN_PDF_MAX_BYTES) {
     throw new CmsError('PDF maior que 50 MB nao e suportado')
   }
-  if (!Number.isFinite(xPct) || !Number.isFinite(yPct) || xPct < 0 || yPct < 0 || xPct > 1 || yPct > 1) {
+  if (
+    !Number.isFinite(xPct) ||
+    !Number.isFinite(yPct) ||
+    xPct < 0 ||
+    yPct < 0 ||
+    xPct > 1 ||
+    yPct > 1
+  ) {
     throw new CmsError('Posicao do carimbo invalida')
   }
   // Offline-first: URL vazia/invalida ou TSA indisponivel nao aborta —

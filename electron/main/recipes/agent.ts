@@ -173,12 +173,20 @@ const SUBMIT_SCRIPT = String.raw`
   return { ok: false, detail: 'formulario sem requestSubmit nem botao submit' };
 })()`
 
-const CTA_CANDIDATES = ['fazer login', 'acessar', 'acessar o sistema', 'entrar com gov.br', 'entrar', 'login']
+const CTA_CANDIDATES = [
+  'fazer login',
+  'acessar',
+  'acessar o sistema',
+  'entrar com gov.br',
+  'entrar',
+  'login',
+]
 
 export async function runAgenticLogin(options: AgentOptions): Promise<AgentResult> {
   const { values, target } = options
   const maxIterations = options.maxIterations ?? 24
-  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   const autoSubmit = options.autoSubmit !== false
   const startUrl = target.getURL()
 
@@ -275,7 +283,9 @@ export async function runAgenticLogin(options: AgentOptions): Promise<AgentResul
     }
 
     // 2) Sem formulário visível: existe CTA para entrar?
-    const cta = CTA_CANDIDATES.find((candidate) => obs.buttons.some((label) => label === candidate || label.includes(candidate)))
+    const cta = CTA_CANDIDATES.find((candidate) =>
+      obs.buttons.some((label) => label === candidate || label.includes(candidate)),
+    )
     if (cta) {
       await safeExecute(target, CLICK_CTA_SCRIPT(cta), 6_000)
       await sleep(800)

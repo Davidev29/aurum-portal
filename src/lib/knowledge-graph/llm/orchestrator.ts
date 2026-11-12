@@ -140,7 +140,9 @@ export function createOpenAILLMClient(params: {
         throw new Error(`LLM request failed: ${response.status} ${text}`)
       }
 
-      const data = await response.json()
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>
+      }
       return data.choices?.[0]?.message?.content ?? ''
     },
   }

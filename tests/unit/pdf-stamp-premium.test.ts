@@ -173,9 +173,9 @@ describe('carimbo premium (AurumBit Portal)', () => {
       for (const line of all) {
         expect(line.y).toBeGreaterThanOrEqual(2)
         expect(line.y).toBeLessThan(size.height)
-        expect(line.x + fontOf(line.font).widthOfTextAtSize(line.text, line.size)).toBeLessThanOrEqual(
-          size.width + 0.5,
-        )
+        expect(
+          line.x + fontOf(line.font).widthOfTextAtSize(line.text, line.size),
+        ).toBeLessThanOrEqual(size.width + 0.5)
       }
     }
   })

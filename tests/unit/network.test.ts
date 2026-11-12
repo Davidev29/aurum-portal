@@ -140,7 +140,11 @@ describe('matchesDomainPattern', () => {
 })
 
 describe('isAllowedHost', () => {
-  const allowlist = ['sso.acesso.gov.br', '*.receita.fazenda.gov.br', 'portalservicos.jucec.ce.gov.br']
+  const allowlist = [
+    'sso.acesso.gov.br',
+    '*.receita.fazenda.gov.br',
+    'portalservicos.jucec.ce.gov.br',
+  ]
 
   it('aceita hosts na allowlist', () => {
     expect(isAllowedHost('sso.acesso.gov.br', allowlist)).toBe(true)

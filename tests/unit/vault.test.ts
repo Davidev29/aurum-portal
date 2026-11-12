@@ -63,9 +63,10 @@ describe('criptografia do cofre', () => {
 
   it('valida versao e parametros do envelope', () => {
     const sealed = encryptEnvelope('x', key, 'aad')
-    const envelope = JSON.parse(
-      Buffer.from(sealed.slice(4), 'base64').toString('utf8'),
-    ) as Record<string, unknown>
+    const envelope = JSON.parse(Buffer.from(sealed.slice(4), 'base64').toString('utf8')) as Record<
+      string,
+      unknown
+    >
     const make = (patch: Record<string, unknown>) =>
       `pv1:${Buffer.from(JSON.stringify({ ...envelope, ...patch })).toString('base64')}`
     expect(() => decryptEnvelope(make({ v: 2 }), key, 'aad')).toThrow(/Versao/)
@@ -79,9 +80,7 @@ describe('criptografia do cofre', () => {
   })
 
   it('monta AAD completo e rejeita campos vazios', () => {
-    expect(vaultAad('credentials', 'id-1', 'password_enc')).toBe(
-      'credentials:id-1:password_enc',
-    )
+    expect(vaultAad('credentials', 'id-1', 'password_enc')).toBe('credentials:id-1:password_enc')
     expect(() => vaultAad('', 'id', 'field')).toThrow()
     expect(() => vaultAad('t', '', 'field')).toThrow()
     expect(() => vaultAad('t', 'id', '')).toThrow()

@@ -60,7 +60,9 @@ function evictIfFull(): void {
   }
 }
 
-export async function inspectPdf(buffer: Buffer): Promise<{ pageCount: number; pages: PickedPdfFile['pages'] }> {
+export async function inspectPdf(
+  buffer: Buffer,
+): Promise<{ pageCount: number; pages: PickedPdfFile['pages'] }> {
   let doc: PDFDocument
   try {
     doc = await PDFDocument.load(buffer, { ignoreEncryption: false, updateMetadata: false })
@@ -99,7 +101,9 @@ export async function pickPdfFile(parent?: BrowserWindow): Promise<PickedPdfFile
   }
   // Janela pai: diálogo modal, anexado ao app — abre imediatamente e não
   // fica atrás da janela principal (antes ia como diálogo solto do sistema).
-  const result = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options)
+  const result = parent
+    ? await dialog.showOpenDialog(parent, options)
+    : await dialog.showOpenDialog(options)
   if (result.canceled || result.filePaths.length === 0) {
     throw new AppError('VALIDATION', 'Selecao de PDF cancelada')
   }

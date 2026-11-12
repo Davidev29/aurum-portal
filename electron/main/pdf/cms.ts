@@ -20,7 +20,10 @@ import { requestTimestamp, TsaError } from './timestamp'
  */
 
 export class CmsError extends Error {
-  constructor(message: string, override readonly cause?: unknown) {
+  constructor(
+    message: string,
+    override readonly cause?: unknown,
+  ) {
     super(message)
     this.name = 'CmsError'
   }
@@ -67,8 +70,9 @@ export function loadPfx(pfxInput: Buffer, password: string): PfxMaterial {
 
   // O certificado assinante é o que casa com a chave privada (compare pelo módulo).
   const subject =
-    certificates.find((cert) => (cert.publicKey as forge.pki.rsa.PublicKey).n.compareTo(privateKey.n) === 0) ??
-    certificates[0]
+    certificates.find(
+      (cert) => (cert.publicKey as forge.pki.rsa.PublicKey).n.compareTo(privateKey.n) === 0,
+    ) ?? certificates[0]
   if (!subject) {
     throw new CmsError('Nao foi possivel associar o certificado a chave privada')
   }
@@ -78,29 +82,24 @@ export function loadPfx(pfxInput: Buffer, password: string): PfxMaterial {
 /** Envolve a RSAPrivateKey PKCS#1 em PrivateKeyInfo PKCS#8 para o WebCrypto. */
 export function exportPkcs8Der(key: forge.pki.rsa.PrivateKey): Buffer {
   const rsaDer = forge.asn1.toDer(forge.pki.privateKeyToAsn1(key)).getBytes()
-  const info = forge.asn1.create(
-    forge.asn1.Class.UNIVERSAL,
-    forge.asn1.Type.SEQUENCE,
-    true,
-    [
+  const info = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+    forge.asn1.create(
+      forge.asn1.Class.UNIVERSAL,
+      forge.asn1.Type.INTEGER,
+      false,
+      forge.asn1.integerToDer(0).getBytes(),
+    ),
+    forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
       forge.asn1.create(
         forge.asn1.Class.UNIVERSAL,
-        forge.asn1.Type.INTEGER,
+        forge.asn1.Type.OID,
         false,
-        forge.asn1.integerToDer(0).getBytes(),
+        forge.asn1.oidToDer(forge.pki.oids.rsaEncryption as string).getBytes(),
       ),
-      forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-        forge.asn1.create(
-          forge.asn1.Class.UNIVERSAL,
-          forge.asn1.Type.OID,
-          false,
-          forge.asn1.oidToDer(forge.pki.oids.rsaEncryption as string).getBytes(),
-        ),
-        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
-      ]),
-      forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false, rsaDer),
-    ],
-  )
+      forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
+    ]),
+    forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false, rsaDer),
+  ])
   return Buffer.from(forge.asn1.toDer(info).getBytes(), 'binary')
 }
 

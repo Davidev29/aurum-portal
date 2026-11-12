@@ -47,7 +47,11 @@ export function asAppError(error: unknown): AppError {
     if (name === 'TsaError' || /tsa|carimbo de tempo|TimeStamp/i.test(message)) {
       return new AppError('UNAVAILABLE', message, message)
     }
-    if (/senha do pfx|pfx.*corrompid|nao contem.*chave|nao contem certificado|associar o certificado/i.test(message)) {
+    if (
+      /senha do pfx|pfx.*corrompid|nao contem.*chave|nao contem certificado|associar o certificado/i.test(
+        message,
+      )
+    ) {
       return new AppError('CERTIFICATE_INVALID', message, message)
     }
     if (/vencido/i.test(message)) {
@@ -65,7 +69,11 @@ export function asAppError(error: unknown): AppError {
   if (/certificado vencido/i.test(message)) {
     return new AppError('CERTIFICATE_EXPIRED', message, message)
   }
-  if (/pdf protegido|pdf.*corrompid|nao foi possivel ler o pdf|pdf sem paginas|pagina.*fora do documento|posicao do carimbo|pdf vazio|50 mb/i.test(message)) {
+  if (
+    /pdf protegido|pdf.*corrompid|nao foi possivel ler o pdf|pdf sem paginas|pagina.*fora do documento|posicao do carimbo|pdf vazio|50 mb/i.test(
+      message,
+    )
+  ) {
     return new AppError('VALIDATION', message, message)
   }
   if (/tempo esgotado|encerrou inesperadamente|resposta invalida do assinador/i.test(message)) {

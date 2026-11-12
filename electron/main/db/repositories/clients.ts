@@ -129,14 +129,15 @@ export function updateClient(db: AppDatabase, id: string, input: Partial<ClientI
   return mapClient(row)
 }
 
-export function setClientStatus(db: AppDatabase, id: string, status: 'active' | 'archived'): Client {
+export function setClientStatus(
+  db: AppDatabase,
+  id: string,
+  status: 'active' | 'archived',
+): Client {
   const current = db.select().from(clients).where(eq(clients.id, id)).get()
   if (!current) throw new AppError('NOT_FOUND', 'Cliente nao encontrado')
   const now = new Date().toISOString()
-  db.update(clients)
-    .set({ status, updatedAt: now })
-    .where(eq(clients.id, id))
-    .run()
+  db.update(clients).set({ status, updatedAt: now }).where(eq(clients.id, id)).run()
   return mapClient({ ...current, status, updatedAt: now })
 }
 
@@ -201,10 +202,7 @@ export function updateClientNote(db: AppDatabase, id: string, text: string): Cli
   const current = db.select().from(clientNotes).where(eq(clientNotes.id, id)).get()
   if (!current) throw new AppError('NOT_FOUND', 'Nota nao encontrada')
   const now = new Date().toISOString()
-  db.update(clientNotes)
-    .set({ text: trimmed, updatedAt: now })
-    .where(eq(clientNotes.id, id))
-    .run()
+  db.update(clientNotes).set({ text: trimmed, updatedAt: now }).where(eq(clientNotes.id, id)).run()
   return mapClientNote({ ...current, text: trimmed, updatedAt: now })
 }
 

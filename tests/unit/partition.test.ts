@@ -30,9 +30,9 @@ describe('particoes de sessao', () => {
   })
 
   it('monta particao descartavel sem prefixo persist', () => {
-    expect(
-      buildPartition({ clientId: 'c1', authMethod: 'password', disposable: true }),
-    ).toBe('client:c1')
+    expect(buildPartition({ clientId: 'c1', authMethod: 'password', disposable: true })).toBe(
+      'client:c1',
+    )
     expect(
       buildPartition({
         clientId: 'c1',
@@ -95,8 +95,8 @@ describe('particoes de sessao', () => {
         credentialId: 'cred-1',
       }),
     ).toBe('c1|s1|password|cred-1')
-    expect(
-      sessionReuseKey({ clientId: 'c1', serviceId: 's1', authMethod: 'password' }),
-    ).toBe('c1|s1|password|default')
+    expect(sessionReuseKey({ clientId: 'c1', serviceId: 's1', authMethod: 'password' })).toBe(
+      'c1|s1|password|default',
+    )
   })
 })

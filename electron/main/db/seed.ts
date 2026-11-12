@@ -168,7 +168,11 @@ export function seedBuiltins(db: AppDatabase, force = false): void {
  */
 export function healCustomServiceRecipes(db: AppDatabase): number {
   const now = new Date().toISOString()
-  const customRows = db.select().from(services).all().filter((row) => !row.isBuiltin)
+  const customRows = db
+    .select()
+    .from(services)
+    .all()
+    .filter((row) => !row.isBuiltin)
   let healed = 0
   for (const row of customRows) {
     // Limpa parâmetros de sessão efêmeros da URL base (ex.: ISS Fortaleza com
@@ -176,7 +180,10 @@ export function healCustomServiceRecipes(db: AppDatabase): number {
     const sanitized = stripVolatileQueryParams(row.baseUrl)
     let effectiveRow = row
     if (sanitized.url !== row.baseUrl) {
-      db.update(services).set({ baseUrl: sanitized.url, updatedAt: now }).where(eq(services.id, row.id)).run()
+      db.update(services)
+        .set({ baseUrl: sanitized.url, updatedAt: now })
+        .where(eq(services.id, row.id))
+        .run()
       effectiveRow = { ...row, baseUrl: sanitized.url }
     }
     const expected = buildAutoRecipe({
@@ -245,7 +252,12 @@ export function saveSettings(
   const nextLetterhead = patch.letterhead
     ? { ...current.letterhead, ...patch.letterhead }
     : current.letterhead
-  const next = coerceSettings({ ...current, ...patch, office: nextOffice, letterhead: nextLetterhead })
+  const next = coerceSettings({
+    ...current,
+    ...patch,
+    office: nextOffice,
+    letterhead: nextLetterhead,
+  })
   db.insert(settings)
     .values({ key: 'app', value: next, updatedAt: new Date().toISOString() })
     .onConflictDoUpdate({

@@ -49,9 +49,7 @@ describe('schemas de entrada', () => {
       }),
     ).toMatchObject({ type: 'PJ', tags: ['fiscal'] })
 
-    expect(() =>
-      clientInputSchema.parse({ type: 'PF', name: 'X', document: '123' }),
-    ).toThrow()
+    expect(() => clientInputSchema.parse({ type: 'PF', name: 'X', document: '123' })).toThrow()
     expect(() =>
       clientInputSchema.parse({ type: 'OUTRO', name: 'X', document: '52998224725' }),
     ).toThrow()
@@ -86,7 +84,11 @@ describe('schemas de entrada', () => {
     expect(() => serviceInputSchema.parse({ ...service, baseUrl: 'http://inseguro' })).toThrow()
     expect(() => serviceInputSchema.parse({ ...service, slug: 'slug invalido' })).toThrow()
     expect(() =>
-      serviceInputSchema.parse({ ...service, authMethods: ['password'], defaultAuth: 'certificate' }),
+      serviceInputSchema.parse({
+        ...service,
+        authMethods: ['password'],
+        defaultAuth: 'certificate',
+      }),
     ).toThrow()
     expect(serviceFilterSchema.parse({ category: 'Outros', favorite: true })).toMatchObject({
       category: 'Outros',
@@ -119,7 +121,9 @@ describe('schemas de entrada', () => {
     expect(
       certificateExportBackupSchema.parse({ id: 'cert1', passphrase: 'frase com 12+' }),
     ).toMatchObject({ id: 'cert1' })
-    expect(() => certificateExportBackupSchema.parse({ id: 'cert1', passphrase: 'curta' })).toThrow()
+    expect(() =>
+      certificateExportBackupSchema.parse({ id: 'cert1', passphrase: 'curta' }),
+    ).toThrow()
   })
 })
 

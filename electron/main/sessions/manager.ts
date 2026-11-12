@@ -12,7 +12,7 @@ import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { ImportProgressEvent } from '../../../shared/types'
-import type { AuthMethod } from '../../../shared/constants'
+import type { AuthMethod, SessionStatus } from '../../../shared/constants'
 import type {
   PortalSession,
   RecipeTestResult,
@@ -1045,8 +1045,10 @@ export class SessionManager {
         recordRecipeOutcome(this.deps.db, record.serviceId, 'verified')
       } else if (result.status === 'awaiting_login') {
         // Nunca rebaixar um estado 'authenticated' alcancado pelo fast-path
-        // de URL durante a receita.
-        if (record.status !== 'authenticated') {
+        // de URL durante a receita. (Mutacao por watcher externo: o
+        // estreitamento de tipo do TS nao enxerga, entao alargamos a comparacao.)
+        const currentStatus = record.status as SessionStatus
+        if (currentStatus !== 'authenticated') {
           // O portal permanece invisivel; o usuario ve o estado de espera na
           // /session (com opcao de abrir o portal a qualquer momento).
           record.status = 'awaiting_login'
@@ -1059,7 +1061,8 @@ export class SessionManager {
         }
       } else {
         // Mesma guarda de nao rebaixamento.
-        if (record.status === 'authenticated') {
+        const currentStatus = record.status as SessionStatus
+        if (currentStatus === 'authenticated') {
           this.emit()
           return
         }
@@ -1125,7 +1128,11 @@ export class SessionManager {
     // tentativa geraria falha pós-login (página sem campo de senha).
     if (stored.auth === record.authMethod) {
       if (record.authMethod !== 'certificate') return stored
-      return { ...stored, steps: stored.steps.filter((step) => !stepCarriesCredentials(step)), autoSubmit: false }
+      return {
+        ...stored,
+        steps: stored.steps.filter((step) => !stepCarriesCredentials(step)),
+        autoSubmit: false,
+      }
     }
     const steps =
       record.authMethod === 'certificate'
@@ -1146,7 +1153,11 @@ export class SessionManager {
           })
     // Se sobraram só passos de certificado genéricos para sessão de senha,
     // ou nada, mantém a receita-atalho: apenas watcher de pós-login.
-    return { ...stored, steps, autoSubmit: record.authMethod === 'certificate' ? false : stored.autoSubmit }
+    return {
+      ...stored,
+      steps,
+      autoSubmit: record.authMethod === 'certificate' ? false : stored.autoSubmit,
+    }
   }
 
   private startWatcher(record: ManagedSession, definition: RecipeDefinition): void {

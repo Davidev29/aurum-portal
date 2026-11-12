@@ -6,24 +6,10 @@ import * as pkijs from 'pkijs'
  * ex.: validar.iti.gov.br); garante que a assinatura está bem-formada e íntegra.
  */
 
-const TST_OID = '1.2.840.113549.1.9.16.1.4'
-
 function toArrayBuffer(buffer: Buffer): ArrayBuffer {
   const copy = new Uint8Array(buffer.byteLength)
   copy.set(buffer)
   return copy.buffer
-}
-
-function findLastSignatureByteRange(source: string): [number, number, number, number] | null {
-  const marker = '/ByteRange'
-  const index = source.lastIndexOf(marker)
-  if (index < 0) return null
-  const slice = source.slice(index, index + 128)
-  const match = /\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/.exec(slice)
-  if (!match) return null
-  const values = match.slice(1).map(Number) as [number, number, number, number]
-  if (values.some((n) => !Number.isFinite(n) || n < 0)) return null
-  return values
 }
 
 function findAllSignatureByteRanges(source: string): Array<{

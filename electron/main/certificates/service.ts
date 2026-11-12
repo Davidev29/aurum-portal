@@ -37,10 +37,7 @@ import {
 import { createClient, findClientByDocument } from '../db/repositories/clients'
 import { lookupCompanyByCnpj } from '../integrations/brasil-api'
 import type { CompanyLookupFn } from '../clients/enrichment'
-import {
-  applyCompanyDataToClient,
-  fetchCompanyByCnpj,
-} from '../clients/enrichment'
+import { applyCompanyDataToClient, fetchCompanyByCnpj } from '../clients/enrichment'
 import { AppError } from '../errors'
 import { logger } from '../logger'
 import { maskDocument } from '../../../shared/validation'
@@ -55,7 +52,10 @@ import { encryptBackup } from '../vault/backup'
 
 export interface WindowsStoreAdapter {
   list(): Promise<WindowsCertificateRecord[]>
-  install(pfx: Buffer, password: string): Promise<{ ok: boolean; thumbprint: string | null; error: string | null }>
+  install(
+    pfx: Buffer,
+    password: string,
+  ): Promise<{ ok: boolean; thumbprint: string | null; error: string | null }>
   remove(thumbprintSha1: string): Promise<{ ok: boolean; error: string | null }>
 }
 
@@ -68,9 +68,7 @@ export function selectWindowsImportTargets(
   records: WindowsCertificateRecord[],
   input: { thumbprints?: string[]; importAll?: boolean },
 ): { targets: WindowsCertificateRecord[]; missingThumbprints: string[] } {
-  const normalizedRecords = records.filter(
-    (record) => record.thumbprintSha1?.length === 40,
-  )
+  const normalizedRecords = records.filter((record) => record.thumbprintSha1?.length === 40)
   if (input.importAll === true) {
     const seen = new Set<string>()
     const targets: WindowsCertificateRecord[] = []
@@ -83,7 +81,11 @@ export function selectWindowsImportTargets(
     return { targets, missingThumbprints: [] }
   }
 
-  const wanted = [...new Set((input.thumbprints ?? []).map((value) => value.trim().toUpperCase()).filter(Boolean))]
+  const wanted = [
+    ...new Set(
+      (input.thumbprints ?? []).map((value) => value.trim().toUpperCase()).filter(Boolean),
+    ),
+  ]
   if (wanted.length === 0) return { targets: [], missingThumbprints: [] }
 
   const targets: WindowsCertificateRecord[] = []
@@ -95,7 +97,11 @@ export function selectWindowsImportTargets(
         (item.thumbprintSha256?.toUpperCase() === thumbprint && thumbprint.length === 64),
     )
     if (found) {
-      if (!targets.some((item) => item.thumbprintSha1.toUpperCase() === found.thumbprintSha1.toUpperCase())) {
+      if (
+        !targets.some(
+          (item) => item.thumbprintSha1.toUpperCase() === found.thumbprintSha1.toUpperCase(),
+        )
+      ) {
         targets.push(found)
       }
     } else {
@@ -203,9 +209,13 @@ export class CertificateService {
     })
   }
 
-  async importSingle(
-    input: { filePath: string; password: string; clientId?: string | null; install: boolean; consent?: boolean },
-  ): Promise<ImportReport> {
+  async importSingle(input: {
+    filePath: string
+    password: string
+    clientId?: string | null
+    install: boolean
+    consent?: boolean
+  }): Promise<ImportReport> {
     this.assertConsent(input.clientId ?? null, input.consent === true)
     const jobId = randomUUID()
     const startedAt = new Date().toISOString()
@@ -275,9 +285,7 @@ export class CertificateService {
       stage: 'reading',
     })
 
-    const passwords = input.files.map(
-      (file) => file.password ?? input.sharedPassword ?? '',
-    )
+    const passwords = input.files.map((file) => file.password ?? input.sharedPassword ?? '')
 
     let parsedResults: Array<{
       filePath: string
@@ -287,7 +295,10 @@ export class CertificateService {
     }>
     try {
       parsedResults = await parsePfxFilesInWorker(
-        input.files.map((file, index) => ({ filePath: file.filePath, password: passwords[index] ?? '' })),
+        input.files.map((file, index) => ({
+          filePath: file.filePath,
+          password: passwords[index] ?? '',
+        })),
         (completed) => {
           this.emit({
             jobId,
@@ -517,10 +528,7 @@ export class CertificateService {
     }
 
     if (clientId && !options.consent) {
-      throw new AppError(
-        'FORBIDDEN',
-        'Consentimento obrigatorio para vincular certificado',
-      )
+      throw new AppError('FORBIDDEN', 'Consentimento obrigatorio para vincular certificado')
     }
 
     const buffer = await readFile(filePath)
@@ -753,7 +761,11 @@ export class CertificateService {
     return getCertificateView(this.deps.db, input.id)
   }
 
-  async linkClient(input: { id: string; clientId: string; consent: boolean }): Promise<Certificate> {
+  async linkClient(input: {
+    id: string
+    clientId: string
+    consent: boolean
+  }): Promise<Certificate> {
     if (!input.consent) {
       throw new AppError('FORBIDDEN', 'Consentimento obrigatorio para vincular certificado')
     }
@@ -844,7 +856,12 @@ export class CertificateService {
             : null) ?? findCertificateBySha1(this.deps.db, record.thumbprintSha1)
         if (existing) {
           if (input.clientId) {
-            linkClientToCertificate(this.deps.db, existing.id, input.clientId, input.consent === true)
+            linkClientToCertificate(
+              this.deps.db,
+              existing.id,
+              input.clientId,
+              input.consent === true,
+            )
           }
           duplicates += 1
           items.push({
@@ -875,7 +892,10 @@ export class CertificateService {
           let clientId = input.clientId ?? null
           if (!clientId && input.consent === true && record.document) {
             // resolveOrCreate já enriquece PJ existente com a Brasil API (apenas CNPJ).
-            clientId = await this.resolveOrCreateClientFromDocument(record.document, record.holderName)
+            clientId = await this.resolveOrCreateClientFromDocument(
+              record.document,
+              record.holderName,
+            )
           }
           const view: WindowsCertificate = {
             thumbprintSha1: record.thumbprintSha1,
@@ -900,9 +920,7 @@ export class CertificateService {
             holderName: record.holderName,
             document: record.document,
             status: isExpired ? 'expired' : 'imported',
-            message: isExpired
-              ? 'Importado, mas vencido e nao pode autenticar.'
-              : 'Importado.',
+            message: isExpired ? 'Importado, mas vencido e nao pode autenticar.' : 'Importado.',
             certificateId: row.id,
           })
           this.record('certificate.imported', row.id, {
@@ -914,7 +932,8 @@ export class CertificateService {
         }
       } catch (error) {
         errors += 1
-        const message = error instanceof Error ? error.message : 'Falha ao importar certificado do Windows'
+        const message =
+          error instanceof Error ? error.message : 'Falha ao importar certificado do Windows'
         items.push({
           thumbprintSha1: record.thumbprintSha1.toUpperCase(),
           holderName: record.holderName,
@@ -975,17 +994,10 @@ export class CertificateService {
     }
   }
 
-  async exportBackup(
-    id: string,
-    passphrase: string,
-    filePath: string,
-  ): Promise<{ path: string }> {
+  async exportBackup(id: string, passphrase: string, filePath: string): Promise<{ path: string }> {
     const row = getCertificateRow(this.deps.db, id)
     if (!row.pfxEnc) {
-      throw new AppError(
-        'UNAVAILABLE',
-        'Certificado importado do Windows nao possui PFX no cofre',
-      )
+      throw new AppError('UNAVAILABLE', 'Certificado importado do Windows nao possui PFX no cofre')
     }
     const pfx = this.deps.vault.openPfx(id, row.pfxEnc)
     const serialized = await encryptBackup(pfx, passphrase)
@@ -1048,11 +1060,7 @@ export class CertificateService {
     this.deps.onImportProgress?.(progress)
   }
 
-  private record(
-    type: string,
-    entityId: string | null,
-    metadata: Record<string, unknown>,
-  ): void {
+  private record(type: string, entityId: string | null, metadata: Record<string, unknown>): void {
     try {
       appendAuditEvent(this.deps.db, {
         type,

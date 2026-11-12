@@ -44,7 +44,9 @@ describe('client notes — CRUD', () => {
       // ordenada por createdAt DESC
       expect(listed[0]?.id).toBe(second.id)
       expect(listed[1]?.id).toBe(first.id)
-      expect(listed[0]?.createdAt.localeCompare(listed[1]?.createdAt ?? '')).toBeGreaterThanOrEqual(0)
+      expect(listed[0]?.createdAt.localeCompare(listed[1]?.createdAt ?? '')).toBeGreaterThanOrEqual(
+        0,
+      )
 
       // trim no create
       const trimmed = createClientNote(db, client.id, '  texto com espacos  ')
@@ -122,7 +124,10 @@ describe('client notes — CRUD', () => {
     expect(() => clientNoteCreateSchema.parse({ clientId: 'c1', text: ' ' })).toThrow()
     expect(() => clientNoteCreateSchema.parse({ clientId: '', text: 'oi' })).toThrow()
     expect(() => clientNoteCreateSchema.parse({ clientId: 'c1', text: 'x'.repeat(5001) })).toThrow()
-    expect(clientNoteUpdateSchema.parse({ id: 'n1', text: 'novo' })).toEqual({ id: 'n1', text: 'novo' })
+    expect(clientNoteUpdateSchema.parse({ id: 'n1', text: 'novo' })).toEqual({
+      id: 'n1',
+      text: 'novo',
+    })
     expect(clientNoteListSchema.parse({ clientId: 'c1' })).toEqual({ clientId: 'c1' })
     expect(clientNoteDeleteSchema.parse({ id: 'n1' })).toEqual({ id: 'n1' })
   })
@@ -168,7 +173,9 @@ describe('client notes — migração de notes legada', () => {
 
       // índice existe
       const idx = sqlite
-        .prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='client_notes_client_idx'`)
+        .prepare(
+          `SELECT name FROM sqlite_master WHERE type='index' AND name='client_notes_client_idx'`,
+        )
         .get()
       expect(idx).toBeTruthy()
     } finally {

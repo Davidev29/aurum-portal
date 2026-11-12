@@ -355,7 +355,11 @@ export function ServiceFormDialog({
           ) : null}
 
           <Field label="Como você entra nesse site?" required>
-            <div role="radiogroup" aria-label="Como você entra" className="grid gap-2 sm:grid-cols-3">
+            <div
+              role="radiogroup"
+              aria-label="Como você entra"
+              className="grid gap-2 sm:grid-cols-3"
+            >
               {LOGIN_FLOW_OPTIONS.map((option) => {
                 const selected = loginFlow === option.value
                 const Icon = option.icon
@@ -391,8 +395,8 @@ export function ServiceFormDialog({
           </Field>
 
           <p className="flex items-center gap-1.5 rounded-xl bg-[var(--pv-accent-soft)] px-3 py-2 text-[11px] font-medium text-brand-700 dark:text-brand-200">
-            <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            A automação é configurada sozinha: nada de domínios, slug ou receitas para preencher.
+            <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />A automação é
+            configurada sozinha: nada de domínios, slug ou receitas para preencher.
           </p>
 
           {/* ---------------- Avançado ---------------- */}

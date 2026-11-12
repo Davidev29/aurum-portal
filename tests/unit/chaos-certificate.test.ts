@@ -31,13 +31,7 @@ const select = (
   url: unknown,
   context: CertificateSelectionContext | undefined = baseContext,
   list: Array<{ data?: unknown; fingerprint?: string }> = offered,
-) =>
-  resolveCertificateSelection(
-    context,
-    url as string,
-    list as never,
-    undefined,
-  )
+) => resolveCertificateSelection(context, url as string, list as never, undefined)
 
 describe('caos: formato real do Electron em select-client-certificate', () => {
   // Regressão do incidente "O portal tentou autenticar fora da allowlist":
@@ -190,8 +184,7 @@ describe('caos: lista de certificados oferecidos pelo servidor', () => {
   })
 
   it('fingerprint no formato sha256/<base64>= do Electron casa com o contexto', () => {
-    const electronFingerprint =
-      'sha256/' + Buffer.from(hashes.sha256, 'hex').toString('base64')
+    const electronFingerprint = 'sha256/' + Buffer.from(hashes.sha256, 'hex').toString('base64')
     const result = select('sso.acesso.gov.br:443', baseContext, [
       { fingerprint: electronFingerprint },
     ] as never)
@@ -209,8 +202,7 @@ describe('caos: lista de certificados oferecidos pelo servidor', () => {
   })
 
   it('fingerprint sha1 do Electron casa no fallback', () => {
-    const electronSha1 =
-      'sha1/' + Buffer.from(hashes.sha1, 'hex').toString('base64')
+    const electronSha1 = 'sha1/' + Buffer.from(hashes.sha1, 'hex').toString('base64')
     const contextSha1: CertificateSelectionContext = {
       ...baseContext,
       certificateThumbprint: 'ffffeeeedddd',
@@ -231,9 +223,7 @@ describe('caos: lista de certificados oferecidos pelo servidor', () => {
   })
 
   it('certificado de outro titular na lista não é selecionado', () => {
-    const result = select('sso.acesso.gov.br:443', baseContext, [
-      { data: OTHER_DER },
-    ] as never)
+    const result = select('sso.acesso.gov.br:443', baseContext, [{ data: OTHER_DER }] as never)
     expect(result.kind).toBe('not-offered')
   })
 
@@ -274,9 +264,7 @@ describe('caos: vazamento de dados em mensagens e logs', () => {
   it('reason nunca contém o thumbprint do contexto', () => {
     const hostile = select('evil.com:443')
     expect(hostile.reason).not.toContain(hashes.sha256)
-    expect(select('sso.acesso.gov.br:443', baseContext, []).reason).not.toContain(
-      hashes.sha256,
-    )
+    expect(select('sso.acesso.gov.br:443', baseContext, []).reason).not.toContain(hashes.sha256)
   })
 
   it('redactUrl remove token de query em URLs sem esquema (formato Electron)', () => {
@@ -323,13 +311,12 @@ describe('caos: PEM criado com chave real (fluxo de importação)', () => {
     certificate.setIssuer(subject)
     certificate.sign(keys.privateKey, forge.md.sha256.create())
     const pem = forge.pki.certificateToPem(certificate)
-    const derBytes = Buffer.from(forge.util.encode64(
-      forge.asn1.toDer(forge.pki.certificateToAsn1(certificate)).getBytes(),
-    ), 'base64')
+    const derBytes = Buffer.from(
+      forge.util.encode64(forge.asn1.toDer(forge.pki.certificateToAsn1(certificate)).getBytes()),
+      'base64',
+    )
     const expected = computeThumbprints(derBytes).sha256
     const ctx = { ...baseContext, certificateThumbprint: expected }
-    expect(select('sso.acesso.gov.br:443', ctx, [{ data: pem }] as never).kind).toBe(
-      'selected',
-    )
+    expect(select('sso.acesso.gov.br:443', ctx, [{ data: pem }] as never).kind).toBe('selected')
   }, 30_000)
 })

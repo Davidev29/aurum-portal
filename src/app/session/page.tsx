@@ -331,7 +331,11 @@ export default function SessionPage() {
                       title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                       onClick={() => setShowPassword((current) => !current)}
                     >
-                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      {showPassword ? (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
                     </Button>
                     <Button
                       variant="ghost"
@@ -492,10 +496,7 @@ export default function SessionPage() {
           ) : null}
         </main>
       ) : (
-        <main
-          className="pointer-events-none min-h-0 flex-1 bg-transparent"
-          aria-hidden="true"
-        />
+        <main className="pointer-events-none min-h-0 flex-1 bg-transparent" aria-hidden="true" />
       )}
 
       <footer

@@ -140,7 +140,9 @@ export async function requestTimestamp(
     if (eContent) {
       const tstInfo = pkijs.TSTInfo.fromBER(eContent.getValue())
       signingTime = tstInfo.genTime
-      serialHex = Buffer.from(tstInfo.serialNumber.valueBlock.valueHex).toString('hex').toUpperCase()
+      serialHex = Buffer.from(tstInfo.serialNumber.valueBlock.valueHex)
+        .toString('hex')
+        .toUpperCase()
     }
   } catch {
     // Token presente mas com estrutura inesperada: falha fechada sem expor detalhes.
@@ -159,11 +161,17 @@ export async function requestTimestamp(
  * Testa se a TSA configurada responde a uma requisicao de carimbo valida
  * (usa um imprint fixo de documento vazio como probe).
  */
-export async function testTsa(tsaUrl: string): Promise<{ ok: boolean; latencyMs: number; message: string }> {
+export async function testTsa(
+  tsaUrl: string,
+): Promise<{ ok: boolean; latencyMs: number; message: string }> {
   const started = Date.now()
   try {
     await requestTimestamp(tsaUrl, Buffer.from('aurumbit-portal-tsa-probe', 'utf8'))
-    return { ok: true, latencyMs: Date.now() - started, message: 'TSA respondeu e concedeu o carimbo de tempo.' }
+    return {
+      ok: true,
+      latencyMs: Date.now() - started,
+      message: 'TSA respondeu e concedeu o carimbo de tempo.',
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Falha ao contatar a TSA'
     return { ok: false, latencyMs: Date.now() - started, message }

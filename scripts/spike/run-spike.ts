@@ -406,7 +406,9 @@ function main(): void {
 
   const repoRoot = findRepoRoot(process.cwd())
   const packageJson = readJsonObject(path.join(repoRoot, 'package.json'))
-  const installedElectron = readJsonObject(path.join(repoRoot, 'node_modules', 'electron', 'package.json'))
+  const installedElectron = readJsonObject(
+    path.join(repoRoot, 'node_modules', 'electron', 'package.json'),
+  )
   const devDependencies = packageJson?.['devDependencies']
   const declaredElectron =
     devDependencies && typeof devDependencies === 'object' && !Array.isArray(devDependencies)
@@ -526,13 +528,17 @@ function printReport(report: SpikeReport): void {
   console.log('')
 
   console.log('Ambiente')
-  console.log(`  Windows/plataforma : ${report.host.platform}/${report.host.arch} (${report.host.release})`)
+  console.log(
+    `  Windows/plataforma : ${report.host.platform}/${report.host.arch} (${report.host.release})`,
+  )
   console.log(`  Node.js            : ${report.node.version} (minimo ${report.node.minimum})`)
   console.log(
     `  Electron           : ${report.electron.version ?? 'nao detectado'}` +
       (report.electron.version && !report.electron.installed ? ' (declarado)' : ''),
   )
-  console.log(`  PowerShell         : ${report.powershell.available ? report.powershell.executable : 'nao encontrado'}`)
+  console.log(
+    `  PowerShell         : ${report.powershell.available ? report.powershell.executable : 'nao encontrado'}`,
+  )
   console.log(`  Repositorio        : ${report.host.repoRoot}`)
   console.log('')
 

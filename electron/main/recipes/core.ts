@@ -214,7 +214,8 @@ export function buildPostLoginScript(
 ): string {
   const includes = JSON.stringify(urlGuard?.urlIncludes ?? [])
   const excludes = JSON.stringify(urlGuard?.urlExcludes ?? [])
-  const hasGuard = (urlGuard?.urlIncludes?.length ?? 0) > 0 || (urlGuard?.urlExcludes?.length ?? 0) > 0
+  const hasGuard =
+    (urlGuard?.urlIncludes?.length ?? 0) > 0 || (urlGuard?.urlExcludes?.length ?? 0) > 0
   if (!hasGuard) return buildWaitScript(selectors, timeoutMs)
   return `(async () => {
     ${FINDER}

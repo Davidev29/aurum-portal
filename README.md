@@ -9,6 +9,7 @@
 Clientes, credenciais e certificados digitais A1 em um único lugar — com sessões isoladas
 que abrem os portais certos, no certificado certo, para a pessoa certa.
 
+[![CI](https://github.com/Davidev29/aurum-portal/actions/workflows/ci.yml/badge.svg)](https://github.com/Davidev29/aurum-portal/actions/workflows/ci.yml)
 [![Versão](https://img.shields.io/badge/versão-0.1.0-c9a24b?style=flat-square&logoColor=white)](package.json)
 [![Plataforma](https://img.shields.io/badge/plataforma-Windows%2010%2F11%20x64-1a1a1a?style=flat-square&logo=windows)](#requisitos)
 [![Node](https://img.shields.io/badge/Node.js-%E2%89%A5%2022-339933?style=flat-square&logo=node.js&logoColor=white)](#requisitos)

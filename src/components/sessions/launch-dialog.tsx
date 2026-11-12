@@ -153,8 +153,7 @@ export function LaunchDialog({
             (certificate) =>
               normalizeSearch(certificate.label).includes(query) ||
               normalizeSearch(certificate.holderName).includes(query) ||
-              (queryDigits &&
-                digitsOnly(certificate.document ?? '').includes(queryDigits)),
+              (queryDigits && digitsOnly(certificate.document ?? '').includes(queryDigits)),
           )
         ) {
           return true

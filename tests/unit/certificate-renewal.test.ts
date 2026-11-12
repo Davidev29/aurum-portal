@@ -8,7 +8,10 @@ import {
   renewalDocumentKey,
   renewalHistoryFor,
 } from '../../shared/certificate-renewal'
-import { getCertificateDetails, listCertificates } from '../../electron/main/db/repositories/certificates'
+import {
+  getCertificateDetails,
+  listCertificates,
+} from '../../electron/main/db/repositories/certificates'
 import { createDatabase } from '../../electron/main/db/database'
 import { createClient } from '../../electron/main/db/repositories/clients'
 import { certificates } from '../../electron/main/db/schema'
@@ -38,17 +41,41 @@ function cert(overrides: {
 
 describe('certificate renewal', () => {
   it('agrupa pelo documento apenas digitos', () => {
-    const a = cert({ id: 'a', document: '123.456.789-09', validFrom: '2024-01-01T00:00:00.000Z', validTo: '2025-01-01T00:00:00.000Z' })
-    const b = cert({ id: 'b', document: '12345678909', validFrom: '2025-01-01T00:00:00.000Z', validTo: '2027-01-01T00:00:00.000Z' })
-    const other = cert({ id: 'c', document: '98765432100', validFrom: '2025-01-01T00:00:00.000Z', validTo: '2027-01-01T00:00:00.000Z' })
+    const a = cert({
+      id: 'a',
+      document: '123.456.789-09',
+      validFrom: '2024-01-01T00:00:00.000Z',
+      validTo: '2025-01-01T00:00:00.000Z',
+    })
+    const b = cert({
+      id: 'b',
+      document: '12345678909',
+      validFrom: '2025-01-01T00:00:00.000Z',
+      validTo: '2027-01-01T00:00:00.000Z',
+    })
+    const other = cert({
+      id: 'c',
+      document: '98765432100',
+      validFrom: '2025-01-01T00:00:00.000Z',
+      validTo: '2027-01-01T00:00:00.000Z',
+    })
     expect(renewalDocumentKey(a)).toBe(renewalDocumentKey(b))
     expect(renewalDocumentKey(a)).not.toBe(renewalDocumentKey(other))
     expect(renewalHistoryFor(a, [b, a, other]).map((item) => item.id)).toEqual(['a', 'b'])
   })
 
   it('marca renovado quando ha sucessor com data valida', () => {
-    const oldCert = cert({ id: 'old', validFrom: '2024-01-01T00:00:00.000Z', validTo: '2025-01-01T00:00:00.000Z' })
-    const renewed = cert({ id: 'new', validFrom: '2025-01-01T00:00:00.000Z', validTo: '2027-01-01T00:00:00.000Z', createdAt: '2025-01-02T00:00:00.000Z' })
+    const oldCert = cert({
+      id: 'old',
+      validFrom: '2024-01-01T00:00:00.000Z',
+      validTo: '2025-01-01T00:00:00.000Z',
+    })
+    const renewed = cert({
+      id: 'new',
+      validFrom: '2025-01-01T00:00:00.000Z',
+      validTo: '2027-01-01T00:00:00.000Z',
+      createdAt: '2025-01-02T00:00:00.000Z',
+    })
     const info = computeRenewalInfo(oldCert, [renewed, oldCert], NOW)
     expect(info.isRenewed).toBe(true)
     expect(info.hasNewerValid).toBe(true)
@@ -61,8 +88,17 @@ describe('certificate renewal', () => {
   })
 
   it('sucessor tambem vencido nao conta como renovacao', () => {
-    const oldCert = cert({ id: 'old', validFrom: '2023-01-01T00:00:00.000Z', validTo: '2024-01-01T00:00:00.000Z' })
-    const alsoExpired = cert({ id: 'exp', validFrom: '2024-01-01T00:00:00.000Z', validTo: '2025-01-01T00:00:00.000Z', createdAt: '2024-01-02T00:00:00.000Z' })
+    const oldCert = cert({
+      id: 'old',
+      validFrom: '2023-01-01T00:00:00.000Z',
+      validTo: '2024-01-01T00:00:00.000Z',
+    })
+    const alsoExpired = cert({
+      id: 'exp',
+      validFrom: '2024-01-01T00:00:00.000Z',
+      validTo: '2025-01-01T00:00:00.000Z',
+      createdAt: '2024-01-02T00:00:00.000Z',
+    })
     // Ambos vencidos em 2026-06-01: nao ha "novo com data valida"
     const info = computeRenewalInfo(oldCert, [oldCert, alsoExpired], NOW)
     expect(info.isRenewed).toBe(false)
@@ -71,8 +107,20 @@ describe('certificate renewal', () => {
   })
 
   it('sem documento agrupa por titular', () => {
-    const a = cert({ id: 'a', holderName: 'EMPRESA LTDA', document: null, validFrom: '2024-01-01T00:00:00.000Z', validTo: '2025-01-01T00:00:00.000Z' })
-    const b = cert({ id: 'b', holderName: 'empresa  ltda', document: null, validFrom: '2025-01-01T00:00:00.000Z', validTo: '2027-01-01T00:00:00.000Z' })
+    const a = cert({
+      id: 'a',
+      holderName: 'EMPRESA LTDA',
+      document: null,
+      validFrom: '2024-01-01T00:00:00.000Z',
+      validTo: '2025-01-01T00:00:00.000Z',
+    })
+    const b = cert({
+      id: 'b',
+      holderName: 'empresa  ltda',
+      document: null,
+      validFrom: '2025-01-01T00:00:00.000Z',
+      validTo: '2027-01-01T00:00:00.000Z',
+    })
     expect(renewalHistoryFor(a, [a, b]).map((item) => item.id)).toEqual(['a', 'b'])
   })
 
@@ -138,7 +186,10 @@ describe('certificate renewal', () => {
   })
 
   it('getExpiryInfo classifica vencido / a vencer / em vigor', () => {
-    const expired = getExpiryInfo({ validTo: '2026-05-01T00:00:00.000Z', daysUntilExpiry: -31 }, NOW)
+    const expired = getExpiryInfo(
+      { validTo: '2026-05-01T00:00:00.000Z', daysUntilExpiry: -31 },
+      NOW,
+    )
     expect(expired.expired).toBe(true)
     expect(expired.tone).toBe('danger')
     expect(expired.label).toContain('Vencido')
@@ -166,21 +217,43 @@ describe('certificate renewal', () => {
   })
 
   it('chainEffectiveValidTo retorna o fim da validade do ultimo certificado da cadeia', () => {
-    const a = cert({ id: 'a', validFrom: '2023-01-01T00:00:00.000Z', validTo: '2024-01-01T00:00:00.000Z' })
-    const b = cert({ id: 'b', validFrom: '2024-01-01T00:00:00.000Z', validTo: '2025-06-01T00:00:00.000Z', createdAt: '2024-01-02T00:00:00.000Z' })
-    const c = cert({ id: 'c', validFrom: '2025-06-01T00:00:00.000Z', validTo: '2028-01-01T00:00:00.000Z', createdAt: '2025-06-02T00:00:00.000Z' })
+    const a = cert({
+      id: 'a',
+      validFrom: '2023-01-01T00:00:00.000Z',
+      validTo: '2024-01-01T00:00:00.000Z',
+    })
+    const b = cert({
+      id: 'b',
+      validFrom: '2024-01-01T00:00:00.000Z',
+      validTo: '2025-06-01T00:00:00.000Z',
+      createdAt: '2024-01-02T00:00:00.000Z',
+    })
+    const c = cert({
+      id: 'c',
+      validFrom: '2025-06-01T00:00:00.000Z',
+      validTo: '2028-01-01T00:00:00.000Z',
+      createdAt: '2025-06-02T00:00:00.000Z',
+    })
     const chain = renewalHistoryFor(a, [a, b, c])
     expect(chainEffectiveValidTo(a, chain)).toBe(c.validTo)
     expect(chainEffectiveValidTo(b, chain)).toBe(c.validTo)
     expect(chainEffectiveValidTo(c, chain)).toBe(c.validTo)
     // Cadeia totalmente vencida: usa a maio data conhecida (o "ultimo" da cadeia).
-    const only = cert({ id: 'only', validFrom: '2023-01-01T00:00:00.000Z', validTo: '2024-01-01T00:00:00.000Z' })
+    const only = cert({
+      id: 'only',
+      validFrom: '2023-01-01T00:00:00.000Z',
+      validTo: '2024-01-01T00:00:00.000Z',
+    })
     expect(chainEffectiveValidTo(only, [only])).toBe(only.validTo)
   })
 
   it('getEffectiveExpiryInfo conta a partir do fim da cadeia, nao do sucessor imediato', () => {
     // NOW = 2026-06-01. Cadeia A(vencido) -> B(vencido) -> C(valido ate 2027-06-01, +365d).
-    const c = cert({ id: 'c', validFrom: '2026-06-01T00:00:00.000Z', validTo: '2027-06-01T00:00:00.000Z' })
+    const c = cert({
+      id: 'c',
+      validFrom: '2026-06-01T00:00:00.000Z',
+      validTo: '2027-06-01T00:00:00.000Z',
+    })
     const expiry = getEffectiveExpiryInfo(
       { validTo: '2024-01-01T00:00:00.000Z', daysUntilExpiry: -518 },
       c.validTo,
@@ -199,12 +272,20 @@ describe('certificate renewal', () => {
 
   it('certificateEffectiveValidToOf prefere o efetivo e cai para o validTo proprio', () => {
     expect(
-      certificateEffectiveValidToOf({ validTo: '2024-01-01T00:00:00.000Z', effectiveValidTo: '2028-01-01T00:00:00.000Z' }),
+      certificateEffectiveValidToOf({
+        validTo: '2024-01-01T00:00:00.000Z',
+        effectiveValidTo: '2028-01-01T00:00:00.000Z',
+      }),
     ).toBe('2028-01-01T00:00:00.000Z')
-    expect(certificateEffectiveValidToOf({ validTo: '2024-01-01T00:00:00.000Z', effectiveValidTo: null })).toBe(
+    expect(
+      certificateEffectiveValidToOf({
+        validTo: '2024-01-01T00:00:00.000Z',
+        effectiveValidTo: null,
+      }),
+    ).toBe('2024-01-01T00:00:00.000Z')
+    expect(certificateEffectiveValidToOf({ validTo: '2024-01-01T00:00:00.000Z' })).toBe(
       '2024-01-01T00:00:00.000Z',
     )
-    expect(certificateEffectiveValidToOf({ validTo: '2024-01-01T00:00:00.000Z' })).toBe('2024-01-01T00:00:00.000Z')
   })
 })
 
@@ -245,9 +326,25 @@ describe('certificate details (db)', () => {
     try {
       const client = createClient(db, { type: 'PF', name: 'Maria', document: '12345678909' })
       expect(client.id).toBeTruthy()
-      seedCertificate(db, 'old0000000000000000000000000001', '2024-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z', '2024-01-01T00:00:00.000Z')
-      seedCertificate(db, 'new0000000000000000000000000002', '2025-01-01T00:00:00.000Z', '2027-06-01T00:00:00.000Z', '2025-01-02T00:00:00.000Z')
-      const detailsOld = getCertificateDetails(db, 'old0000000000000000000000000001', new Date('2026-06-01T00:00:00.000Z'))
+      seedCertificate(
+        db,
+        'old0000000000000000000000000001',
+        '2024-01-01T00:00:00.000Z',
+        '2025-01-01T00:00:00.000Z',
+        '2024-01-01T00:00:00.000Z',
+      )
+      seedCertificate(
+        db,
+        'new0000000000000000000000000002',
+        '2025-01-01T00:00:00.000Z',
+        '2027-06-01T00:00:00.000Z',
+        '2025-01-02T00:00:00.000Z',
+      )
+      const detailsOld = getCertificateDetails(
+        db,
+        'old0000000000000000000000000001',
+        new Date('2026-06-01T00:00:00.000Z'),
+      )
       expect(detailsOld.certificate.id).toBe('old0000000000000000000000000001')
       expect(detailsOld.isRenewed).toBe(true)
       expect(detailsOld.renewedBy?.id).toBe('new0000000000000000000000000002')
@@ -256,15 +353,29 @@ describe('certificate details (db)', () => {
         'new0000000000000000000000000002',
       ])
       expect(detailsOld.hasHistory).toBe(true)
-      const current = getCertificateDetails(db, 'new0000000000000000000000000002', new Date('2026-06-01T00:00:00.000Z'))
+      const current = getCertificateDetails(
+        db,
+        'new0000000000000000000000000002',
+        new Date('2026-06-01T00:00:00.000Z'),
+      )
       expect(current.isRenewed).toBe(false)
       expect(current.previous?.id).toBe('old0000000000000000000000000001')
       // O certificado antigo foi renovado: nao deve aparecer como vencido (falso positivo eliminado).
       // Seu status efetivo agora eh baseado na data do sucessor (valido por 365 dias).
-      const expiredList = listCertificates(db, { status: 'expired', includeHistory: true }, new Date('2026-06-01T00:00:00.000Z'))
-      expect(expiredList.find((item) => item.id === 'old0000000000000000000000000001')).toBeUndefined()
+      const expiredList = listCertificates(
+        db,
+        { status: 'expired', includeHistory: true },
+        new Date('2026-06-01T00:00:00.000Z'),
+      )
+      expect(
+        expiredList.find((item) => item.id === 'old0000000000000000000000000001'),
+      ).toBeUndefined()
       // Aparece na lista de validos (com historico), marcado como renovado.
-      const validList = listCertificates(db, { status: 'valid', includeHistory: true }, new Date('2026-06-01T00:00:00.000Z'))
+      const validList = listCertificates(
+        db,
+        { status: 'valid', includeHistory: true },
+        new Date('2026-06-01T00:00:00.000Z'),
+      )
       const oldInValid = validList.find((item) => item.id === 'old0000000000000000000000000001')
       expect(oldInValid?.isRenewed).toBe(true)
       expect(oldInValid?.renewedById).toBe('new0000000000000000000000000002')
@@ -283,15 +394,39 @@ describe('certificate details (db)', () => {
   it('cadeia de 3: vencimento efetivo de A e B e o fim da validade de C (o ultimo valido)', () => {
     const { db, close } = createDatabase(':memory:')
     try {
-      seedCertificate(db, 'cha0000000000000000000000000001', '2023-01-01T00:00:00.000Z', '2024-01-01T00:00:00.000Z', '2023-01-01T00:00:00.000Z')
-      seedCertificate(db, 'chb0000000000000000000000000002', '2024-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z', '2024-01-02T00:00:00.000Z')
-      seedCertificate(db, 'chc0000000000000000000000000003', '2025-01-01T00:00:00.000Z', '2027-06-01T00:00:00.000Z', '2025-01-02T00:00:00.000Z')
+      seedCertificate(
+        db,
+        'cha0000000000000000000000000001',
+        '2023-01-01T00:00:00.000Z',
+        '2024-01-01T00:00:00.000Z',
+        '2023-01-01T00:00:00.000Z',
+      )
+      seedCertificate(
+        db,
+        'chb0000000000000000000000000002',
+        '2024-01-01T00:00:00.000Z',
+        '2025-01-01T00:00:00.000Z',
+        '2024-01-02T00:00:00.000Z',
+      )
+      seedCertificate(
+        db,
+        'chc0000000000000000000000000003',
+        '2025-01-01T00:00:00.000Z',
+        '2027-06-01T00:00:00.000Z',
+        '2025-01-02T00:00:00.000Z',
+      )
       const now = new Date('2026-06-01T00:00:00.000Z')
       const list = listCertificates(db, { includeHistory: true }, now)
       const byId = new Map(list.map((item) => [item.id, item]))
-      expect(byId.get('cha0000000000000000000000000001')?.effectiveValidTo).toBe('2027-06-01T00:00:00.000Z')
-      expect(byId.get('chb0000000000000000000000000002')?.effectiveValidTo).toBe('2027-06-01T00:00:00.000Z')
-      expect(byId.get('chc0000000000000000000000000003')?.effectiveValidTo).toBe('2027-06-01T00:00:00.000Z')
+      expect(byId.get('cha0000000000000000000000000001')?.effectiveValidTo).toBe(
+        '2027-06-01T00:00:00.000Z',
+      )
+      expect(byId.get('chb0000000000000000000000000002')?.effectiveValidTo).toBe(
+        '2027-06-01T00:00:00.000Z',
+      )
+      expect(byId.get('chc0000000000000000000000000003')?.effectiveValidTo).toBe(
+        '2027-06-01T00:00:00.000Z',
+      )
       // Nenhum deles aparece como vencido: a cadeia inteira segue a validade de C.
       expect(listCertificates(db, { status: 'expired' }, now)).toHaveLength(0)
     } finally {
@@ -302,9 +437,27 @@ describe('certificate details (db)', () => {
   it('listagem padrao mostra apenas o certificado atual de cada documento (historicos so no modal)', () => {
     const { db, close } = createDatabase(':memory:')
     try {
-      seedCertificate(db, 'his0000000000000000000000000001', '2023-01-01T00:00:00.000Z', '2024-01-01T00:00:00.000Z', '2023-01-01T00:00:00.000Z')
-      seedCertificate(db, 'his0000000000000000000000000002', '2024-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z', '2024-01-02T00:00:00.000Z')
-      seedCertificate(db, 'cur0000000000000000000000000003', '2025-01-01T00:00:00.000Z', '2027-06-01T00:00:00.000Z', '2025-01-02T00:00:00.000Z')
+      seedCertificate(
+        db,
+        'his0000000000000000000000000001',
+        '2023-01-01T00:00:00.000Z',
+        '2024-01-01T00:00:00.000Z',
+        '2023-01-01T00:00:00.000Z',
+      )
+      seedCertificate(
+        db,
+        'his0000000000000000000000000002',
+        '2024-01-01T00:00:00.000Z',
+        '2025-01-01T00:00:00.000Z',
+        '2024-01-02T00:00:00.000Z',
+      )
+      seedCertificate(
+        db,
+        'cur0000000000000000000000000003',
+        '2025-01-01T00:00:00.000Z',
+        '2027-06-01T00:00:00.000Z',
+        '2025-01-02T00:00:00.000Z',
+      )
       const now = new Date('2026-06-01T00:00:00.000Z')
       // Padrão: apenas o certificado atual da cadeia.
       const list = listCertificates(db, {}, now)
@@ -331,7 +484,13 @@ describe('certificate details (db)', () => {
   it('cadeia a 20 dias do fim vira "a vencer" (limite de 30 dias)', () => {
     const { db, close } = createDatabase(':memory:')
     try {
-      seedCertificate(db, 'exp0000000000000000000000000001', '2025-06-01T00:00:00.000Z', '2026-06-21T00:00:00.000Z', '2025-06-01T00:00:00.000Z')
+      seedCertificate(
+        db,
+        'exp0000000000000000000000000001',
+        '2025-06-01T00:00:00.000Z',
+        '2026-06-21T00:00:00.000Z',
+        '2025-06-01T00:00:00.000Z',
+      )
       const now = new Date('2026-06-01T00:00:00.000Z')
       const list = listCertificates(db, {}, now)
       expect(list[0]?.status).toBe('expiring')

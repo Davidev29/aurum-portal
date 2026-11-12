@@ -4,8 +4,24 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Archive, Download, FileText, Pencil, Plus, Search, Users, RotateCcw, Upload, Building2, Loader2 } from 'lucide-react'
-import type { Client, ClientBrasilApiRefreshProgress, ClientBrasilApiRefreshReport } from '@shared/types'
+import {
+  Archive,
+  Download,
+  FileText,
+  Pencil,
+  Plus,
+  Search,
+  Users,
+  RotateCcw,
+  Upload,
+  Building2,
+  Loader2,
+} from 'lucide-react'
+import type {
+  Client,
+  ClientBrasilApiRefreshProgress,
+  ClientBrasilApiRefreshReport,
+} from '@shared/types'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
 import { useClients, useInvalidate } from '@/lib/queries'
 import { useDebouncedValue as useDebounce } from '@/lib/hooks'
@@ -57,7 +73,9 @@ export default function ClientsPage() {
   const [refreshBusy, setRefreshBusy] = React.useState(false)
   const [refreshProgress, setRefreshProgress] =
     React.useState<ClientBrasilApiRefreshProgress | null>(null)
-  const [refreshReport, setRefreshReport] = React.useState<ClientBrasilApiRefreshReport | null>(null)
+  const [refreshReport, setRefreshReport] = React.useState<ClientBrasilApiRefreshReport | null>(
+    null,
+  )
 
   React.useEffect(() => {
     const unsubscribe = aurumBitPortal().events.onClientsRefreshProgress((progress) => {
@@ -157,15 +175,12 @@ export default function ClientsPage() {
       const report = await aurumBitPortal().clients.refreshFromBrasilApi()
       setRefreshReport(report)
       await Promise.all([invalidate.clients(), invalidate.audit()])
-      toast.success(
-        `${report.updated} cliente(s) atualizado(s)`,
-        {
-          description:
-            report.skipped > 0 || report.errors > 0
-              ? `${report.skipped} ignorado(s) • ${report.errors} com erro (CNPJ indisponível ou CPF sem certificado vinculado).`
-              : 'Somente o cadastro (nome, e-mail, telefone) foi alterado.',
-        },
-      )
+      toast.success(`${report.updated} cliente(s) atualizado(s)`, {
+        description:
+          report.skipped > 0 || report.errors > 0
+            ? `${report.skipped} ignorado(s) • ${report.errors} com erro (CNPJ indisponível ou CPF sem certificado vinculado).`
+            : 'Somente o cadastro (nome, e-mail, telefone) foi alterado.',
+      })
     } catch (error) {
       toast.error(errorMessage(error))
     } finally {
@@ -430,18 +445,17 @@ export default function ClientsPage() {
         description={
           <>
             Clientes <strong>pessoa jurídica (CNPJ)</strong> são consultados na
-            <strong>brasilapi.com.br</strong> usando apenas o CNPJ (nenhum nome,
-            e-mail ou outro dado sai desta estação). Razão social, e-mail e
-            telefone oficiais são gravados no cadastro.
+            <strong>brasilapi.com.br</strong> usando apenas o CNPJ (nenhum nome, e-mail ou outro
+            dado sai desta estação). Razão social, e-mail e telefone oficiais são gravados no
+            cadastro.
             <br />
-            Clientes <strong>pessoa física (CPF)</strong> têm o nome preenchido
-            automaticamente a partir do <strong>titular do certificado
-            digital</strong> vinculado ao cadastro (quando houver).
+            Clientes <strong>pessoa física (CPF)</strong> têm o nome preenchido automaticamente a
+            partir do <strong>titular do certificado digital</strong> vinculado ao cadastro (quando
+            houver).
             <br />
             <br />
-            <strong>Certificados, credenciais e sessões não são alterados</strong>
-            — apenas os dados de cadastro. A operação é registrada na auditoria
-            com o documento mascarado.
+            <strong>Certificados, credenciais e sessões não são alterados</strong>— apenas os dados
+            de cadastro. A operação é registrada na auditoria com o documento mascarado.
           </>
         }
         confirmLabel="Atualizar todos"
@@ -458,8 +472,8 @@ export default function ClientsPage() {
           <DialogHeader>
             <DialogTitle>Atualizando clientes...</DialogTitle>
             <DialogDescription>
-              Consultando CNPJ na Brasil API e preenchendo nome de CPF a partir do
-              certificado vinculado. Não feche a janela.
+              Consultando CNPJ na Brasil API e preenchendo nome de CPF a partir do certificado
+              vinculado. Não feche a janela.
             </DialogDescription>
           </DialogHeader>
           <div className="flex min-h-0 flex-1 flex-col justify-between gap-4">
@@ -519,7 +533,10 @@ export default function ClientsPage() {
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={Boolean(refreshReport)} onOpenChange={(open) => !open && setRefreshReport(null)}>
+      <Dialog
+        open={Boolean(refreshReport)}
+        onOpenChange={(open) => !open && setRefreshReport(null)}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Resultado da atualização</DialogTitle>

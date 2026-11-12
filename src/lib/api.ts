@@ -3,7 +3,9 @@ import type { AurumBitPortalApi } from '@shared/contracts'
 
 export function aurumBitPortal(): AurumBitPortalApi {
   if (typeof window === 'undefined' || !window.aurumBitPortal) {
-    throw new Error(`O ${APP_DISPLAY_NAME} precisa estar sendo executado dentro do aplicativo desktop.`)
+    throw new Error(
+      `O ${APP_DISPLAY_NAME} precisa estar sendo executado dentro do aplicativo desktop.`,
+    )
   }
   return window.aurumBitPortal
 }

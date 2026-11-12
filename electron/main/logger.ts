@@ -11,8 +11,7 @@ export function initLogger(): void {
   log.transports.file.level = 'info'
   log.transports.console.level = process.env.AURUMBIT_DEV_URL ? 'debug' : 'info'
   log.transports.file.maxSize = 10 * 1024 * 1024
-  log.transports.file.resolvePathFn = () =>
-    path.join(app.getPath('logs'), 'aurumbit-portal.log')
+  log.transports.file.resolvePathFn = () => path.join(app.getPath('logs'), 'aurumbit-portal.log')
   log.errorHandler.startCatching({
     showDialog: false,
     onError: ({ error }) => {

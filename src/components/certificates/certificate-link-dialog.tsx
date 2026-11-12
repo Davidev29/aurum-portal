@@ -5,7 +5,14 @@ import { toast } from 'sonner'
 import type { Certificate } from '@shared/types'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
 import { useClients, useInvalidate } from '@/lib/queries'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'

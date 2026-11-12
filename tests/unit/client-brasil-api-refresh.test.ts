@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createDatabase } from '../../electron/main/db/database'
-import { createClient, getClient, findClientByDocument, setClientStatus } from '../../electron/main/db/repositories/clients'
+import {
+  createClient,
+  getClient,
+  findClientByDocument,
+  setClientStatus,
+} from '../../electron/main/db/repositories/clients'
 import { certificates, certificateClients } from '../../electron/main/db/schema'
 import {
   applyCompanyDataToClient,
@@ -18,7 +23,9 @@ const CNPJ_HISTORICO = '22233344472000'
 const CNPJ_INDISPONIVEL = '33355566678060'
 const CPF_OK = '52998224725'
 
-function stubLookup(mapping: Record<string, { name: string; email?: string | null; phone?: string | null } | null>) {
+function stubLookup(
+  mapping: Record<string, { name: string; email?: string | null; phone?: string | null } | null>,
+) {
   return async (cnpj: string) => {
     const found = mapping[`${cnpj}`]
     if (!found) return null
@@ -96,9 +103,24 @@ describe('enriquecimento Brasil API — apenas CNPJ', () => {
   it('refreshAll atualiza todos os PJ, ignora PF e tolera indisponível', async () => {
     const { db, close } = createDatabase(':memory:')
     try {
-      const pjOk = createClient(db, { type: 'PJ', name: `Cliente ${CNPJ_OK}`, document: CNPJ_OK, consent: true })
-      const pjHist = createClient(db, { type: 'PJ', name: 'Nome Antigo', document: CNPJ_HISTORICO, consent: true })
-      const pjDown = createClient(db, { type: 'PJ', name: 'Sem Resposta', document: CNPJ_INDISPONIVEL, consent: true })
+      const pjOk = createClient(db, {
+        type: 'PJ',
+        name: `Cliente ${CNPJ_OK}`,
+        document: CNPJ_OK,
+        consent: true,
+      })
+      const pjHist = createClient(db, {
+        type: 'PJ',
+        name: 'Nome Antigo',
+        document: CNPJ_HISTORICO,
+        consent: true,
+      })
+      const pjDown = createClient(db, {
+        type: 'PJ',
+        name: 'Sem Resposta',
+        document: CNPJ_INDISPONIVEL,
+        consent: true,
+      })
       const pf = createClient(db, { type: 'PF', name: 'Fulano', document: CPF_OK, consent: true })
       const lookup = stubLookup({
         [CNPJ_OK]: { name: 'ACME LTDA', email: 'contato@acme.com.br', phone: '1133334444' },
@@ -243,7 +265,12 @@ describe('enriquecimento Brasil API — apenas CNPJ', () => {
     try {
       createClient(db, { type: 'PJ', name: `Cliente ${CNPJ_OK}`, document: CNPJ_OK, consent: true })
       createClient(db, { type: 'PF', name: 'Fulano', document: CPF_OK, consent: true })
-      createClient(db, { type: 'PJ', name: 'Sem Resposta', document: CNPJ_INDISPONIVEL, consent: true })
+      createClient(db, {
+        type: 'PJ',
+        name: 'Sem Resposta',
+        document: CNPJ_INDISPONIVEL,
+        consent: true,
+      })
       const events: Array<{
         total: number
         completed: number
@@ -265,7 +292,9 @@ describe('enriquecimento Brasil API — apenas CNPJ', () => {
       expect(events.at(-1)).toMatchObject({ total: 3, completed: 3, remaining: 0, stage: 'done' })
       for (const event of events) {
         expect(event.completed + event.remaining).toBe(event.total)
-        expect(event.updated + event.skipped + event.errors).toBe(event.completed === 0 && event.stage === 'starting' ? 0 : event.completed)
+        expect(event.updated + event.skipped + event.errors).toBe(
+          event.completed === 0 && event.stage === 'starting' ? 0 : event.completed,
+        )
       }
       const completedSequence = events.map((event) => event.completed)
       expect(completedSequence).toEqual([0, 1, 2, 3, 3])
@@ -294,7 +323,12 @@ describe('enriquecimento Brasil API — apenas CNPJ', () => {
   it('refreshAll de arquivado atualiza cadastro sem reativar', async () => {
     const { db, close } = createDatabase(':memory:')
     try {
-      const client = createClient(db, { type: 'PJ', name: 'Velho', document: CNPJ_OK, consent: true })
+      const client = createClient(db, {
+        type: 'PJ',
+        name: 'Velho',
+        document: CNPJ_OK,
+        consent: true,
+      })
       const archived = setClientStatus(db, client.id, 'archived')
       expect(archived.status).toBe('archived')
       const lookup = stubLookup({ [CNPJ_OK]: { name: 'ACME ARQUIVO LTDA' } })
@@ -309,7 +343,9 @@ describe('enriquecimento Brasil API — apenas CNPJ', () => {
   })
 })
 
-function windowsRecord(overrides: Partial<WindowsCertificateRecord> = {}): WindowsCertificateRecord {
+function windowsRecord(
+  overrides: Partial<WindowsCertificateRecord> = {},
+): WindowsCertificateRecord {
   return {
     thumbprintSha1: overrides.thumbprintSha1 ?? 'A'.repeat(40),
     thumbprintSha256: overrides.thumbprintSha256 ?? 'B'.repeat(64),
@@ -349,7 +385,12 @@ describe('importação de certificado — cadastro completo via Brasil API', () 
       [windowsRecord({ holderName: 'Nome Errado Do Certificado' })],
       async (cnpj, options) => {
         calls.push({ cnpj, enabled: options.enabled })
-        return { name: 'OFICIAL DO CNPJ LTDA', tradeName: 'Oficial', email: 'oficial@empresa.com.br', phone: '1130000000' }
+        return {
+          name: 'OFICIAL DO CNPJ LTDA',
+          tradeName: 'Oficial',
+          email: 'oficial@empresa.com.br',
+          phone: '1130000000',
+        }
       },
     )
     try {

@@ -493,9 +493,10 @@ export function LetterheadEditor({ office, value, onChange, generating, onGenera
         <p className="flex items-start gap-2 text-xs leading-relaxed text-[var(--pv-muted)]">
           <Barcode className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           Todo documento recebe um código de rastreio único com barcode Code128 no cabeçalho da
-          primeira página (à direita, acima da barra) — é obrigatório e não pode ser desativado. Se a
-          geração do barcode real falhar, o documento carrega uma representação figurativa do código.
-          O código em texto aparece no rodapé de todas as páginas. O CPF do gestor nunca é exibido.
+          primeira página (à direita, acima da barra) — é obrigatório e não pode ser desativado. Se
+          a geração do barcode real falhar, o documento carrega uma representação figurativa do
+          código. O código em texto aparece no rodapé de todas as páginas. O CPF do gestor nunca é
+          exibido.
         </p>
 
         {onGenerateTest ? (
@@ -664,8 +665,8 @@ export function LetterheadEditor({ office, value, onChange, generating, onGenera
           </div>
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-[var(--pv-muted)]">
-          O prévio usa seus dados reais; o PDF final é A4 com margens de 18 mm e barcode Code128
-          (ou representação figurativa, se a geração falhar).
+          O prévio usa seus dados reais; o PDF final é A4 com margens de 18 mm e barcode Code128 (ou
+          representação figurativa, se a geração falhar).
         </p>
       </div>
     </div>

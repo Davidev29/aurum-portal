@@ -120,7 +120,10 @@ function randomSerial(): string {
   return `01${randomBytes(8).toString('hex')}`
 }
 
-function buildSelfSignedCertificate(): { certificate: forge.pki.Certificate; privateKey: forge.pki.rsa.PrivateKey } {
+function buildSelfSignedCertificate(): {
+  certificate: forge.pki.Certificate
+  privateKey: forge.pki.rsa.PrivateKey
+} {
   const keys = forge.pki.rsa.generateKeyPair(2048)
   const certificate = forge.pki.createCertificate()
   certificate.publicKey = keys.publicKey
@@ -173,7 +176,9 @@ function writeText(filePath: string, content: string, mode: number): void {
 
 function generate(options: CliOptions): GeneratedAssets {
   if (options.password.length < 8) {
-    console.warn('[aviso] A senha do PFX tem menos de 8 caracteres; use apenas em ambiente isolado.')
+    console.warn(
+      '[aviso] A senha do PFX tem menos de 8 caracteres; use apenas em ambiente isolado.',
+    )
   }
 
   const outDir = options.outDir
@@ -191,10 +196,16 @@ function generate(options: CliOptions): GeneratedAssets {
   const validTo = certificate.validity.notAfter.toISOString()
   const validFrom = certificate.validity.notBefore.toISOString()
   const subjectDn = certificate.subject.attributes
-    .map((attribute) => `${(attribute.shortName ?? attribute.name ?? '?').toUpperCase()}=${attribute.value}`)
+    .map(
+      (attribute) =>
+        `${(attribute.shortName ?? attribute.name ?? '?').toUpperCase()}=${attribute.value}`,
+    )
     .join(', ')
   const issuerDn = certificate.issuer.attributes
-    .map((attribute) => `${(attribute.shortName ?? attribute.name ?? '?').toUpperCase()}=${attribute.value}`)
+    .map(
+      (attribute) =>
+        `${(attribute.shortName ?? attribute.name ?? '?').toUpperCase()}=${attribute.value}`,
+    )
     .join(', ')
 
   console.log('[2/4] Empacotando PFX (PKCS#12, 3DES) com chave privada...')

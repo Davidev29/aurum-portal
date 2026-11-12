@@ -10,12 +10,19 @@ export interface IcpChainInstallResult {
   errors: string[]
 }
 
-function runPowerShell(script: string, timeoutMs = 60_000): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
+function runPowerShell(
+  script: string,
+  timeoutMs = 60_000,
+): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
   return new Promise((resolve, reject) => {
-    const child = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '-'], {
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
+    const child = spawn(
+      'powershell.exe',
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '-'],
+      {
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      },
+    )
     let stdout = ''
     let stderr = ''
     const timer = setTimeout(() => {
@@ -72,7 +79,9 @@ Write-Output 'OK'
   }
 }
 
-export async function installIcpChainFromAia(certificatePem: string): Promise<IcpChainInstallResult> {
+export async function installIcpChainFromAia(
+  certificatePem: string,
+): Promise<IcpChainInstallResult> {
   const urls = extractAiaUrls(certificatePem)
   const errors: string[] = []
   let installed = 0

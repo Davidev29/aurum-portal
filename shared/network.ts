@@ -24,17 +24,16 @@ export const GOVERNMENT_HOSTS_EXACT = ['gov.br'] as const
  * Labels vazios são preservados para que o chamador possa rejeitá-los.
  */
 export function normalizeHostname(hostname: string): string {
-  return hostname
-    .trim()
-    .toLowerCase()
-    .replace(/\.+$/, '')
+  return hostname.trim().toLowerCase().replace(/\.+$/, '')
 }
 
 function hasValidLabels(host: string): boolean {
   if (!host) return false
   // Hostnames são ASCII após a conversão IDNA do parser; colchetes de IPv6
   // também são ASCII imprimível. Espaços e caracteres de controle → inválido.
-  return host.split('.').every((label) => label.length > 0 && label.length <= 63 && /^[!-~]+$/.test(label))
+  return host
+    .split('.')
+    .every((label) => label.length > 0 && label.length <= 63 && /^[!-~]+$/.test(label))
 }
 
 /**

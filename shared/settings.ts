@@ -93,12 +93,7 @@ export const officeProfileSchema = z.object({
   stateRegistration: z.string().trim().max(30),
   address: z.string().trim().max(255).default(''),
   city: z.string().trim().max(120).default(''),
-  state: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .max(2)
-    .default(''),
+  state: z.string().trim().toUpperCase().max(2).default(''),
   phone: z.string().trim().max(30).default(''),
   email: z
     .union([z.string().trim().max(254), z.literal('')])
@@ -178,8 +173,7 @@ export function coerceSettings(raw: unknown): AppSettings {
       // para não apagar os demais dados ao salvar apenas parte (ex.:
       // ajustes parciais via IPC) e manter compatibilidade com bancos
       // salvos antes da criação destes campos.
-      const defaults =
-        key === 'office' ? DEFAULT_OFFICE_PROFILE : DEFAULT_LETTERHEAD
+      const defaults = key === 'office' ? DEFAULT_OFFICE_PROFILE : DEFAULT_LETTERHEAD
       const incoming = base[key]
       const incomingObject =
         typeof incoming === 'object' && incoming !== null

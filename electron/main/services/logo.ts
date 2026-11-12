@@ -42,7 +42,9 @@ export function sanitizeLogoBytes(
   }
   const extension = filename ? path.extname(filename).toLowerCase() : ''
   const mime = (declaredMime ?? '').split(';')[0]?.trim().toLowerCase() ?? ''
-  const isPng = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  const isPng = bytes
+    .subarray(0, 8)
+    .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
   const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
   const text = bytes.toString('utf8').trim()
   const isSvg =
@@ -81,7 +83,8 @@ async function downloadFavicon(url: URL, service: ServiceRow): Promise<string | 
       redirect: 'follow',
       signal: controller.signal,
       headers: {
-        accept: 'image/png,image/jpeg,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,*/*;q=0.1',
+        accept:
+          'image/png,image/jpeg,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,*/*;q=0.1',
         'user-agent': 'AurumBitPortal/0.1 (+local favicon cache)',
       },
     })

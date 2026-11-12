@@ -20,13 +20,17 @@ test.describe('AurumBit Portal - E2E', () => {
       await expect(page).toHaveTitle(/AurumBit Portal/)
 
       const windowHandle = await app.browserWindow(page)
-      const preferences = await windowHandle.evaluate((win) => win.webContents.getLastWebPreferences())
+      const preferences = await windowHandle.evaluate((win) =>
+        win.webContents.getLastWebPreferences(),
+      )
       expect(preferences.nodeIntegration).toBe(false)
       expect(preferences.contextIsolation).toBe(true)
       expect(preferences.sandbox).toBe(true)
       expect(preferences.webSecurity).toBe(true)
 
-      const csp = await page.evaluate(async () => (await fetch((globalThis as any).location.href)).headers.get('content-security-policy'))
+      const csp = await page.evaluate(async () =>
+        (await fetch((globalThis as any).location.href)).headers.get('content-security-policy'),
+      )
       expect(csp).toContain("object-src 'none'")
       expect(csp).toContain("frame-ancestors 'none'")
 
@@ -72,7 +76,9 @@ test.describe('AurumBit Portal - E2E', () => {
       )
       expect(reveal.password).toBe('SenhaE2E!2026')
 
-      const audit = await page.evaluate(() => (globalThis as any).aurumBitPortal.audit.list({ limit: 200 }))
+      const audit = await page.evaluate(() =>
+        (globalThis as any).aurumBitPortal.audit.list({ limit: 200 }),
+      )
       const types = audit.events.map((event: { type: string }) => event.type)
       expect(types).toContain('client.created')
       expect(types).toContain('credential.created')
@@ -148,18 +154,15 @@ test.describe('AurumBit Portal - E2E', () => {
 
       await expect(sessionWindow.getByText(client.name)).toBeVisible()
 
-      const layout = await app.evaluate(
-        ({ BrowserWindow }, currentSessionId) => {
-          const win = BrowserWindow.getAllWindows().find((item) =>
-            item.webContents.getURL().includes(`sessionId=${currentSessionId}`),
-          )
-          if (!win) return null
-          const [width, height] = win.getContentSize()
-          const child = (win.contentView.children as any[]).find((item: any) => item?.webContents)
-          return { width, height, bounds: child?.getBounds?.() ?? null }
-        },
-        sessionId,
-      )
+      const layout = await app.evaluate(({ BrowserWindow }, currentSessionId) => {
+        const win = BrowserWindow.getAllWindows().find((item) =>
+          item.webContents.getURL().includes(`sessionId=${currentSessionId}`),
+        )
+        if (!win) return null
+        const [width, height] = win.getContentSize()
+        const child = (win.contentView.children as any[]).find((item: any) => item?.webContents)
+        return { width, height, bounds: child?.getBounds?.() ?? null }
+      }, sessionId)
       expect(layout).not.toBeNull()
       expect(layout!.bounds).toMatchObject({ x: 0, y: 96 })
       expect((layout as any).bounds.height).toBe((layout as any).height - 96 - 26)
@@ -168,11 +171,11 @@ test.describe('AurumBit Portal - E2E', () => {
         .poll(
           async () => {
             const value = await app.evaluate(async ({ webContents }) => {
-              const wc = webContents.getAllWebContents().find((item) => item.getURL().startsWith('https://127.0.0.1'))
+              const wc = webContents
+                .getAllWebContents()
+                .find((item) => item.getURL().startsWith('https://127.0.0.1'))
               if (!wc) return null
-              return wc.executeJavaScript(
-                `document.querySelector('#user')?.value ?? ''`,
-              )
+              return wc.executeJavaScript(`document.querySelector('#user')?.value ?? ''`)
             })
             return value
           },
@@ -184,11 +187,11 @@ test.describe('AurumBit Portal - E2E', () => {
         .poll(
           async () => {
             const value = await app.evaluate(async ({ webContents }) => {
-              const wc = webContents.getAllWebContents().find((item) => item.getURL().startsWith('https://127.0.0.1'))
+              const wc = webContents
+                .getAllWebContents()
+                .find((item) => item.getURL().startsWith('https://127.0.0.1'))
               if (!wc) return null
-              return wc.executeJavaScript(
-                `document.querySelector('#pass')?.value ?? ''`,
-              )
+              return wc.executeJavaScript(`document.querySelector('#pass')?.value ?? ''`)
             })
             return value
           },
@@ -197,7 +200,9 @@ test.describe('AurumBit Portal - E2E', () => {
         .toBe(TEST_PASSWORD)
 
       const remoteBoundary = await app.evaluate(async ({ webContents }) => {
-        const wc = webContents.getAllWebContents().find((item) => item.getURL().startsWith('https://127.0.0.1'))
+        const wc = webContents
+          .getAllWebContents()
+          .find((item) => item.getURL().startsWith('https://127.0.0.1'))
         if (!wc) return null
         return wc.executeJavaScript(
           `({ require: typeof require, process: typeof process, aurumBitPortal: typeof window.aurumBitPortal })`,
@@ -222,17 +227,25 @@ test.describe('AurumBit Portal - E2E', () => {
         )
         .toBe('awaiting_login')
 
-      expect(portal.requests.some((request) => request.method === 'POST' && request.path === '/login')).toBe(false)
+      expect(
+        portal.requests.some((request) => request.method === 'POST' && request.path === '/login'),
+      ).toBe(false)
 
       await sessionWindow.getByRole('button', { name: 'Credencial manual' }).click()
       await expect(sessionWindow.getByLabel('Usuario da credencial')).toHaveValue(TEST_USER)
       await expect(sessionWindow.getByLabel('Senha da credencial')).toHaveValue(TEST_PASSWORD)
 
-      const audit = await page.evaluate(() => (globalThis as any).aurumBitPortal.audit.list({ limit: 200 }))
-      expect(audit.events.some((event: { type: string }) => event.type === 'credential.revealed')).toBe(true)
+      const audit = await page.evaluate(() =>
+        (globalThis as any).aurumBitPortal.audit.list({ limit: 200 }),
+      )
+      expect(
+        audit.events.some((event: { type: string }) => event.type === 'credential.revealed'),
+      ).toBe(true)
 
       await app.evaluate(async ({ webContents }) => {
-        const wc = webContents.getAllWebContents().find((item) => item.getURL().startsWith('https://127.0.0.1'))
+        const wc = webContents
+          .getAllWebContents()
+          .find((item) => item.getURL().startsWith('https://127.0.0.1'))
         if (!wc) return
         await wc.executeJavaScript(`document.querySelector('#entrar')?.click()`)
       })
@@ -241,7 +254,9 @@ test.describe('AurumBit Portal - E2E', () => {
         .poll(
           async () => {
             const value = await app.evaluate(async ({ webContents }) => {
-              const wc = webContents.getAllWebContents().find((item) => item.getURL().startsWith('https://127.0.0.1'))
+              const wc = webContents
+                .getAllWebContents()
+                .find((item) => item.getURL().startsWith('https://127.0.0.1'))
               if (!wc) return ''
               return wc.getURL()
             })
@@ -264,11 +279,21 @@ test.describe('AurumBit Portal - E2E', () => {
         )
         .toBe('authenticated')
 
-      const auditAfterLogin = await page.evaluate(() => (globalThis as any).aurumBitPortal.audit.list({ limit: 200 }))
-      expect(auditAfterLogin.events.some((event: { type: string }) => event.type === 'session.auth_detected')).toBe(true)
+      const auditAfterLogin = await page.evaluate(() =>
+        (globalThis as any).aurumBitPortal.audit.list({ limit: 200 }),
+      )
+      expect(
+        auditAfterLogin.events.some(
+          (event: { type: string }) => event.type === 'session.auth_detected',
+        ),
+      ).toBe(true)
 
       await expect(
-        sessionWindow.evaluate(async (id) => (globalThis as any).aurumBitPortal.sessions.navigate(id, 'https://evil.example'), sessionId),
+        sessionWindow.evaluate(
+          async (id) =>
+            (globalThis as any).aurumBitPortal.sessions.navigate(id, 'https://evil.example'),
+          sessionId,
+        ),
       ).rejects.toThrow(/allowlist do servico/)
 
       await sessionWindow.locator('button[title="Fechar sessão"]').click()
@@ -373,53 +398,59 @@ test.describe('AurumBit Portal - E2E', () => {
         })
         .toBe(2)
 
-      const detailsA = await page.evaluate(async (id) => (globalThis as any).aurumBitPortal.sessions.details(id), openedA.sessionId)
-      const detailsB = await page.evaluate(async (id) => (globalThis as any).aurumBitPortal.sessions.details(id), openedB.sessionId)
+      const detailsA = await page.evaluate(
+        async (id) => (globalThis as any).aurumBitPortal.sessions.details(id),
+        openedA.sessionId,
+      )
+      const detailsB = await page.evaluate(
+        async (id) => (globalThis as any).aurumBitPortal.sessions.details(id),
+        openedB.sessionId,
+      )
       expect(detailsA.partition).not.toBe(detailsB.partition)
 
-      await app.evaluate(
-        async ({ webContents, session }, partition) => {
-          const targetSession = session.fromPartition(partition)
-          const wc = webContents.getAllWebContents().find((item) => item.getURL().startsWith('https://127.0.0.1') && item.session === targetSession)
-          if (!wc) return
-          await wc.executeJavaScript(`localStorage.setItem('pv-isolation', 'cliente-a')`)
-        },
-        detailsA.partition,
-      )
+      await app.evaluate(async ({ webContents, session }, partition) => {
+        const targetSession = session.fromPartition(partition)
+        const wc = webContents
+          .getAllWebContents()
+          .find(
+            (item) =>
+              item.getURL().startsWith('https://127.0.0.1') && item.session === targetSession,
+          )
+        if (!wc) return
+        await wc.executeJavaScript(`localStorage.setItem('pv-isolation', 'cliente-a')`)
+      }, detailsA.partition)
 
       // O WebContentsView de B pode levar alguns instantes para commitar a
       // navegacao; aguarda a webContents existir antes de ler o storage.
       await expect
         .poll(
           async () => {
-            const found = await app.evaluate(
-              async ({ webContents, session }, partition) => {
-                const targetSession = session.fromPartition(partition)
-                return webContents
-                  .getAllWebContents()
-                  .some(
-                    (item) =>
-                      item.getURL().startsWith('https://127.0.0.1') &&
-                      item.session === targetSession,
-                  )
-              },
-              detailsB.partition,
-            )
+            const found = await app.evaluate(async ({ webContents, session }, partition) => {
+              const targetSession = session.fromPartition(partition)
+              return webContents
+                .getAllWebContents()
+                .some(
+                  (item) =>
+                    item.getURL().startsWith('https://127.0.0.1') && item.session === targetSession,
+                )
+            }, detailsB.partition)
             return found
           },
           { timeout: 20_000 },
         )
         .toBe(true)
 
-      const valueInB = await app.evaluate(
-        async ({ webContents, session }, partition) => {
-          const targetSession = session.fromPartition(partition)
-          const wc = webContents.getAllWebContents().find((item) => item.getURL().startsWith('https://127.0.0.1') && item.session === targetSession)
-          if (!wc) return 'SEM_WEB_CONTENTS'
-          return wc.executeJavaScript(`localStorage.getItem('pv-isolation')`)
-        },
-        detailsB.partition,
-      )
+      const valueInB = await app.evaluate(async ({ webContents, session }, partition) => {
+        const targetSession = session.fromPartition(partition)
+        const wc = webContents
+          .getAllWebContents()
+          .find(
+            (item) =>
+              item.getURL().startsWith('https://127.0.0.1') && item.session === targetSession,
+          )
+        if (!wc) return 'SEM_WEB_CONTENTS'
+        return wc.executeJavaScript(`localStorage.getItem('pv-isolation')`)
+      }, detailsB.partition)
       expect(valueInB).toBeNull()
 
       const reopened = await page.evaluate(
@@ -437,7 +468,10 @@ test.describe('AurumBit Portal - E2E', () => {
       expect(reopened.sessionId).toBe(openedA.sessionId)
 
       for (const window of app.windows().filter((item) => item.url().includes('sessionId='))) {
-        await window.locator('button[title="Fechar sessão"]').click().catch(() => undefined)
+        await window
+          .locator('button[title="Fechar sessão"]')
+          .click()
+          .catch(() => undefined)
       }
       await expect.poll(() => app.windows().length, { timeout: 10_000 }).toBe(1)
     } finally {

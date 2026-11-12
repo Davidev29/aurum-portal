@@ -66,36 +66,146 @@ const ecacAllowlist = BUILTIN_SERVICES.find((s) => s.slug === 'ecac')?.allowedDo
 
 const scenarios: Scenario[] = [
   // --- O caso real do log de produção --------------------------------------
-  { label: 'Caso real: certificado.sso.acesso.gov.br:443 (sem esquema)', url: 'certificado.sso.acesso.gov.br:443', allowlist: govbrAllowlist, expect: 'selected' },
-  { label: 'Caso real: sso.acesso.gov.br:443 (sem esquema)', url: 'sso.acesso.gov.br:443', allowlist: govbrAllowlist, expect: 'selected' },
-  { label: 'e-CAC: cav.receita.fazenda.gov.br:443 (sem esquema)', url: 'cav.receita.fazenda.gov.br:443', allowlist: ecacAllowlist, expect: 'selected' },
+  {
+    label: 'Caso real: certificado.sso.acesso.gov.br:443 (sem esquema)',
+    url: 'certificado.sso.acesso.gov.br:443',
+    allowlist: govbrAllowlist,
+    expect: 'selected',
+  },
+  {
+    label: 'Caso real: sso.acesso.gov.br:443 (sem esquema)',
+    url: 'sso.acesso.gov.br:443',
+    allowlist: govbrAllowlist,
+    expect: 'selected',
+  },
+  {
+    label: 'e-CAC: cav.receita.fazenda.gov.br:443 (sem esquema)',
+    url: 'cav.receita.fazenda.gov.br:443',
+    allowlist: ecacAllowlist,
+    expect: 'selected',
+  },
 
   // --- Variações de formato toleradas ---------------------------------------
-  { label: 'FQDN com ponto final', url: 'certificado.sso.acesso.gov.br.:443', allowlist: govbrAllowlist, expect: 'selected' },
-  { label: 'Maiúsculas no host', url: 'CERTIFICADO.SSO.ACESSO.GOV.BR:443', allowlist: govbrAllowlist, expect: 'selected' },
-  { label: 'Caminho e query sem esquema', url: 'certificado.sso.acesso.gov.br:443/login?a=b', allowlist: govbrAllowlist, expect: 'selected' },
-  { label: 'URL completa https', url: 'https://certificado.sso.acesso.gov.br/login', allowlist: govbrAllowlist, expect: 'selected' },
-  { label: 'Scheme-relative //gov.br', url: '//sso.acesso.gov.br/login', allowlist: govbrAllowlist, expect: 'selected' },
+  {
+    label: 'FQDN com ponto final',
+    url: 'certificado.sso.acesso.gov.br.:443',
+    allowlist: govbrAllowlist,
+    expect: 'selected',
+  },
+  {
+    label: 'Maiúsculas no host',
+    url: 'CERTIFICADO.SSO.ACESSO.GOV.BR:443',
+    allowlist: govbrAllowlist,
+    expect: 'selected',
+  },
+  {
+    label: 'Caminho e query sem esquema',
+    url: 'certificado.sso.acesso.gov.br:443/login?a=b',
+    allowlist: govbrAllowlist,
+    expect: 'selected',
+  },
+  {
+    label: 'URL completa https',
+    url: 'https://certificado.sso.acesso.gov.br/login',
+    allowlist: govbrAllowlist,
+    expect: 'selected',
+  },
+  {
+    label: 'Scheme-relative //gov.br',
+    url: '//sso.acesso.gov.br/login',
+    allowlist: govbrAllowlist,
+    expect: 'selected',
+  },
 
   // --- Cert injection deve exigir HTTPS --------------------------------------
-  { label: 'HTTP puro é recusado', url: 'http://sso.acesso.gov.br/', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
+  {
+    label: 'HTTP puro é recusado',
+    url: 'http://sso.acesso.gov.br/',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
 
   // --- Hospedeiros maliciosos / parecidos -----------------------------------
-  { label: 'evil.com (fora da allowlist)', url: 'malicioso.example:443', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
-  { label: 'gov.br.evil.com', url: 'gov.br.evil.com:443', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
-  { label: 'sso.acesso.gov.br.evil.com', url: 'sso.acesso.gov.br.evil.com:443', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
-  { label: 'gov.br como usuário, host evil.com', url: 'gov.br@evil.com:443', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
-  { label: 'usuario:senha@evil.com', url: 'user:pass@evil.com:443', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
-  { label: 'gov.br.attacker.tld', url: 'gov.br.attacker.tld:443', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
-  { label: 'Labels vazios (.gov.br)', url: '.gov.br:443', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
-  { label: 'Labels vazios (a..gov.br)', url: 'a..gov.br:443', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
-  { label: 'Esquema file:', url: 'file:///C:/Windows/System32/drivers/etc/hosts', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
-  { label: 'Esquema desconhecido a:b', url: 'a:b', allowlist: govbrAllowlist, expect: 'host-not-allowed' },
+  {
+    label: 'evil.com (fora da allowlist)',
+    url: 'malicioso.example:443',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
+  {
+    label: 'gov.br.evil.com',
+    url: 'gov.br.evil.com:443',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
+  {
+    label: 'sso.acesso.gov.br.evil.com',
+    url: 'sso.acesso.gov.br.evil.com:443',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
+  {
+    label: 'gov.br como usuário, host evil.com',
+    url: 'gov.br@evil.com:443',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
+  {
+    label: 'usuario:senha@evil.com',
+    url: 'user:pass@evil.com:443',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
+  {
+    label: 'gov.br.attacker.tld',
+    url: 'gov.br.attacker.tld:443',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
+  {
+    label: 'Labels vazios (.gov.br)',
+    url: '.gov.br:443',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
+  {
+    label: 'Labels vazios (a..gov.br)',
+    url: 'a..gov.br:443',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
+  {
+    label: 'Esquema file:',
+    url: 'file:///C:/Windows/System32/drivers/etc/hosts',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
+  {
+    label: 'Esquema desconhecido a:b',
+    url: 'a:b',
+    allowlist: govbrAllowlist,
+    expect: 'host-not-allowed',
+  },
 
   // --- Allowlist explícita fora de .gov.br ----------------------------------
-  { label: 'Allowlist explícita: intranet aceita', url: 'intranet.empresa.com:443', allowlist: ['intranet.empresa.com'], expect: 'selected' },
-  { label: 'Allowlist *.empresa.com cobre subdomínio', url: 'a.empresa.com:443', allowlist: ['*.empresa.com'], expect: 'selected' },
-  { label: 'Allowlist ausente recusa host não-gov', url: 'intranet.empresa.com:443', allowlist: [], expect: 'host-not-allowed' },
+  {
+    label: 'Allowlist explícita: intranet aceita',
+    url: 'intranet.empresa.com:443',
+    allowlist: ['intranet.empresa.com'],
+    expect: 'selected',
+  },
+  {
+    label: 'Allowlist *.empresa.com cobre subdomínio',
+    url: 'a.empresa.com:443',
+    allowlist: ['*.empresa.com'],
+    expect: 'selected',
+  },
+  {
+    label: 'Allowlist ausente recusa host não-gov',
+    url: 'intranet.empresa.com:443',
+    allowlist: [],
+    expect: 'host-not-allowed',
+  },
 ]
 
 // ---------------------------------------------------------------------------

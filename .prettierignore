@@ -8,3 +8,8 @@ playwright-report
 test-results
 *.md
 package-lock.json
+next-env.d.ts
+public/pdfjs/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+.electron-cache/

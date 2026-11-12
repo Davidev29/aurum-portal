@@ -17,9 +17,7 @@ export function RoboticActivity({ label }: { label?: string }): React.JSX.Elemen
       className="flex h-7 shrink-0 items-center justify-center gap-2.5 border-b border-emerald-700/25 bg-[linear-gradient(90deg,rgba(16,185,129,0.06)_0%,rgba(16,185,129,0.14)_50%,rgba(16,185,129,0.06)_100%)] px-3"
     >
       <Bot className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
-      <span className="pv-line-label text-[10px] font-semibold text-emerald-300/90">
-        {text}
-      </span>
+      <span className="pv-line-label text-[10px] font-semibold text-emerald-300/90">{text}</span>
       <span className="pv-shimmer-track h-[2px] w-36 overflow-hidden rounded-full">
         <span className="pv-shimmer-bar block h-full w-full" />
       </span>

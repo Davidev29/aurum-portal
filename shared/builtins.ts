@@ -305,7 +305,7 @@ const JUCEC_BROKER_CLICK_SCRIPT = String.raw`
   const candidates = Array.from(document.querySelectorAll('a, button, [role="button"]')).filter(visible);
   const broker = candidates.find((el) => { const t = textOf(el); return t.includes('acessar com') && t.includes('gov'); });
   if (broker) { try { broker.click(); return 'jucec-broker: Acessar com gov.br'; } catch {} }
-  throw new Error('botao Acessar com gov.br nao encontrado na pagina do JUCEC. visivel="' + body.replace(/\\s+/g, ' ').slice(0, 260) + '"');`;
+  throw new Error('botao Acessar com gov.br nao encontrado na pagina do JUCEC. visivel="' + body.replace(/\\s+/g, ' ').slice(0, 260) + '"');`
 
 const ECAC_T1_CLICK_SCRIPT = String.raw`
   const body = (document.body && document.body.innerText) || '';
@@ -337,7 +337,7 @@ const ECAC_T1_CLICK_SCRIPT = String.raw`
   if (inForm) {
     try { inForm.click(); return 'ecac-t1-click: frmLoginCert input[type=image]'; } catch { fail('falha ao clicar no botao Acesso Gov BR'); }
   }
-  fail('botao Acesso Gov BR nao encontrado na interstitial do e-CAC');`;
+  fail('botao Acesso Gov BR nao encontrado na interstitial do e-CAC');`
 
 /**
  * Passo T2 (SSO gov.br): aguarda a SPA Preact renderizar e clica "Seu certificado
@@ -444,7 +444,7 @@ export const GOVBR_SSO_CERT_CLICK_SCRIPT = String.raw`
   }
   // Diagnóstico final (aparece no statusMessage e na auditoria) — indica o que a página mostra de fato.
   const sample = (bodyText() || '').replace(/\\s+/g, ' ').slice(0, 260);
-  throw new Error('opcao "Seu certificado digital" nao encontrada no SSO gov.br. href=' + href().slice(0, 120) + ' visivel="' + sample + '"');`;
+  throw new Error('opcao "Seu certificado digital" nao encontrada no SSO gov.br. href=' + href().slice(0, 120) + ' visivel="' + sample + '"');`
 
 /**
  * Receita dedicada do e-CAC ("zero tela de login"):
@@ -526,7 +526,14 @@ function jucecRecipeWithGovBr(): RecipeDefinition {
   const govBrPostLogin = {
     // URL corrente decide: páginas servidas fora de /auth/realms/ exigem
     // sessão JUCEC+gov.br (o Keycloak recarrega com sucesso após o broker).
-    selectors: ['body', 'text=Sair', 'text=Logout', 'text=logout', 'a[href*="logout"]', 'a[href*="signout"]'],
+    selectors: [
+      'body',
+      'text=Sair',
+      'text=Logout',
+      'text=logout',
+      'a[href*="logout"]',
+      'a[href*="signout"]',
+    ],
     timeoutMs: 120_000,
     urlIncludes: ['portalservicos.jucec.ce.gov.br'],
     urlExcludes: ['/auth/realms/'],
@@ -856,8 +863,7 @@ export const BUILTIN_SERVICES: BuiltinServiceSeed[] = [
     authMethods: ['certificate', 'password'],
     defaultAuth: 'certificate',
     logoAsset: '/portals/gov-br.png',
-    notes:
-      'FGTS Digital do empregador. Acesso com certificado digital (e-CPF/e-CNPJ).',
+    notes: 'FGTS Digital do empregador. Acesso com certificado digital (e-CPF/e-CNPJ).',
     recipe: certRecipe('fgts-digital'),
   },
   {
@@ -901,8 +907,7 @@ export const BUILTIN_SERVICES: BuiltinServiceSeed[] = [
     authMethods: ['certificate', 'password'],
     defaultAuth: 'certificate',
     logoAsset: '/portals/det-trabalhista.webp',
-    notes:
-      'Domicílio Eletrônico Trabalhista (DET). Redireciona para /login.aspx.',
+    notes: 'Domicílio Eletrônico Trabalhista (DET). Redireciona para /login.aspx.',
     recipe: certRecipe('det-trabalhista'),
   },
   {
@@ -942,8 +947,7 @@ export const BUILTIN_SERVICES: BuiltinServiceSeed[] = [
     authMethods: ['certificate', 'password'],
     defaultAuth: 'certificate',
     logoAsset: '/portals/simples-nacional.webp',
-    notes:
-      'Portal do Simples Nacional. Acesso via certificado/e-CAC ou Código de Acesso + senha.',
+    notes: 'Portal do Simples Nacional. Acesso via certificado/e-CAC ou Código de Acesso + senha.',
     recipe: certRecipe('simples-nacional'),
   },
   {
@@ -964,7 +968,8 @@ export const BUILTIN_SERVICES: BuiltinServiceSeed[] = [
     authMethods: ['certificate', 'password'],
     defaultAuth: 'certificate',
     logoAsset: '/portals/bacen.png',
-    notes: 'Registrato do Banco Central (Meu BC). Acesso com certificado digital ICP-Brasil ou gov.br.',
+    notes:
+      'Registrato do Banco Central (Meu BC). Acesso com certificado digital ICP-Brasil ou gov.br.',
     recipe: certRecipe('registrato'),
   },
   {

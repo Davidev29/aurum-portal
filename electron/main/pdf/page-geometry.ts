@@ -199,7 +199,10 @@ export function stampContentsRelativeMatrix(
 }
 
 /** Dimensões do carimbo como exibido (frame local do desenho). */
-export function displayStampSize(view: PageView, rect: UserStampRect): { width: number; height: number } {
+export function displayStampSize(
+  view: PageView,
+  rect: UserStampRect,
+): { width: number; height: number } {
   if (view.rotation === 90 || view.rotation === 270) {
     return { width: rect.height, height: rect.width }
   }

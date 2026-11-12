@@ -300,11 +300,11 @@ describe('KnowledgeGraph - vizinhança', () => {
 
     const entradas = kg.getIncomingEdges(c.id, POSSUI)
     expect(entradas.length).toBe(1)
-    expect(entradas[0].sourceId).toBe(u.id)
+    expect(entradas[0]!.sourceId).toBe(u.id)
 
     const saidas = kg.getOutgoingEdges(u.id, POSSUI)
     expect(saidas.length).toBe(1)
-    expect(saidas[0].targetId).toBe(c.id)
+    expect(saidas[0]!.targetId).toBe(c.id)
   })
 
   it('getNeighbors não inclui o próprio nó (auto-referência removida)', () => {
@@ -549,8 +549,8 @@ describe('seedKnowledgeGraph / defaultSeed', () => {
     const kg = defaultSeed
     const ecnpj = makeId('seed:portal:ecnpj')
     const usuarios = usuariosComAcessoAoPortal(kg, ecnpj)
-    expect(usuarios.some((u) => u.label === 'Maria Silva')).toBe(true)
-    expect(usuarios.some((u) => u.label === 'Ana Costa')).toBe(true)
+    expect(usuarios.some((u) => u?.label === 'Maria Silva')).toBe(true)
+    expect(usuarios.some((u) => u?.label === 'Ana Costa')).toBe(true)
   })
 
   it('caminhoDeUsuarioParaPortal encontra percurso usuário → portal', () => {

@@ -9,7 +9,14 @@ import { aurumBitPortal, errorMessage } from '@/lib/api'
 import { useInvalidate } from '@/lib/queries'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Alert } from '@/components/ui/alert'
 
 export function RecipeDialog({
@@ -61,9 +68,7 @@ export function RecipeDialog({
       onOpenChange(false)
     } catch (caught) {
       setError(
-        caught instanceof SyntaxError
-          ? `JSON invalido: ${caught.message}`
-          : errorMessage(caught),
+        caught instanceof SyntaxError ? `JSON invalido: ${caught.message}` : errorMessage(caught),
       )
     } finally {
       setBusy(false)
@@ -121,7 +126,10 @@ export function RecipeDialog({
             </Alert>
           ) : null}
           {result ? (
-            <Alert variant={result.ok ? 'success' : 'warning'} title={result.ok ? 'Portal alcancavel' : 'Teste falhou'}>
+            <Alert
+              variant={result.ok ? 'success' : 'warning'}
+              title={result.ok ? 'Portal alcancavel' : 'Teste falhou'}
+            >
               {result.message}
             </Alert>
           ) : null}
@@ -137,7 +145,12 @@ export function RecipeDialog({
               <TestTube2 className="h-3.5 w-3.5" />
               Testar alcance
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => void reset()} disabled={busy || !service?.recipe}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void reset()}
+              disabled={busy || !service?.recipe}
+            >
               Remover receita
             </Button>
           </div>

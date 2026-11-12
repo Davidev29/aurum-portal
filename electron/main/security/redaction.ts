@@ -1,13 +1,13 @@
 import { parseHttpUrl } from '../../../shared/network'
 
-const SENSITIVE_QUERY = /^(?:authorization_id|state|code|token|access_token|id_token|refresh_token|ticket|session|sessionid|key|secret|password|senha)$/i
+const SENSITIVE_QUERY =
+  /^(?:authorization_id|state|code|token|access_token|id_token|refresh_token|ticket|session|sessionid|key|secret|password|senha)$/i
 const SENSITIVE_KEY =
   /(pass(?:word|phrase)?|senha|secret|token|pfx|p12|private.?key|authorization|cookie|credential|pin)$/i
 
 export function redactUrl(input: string | URL): string {
   try {
-    const parsed =
-      typeof input === 'string' ? parseHttpUrl(input) : new URL(input.toString())
+    const parsed = typeof input === 'string' ? parseHttpUrl(input) : new URL(input.toString())
     if (!parsed) {
       // Fallback minimo para URLs que parseHttpUrl rejeitou. Se parsearem
       // cruas (ex.: https com credenciais, que recusamos por seguranca),
@@ -43,10 +43,7 @@ export function redactString(value: string): string {
   return value
 }
 
-export function redactRecord(
-  input: Record<string, unknown>,
-  depth = 0,
-): Record<string, unknown> {
+export function redactRecord(input: Record<string, unknown>, depth = 0): Record<string, unknown> {
   if (depth > 6) return { truncated: true }
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(input)) {

@@ -18,18 +18,30 @@ let cert: any
 
 beforeAll(() => {
   pfxBuffer = readFileSync(PFX_PATH)
-  const p12 = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(pfxBuffer.toString('binary')), false, PFX_PASSWORD)
-  const keyBags = (p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag as string })[forge.pki.oids.pkcs8ShroudedKeyBag as string] ?? []) as any[]
-  const certBags = (p12.getBags({ bagType: forge.pki.oids.certBag as string })[forge.pki.oids.certBag as string] ?? []) as any[]
+  const p12 = forge.pkcs12.pkcs12FromAsn1(
+    forge.asn1.fromDer(pfxBuffer.toString('binary')),
+    false,
+    PFX_PASSWORD,
+  )
+  const keyBags = (p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag as string })[
+    forge.pki.oids.pkcs8ShroudedKeyBag as string
+  ] ?? []) as any[]
+  const certBags = (p12.getBags({ bagType: forge.pki.oids.certBag as string })[
+    forge.pki.oids.certBag as string
+  ] ?? []) as any[]
   privateKey = keyBags[0].key
-  cert = certBags.find((b: any) => b.cert.publicKey.n.compareTo(privateKey.n) === 0)?.cert ?? certBags[0].cert
+  cert =
+    certBags.find((b: any) => b.cert.publicKey.n.compareTo(privateKey.n) === 0)?.cert ??
+    certBags[0].cert
   material = {
     pfx: pfxBuffer,
     password: PFX_PASSWORD,
     holderName: 'SPIKE TESTE:12345678909',
     document: '12345678909',
     documentType: 'CPF',
-    issuerDn: cert.issuer.attributes.map((a: any) => `${a.shortName ?? a.name}=${a.value}`).join(', '),
+    issuerDn: cert.issuer.attributes
+      .map((a: any) => `${a.shortName ?? a.name}=${a.value}`)
+      .join(', '),
     thumbprintSha256: '052295E95BB4DB1BAFDC0A1FB2CB61A54FFD737FB159E4F02F25973C93FBDB01',
     validTo: '2027-11-04T11:18:17.628Z',
   }
@@ -40,7 +52,7 @@ afterEach(() => vi.unstubAllGlobals())
 function makeTsaMock() {
   return vi.fn(async (url: string, init?: RequestInit) => {
     const body = init?.body as Buffer | Uint8Array
-    const req = pkijs.TimeStampReq.fromBER((body instanceof Buffer ? body : Buffer.from(body as any)))
+    const req = pkijs.TimeStampReq.fromBER(body instanceof Buffer ? body : Buffer.from(body as any))
     const imprint = req.messageImprint.hashedMessage.valueBlock.valueHex
     const crypto = pkijs.getCrypto(true)
     const tstInfo = new pkijs.TSTInfo({
@@ -54,31 +66,65 @@ function makeTsaMock() {
       genTime: new Date(),
     })
     const certWithKey = {
-      certificate: pkijs.Certificate.fromBER(Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary')),
+      certificate: pkijs.Certificate.fromBER(
+        Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary'),
+      ),
       privateKey,
     }
     const rsaDer = forge.asn1.toDer(forge.pki.privateKeyToAsn1(privateKey)).getBytes()
     const pkcs8 = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-      forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false, forge.asn1.integerToDer(0).getBytes()),
+      forge.asn1.create(
+        forge.asn1.Class.UNIVERSAL,
+        forge.asn1.Type.INTEGER,
+        false,
+        forge.asn1.integerToDer(0).getBytes(),
+      ),
       forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false, forge.asn1.oidToDer(forge.pki.oids.rsaEncryption as string).getBytes()),
+        forge.asn1.create(
+          forge.asn1.Class.UNIVERSAL,
+          forge.asn1.Type.OID,
+          false,
+          forge.asn1.oidToDer(forge.pki.oids.rsaEncryption as string).getBytes(),
+        ),
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
       ]),
       forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false, rsaDer),
     ])
-    const webKey = await crypto.subtle.importKey('pkcs8', Buffer.from(forge.asn1.toDer(pkcs8).getBytes(), 'binary'), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
+    const webKey = await crypto.subtle.importKey(
+      'pkcs8',
+      Buffer.from(forge.asn1.toDer(pkcs8).getBytes(), 'binary'),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    )
     const cms = new pkijs.SignedData({
       version: 3,
       encapContentInfo: new pkijs.EncapsulatedContentInfo({
         eContentType: '1.2.840.113549.1.9.16.1.4',
         eContent: new asn1js.OctetString({ valueHex: tstInfo.toSchema().toBER() }),
       }),
-      signerInfos: [new pkijs.SignerInfo({ version: 1, sid: new pkijs.IssuerAndSerialNumber({ issuer: certWithKey.certificate.issuer, serialNumber: certWithKey.certificate.serialNumber }) })],
+      signerInfos: [
+        new pkijs.SignerInfo({
+          version: 1,
+          sid: new pkijs.IssuerAndSerialNumber({
+            issuer: certWithKey.certificate.issuer,
+            serialNumber: certWithKey.certificate.serialNumber,
+          }),
+        }),
+      ],
       certificates: [certWithKey.certificate],
     })
     await cms.sign(webKey, 0, 'SHA-256')
-    const token = new pkijs.ContentInfo({ schema: new pkijs.ContentInfo({ contentType: '1.2.840.113549.1.7.2', content: cms.toSchema(true) }).toSchema() })
-    const resp = new pkijs.TimeStampResp({ status: new pkijs.PKIStatusInfo({ status: pkijs.PKIStatus.granted }), timeStampToken: token })
+    const token = new pkijs.ContentInfo({
+      schema: new pkijs.ContentInfo({
+        contentType: '1.2.840.113549.1.7.2',
+        content: cms.toSchema(true),
+      }).toSchema(),
+    })
+    const resp = new pkijs.TimeStampResp({
+      status: new pkijs.PKIStatusInfo({ status: pkijs.PKIStatus.granted }),
+      timeStampToken: token,
+    })
     return new Response(Buffer.from(resp.toSchema().toBER()), { status: 200 })
   })
 }

@@ -267,8 +267,9 @@ describe('queryKnowledgeGraph', () => {
   it('envia o prompt para o LLM e retorna a resposta', async () => {
     const kg = seedKnowledgeGraph(novoGrafo())
 
+    const completeMock = vi.fn().mockResolvedValue('Resposta simulada do LLM')
     const mockClient: LLMClient = {
-      complete: vi.fn().mockResolvedValue('Resposta simulada do LLM'),
+      complete: completeMock,
     }
 
     const resposta = await queryKnowledgeGraph(kg, 'Quais portais Maria acessa?', {
@@ -276,7 +277,7 @@ describe('queryKnowledgeGraph', () => {
     })
 
     expect(mockClient.complete).toHaveBeenCalledTimes(1)
-    const promptEnviado = mockClient.complete.mock.calls[0][0]
+    const promptEnviado = completeMock.mock.calls[0]![0]
     expect(promptEnviado).toContain('Quais portais Maria acessa?')
     expect(resposta.llmAnswer).toBe('Resposta simulada do LLM')
   })
@@ -290,8 +291,9 @@ describe('queryKnowledgeGraph', () => {
       properties: {},
     })
 
+    const completeMock = vi.fn().mockResolvedValue('ok')
     const mockClient: LLMClient = {
-      complete: vi.fn().mockResolvedValue('ok'),
+      complete: completeMock,
     }
 
     await queryKnowledgeGraph(kg, 'Teste', {
@@ -299,7 +301,7 @@ describe('queryKnowledgeGraph', () => {
       llmOptions: { temperature: 0.7, maxTokens: 500 },
     })
 
-    const opts = mockClient.complete.mock.calls[0][1]
+    const opts = completeMock.mock.calls[0]![1]
     expect(opts?.temperature).toBe(0.7)
     expect(opts?.maxTokens).toBe(500)
   })

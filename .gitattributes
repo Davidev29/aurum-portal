@@ -1,0 +1,20 @@
+# Normaliza line endings: LF no repositório e no checkout (Windows incluído),
+# evitando falhas do Prettier (endOfLine: "lf") por checkout com CRLF.
+* text=auto eol=lf
+
+# Binários explícitos
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.pfx binary
+*.p12 binary
+*.icns binary
+*.node binary
+*.dll binary
+*.exe binary
+*.woff binary
+*.woff2 binary

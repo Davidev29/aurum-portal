@@ -51,17 +51,13 @@ export function listAuditEvents(db: AppDatabase, filter: AuditFilter = {}): Audi
   const offset = Math.max(filter.offset ?? 0, 0)
   const conditions = auditConditions(filter)
   const query = db.select().from(auditEvents)
-  const rows = (
-    conditions.length ? query.where(and(...conditions)) : query
-  )
+  const rows = (conditions.length ? query.where(and(...conditions)) : query)
     .orderBy(desc(auditEvents.createdAt))
     .limit(limit)
     .offset(offset)
     .all()
   const countQuery = db.select({ total: sql<number>`count(*)` }).from(auditEvents)
-  const total = (
-    conditions.length ? countQuery.where(and(...conditions)) : countQuery
-  ).get()
+  const total = (conditions.length ? countQuery.where(and(...conditions)) : countQuery).get()
   return { events: rows.map(mapAuditEvent), total: Number(total?.total ?? 0) }
 }
 
@@ -75,6 +71,9 @@ export function allAuditEvents(db: AppDatabase, filter: AuditFilter = {}): Audit
 }
 
 export function countAuditEvents(db: AppDatabase): number {
-  const row = db.select({ total: sql<number>`count(*)` }).from(auditEvents).get()
+  const row = db
+    .select({ total: sql<number>`count(*)` })
+    .from(auditEvents)
+    .get()
   return Number(row?.total ?? 0)
 }
