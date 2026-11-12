@@ -766,6 +766,10 @@ export interface ExtraHoliday {
   /** AAAA-MM-DD */
   date: string
   name: string
+  /** Chave de ícone (EXTRA_HOLIDAY_ICONS); null = bandeira. */
+  icon: string | null
+  /** Cor em hex (#RRGGBB); null = vermelho padrão. */
+  color: string | null
   createdAt: string
 }
 
@@ -787,4 +791,35 @@ export interface AppNotification {
 export interface NotificationList {
   notifications: AppNotification[]
   unreadCount: number
+}
+
+/* ---------------------------------------------------------------------------
+ * Obrigações — entregas (baixa) e visão mensal
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Item da visão mensal: uma ocorrência (ou um vínculo eventual) de obrigação
+ * para um cliente no mês selecionado.
+ */
+export interface ObligationMonthItem {
+  linkId: string
+  clientId: string
+  clientName: string
+  clientDocument: string
+  obligationId: string
+  sigla: string
+  obligationName: string
+  departmentName: string
+  recurrence: RecurrenceType
+  /** AAAA-MM-DD do vencimento no mês, ou null para obrigações eventuais. */
+  dueDate: string | null
+  /** Data de início do vínculo (AAAA-MM-DD). */
+  dataInicio: string
+  delivered: boolean
+  deliveredAt: string | null
+}
+
+export interface SetDeliveryResult {
+  delivered: boolean
+  completedAt: string | null
 }

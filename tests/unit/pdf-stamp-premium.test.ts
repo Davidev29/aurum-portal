@@ -8,10 +8,11 @@ import { verifySignedPdf } from '../../electron/main/pdf/verify'
 import {
   computeStampLayout,
   prepareFonts,
+  qrModuleCountAndData,
   resolveCustomStampRect,
   wrapText,
 } from '../../electron/main/pdf/stamp'
-import { SIGNATURE_STAMP_MIN, STAMP_TITLE } from '../../shared/signature'
+import { SIGNATURE_STAMP_FLOOR, SIGNATURE_STAMP_MIN, STAMP_TITLE } from '../../shared/signature'
 import { inflateSync } from 'node:zlib'
 
 /** Texto do PDF com streams FlateDecode inflados (conteudo do carimbo). */
@@ -85,10 +86,15 @@ function pageOf(width: number, height: number): any {
 }
 
 describe('carimbo premium (AurumBit Portal)', () => {
-  it('tamanho desenhado nunca fica abaixo do minimo', () => {
+  it('tamanho desenhado e adotado exatamente, limitado apenas pelo piso anti-degenerado', () => {
     const rect = resolveCustomStampRect(pageOf(595, 842), 0.2, 0.2, 0.05, 0.03)
-    expect(rect.width).toBeGreaterThanOrEqual(SIGNATURE_STAMP_MIN.width)
-    expect(rect.height).toBeGreaterThanOrEqual(SIGNATURE_STAMP_MIN.height)
+    // 0.05*595 = 29.75 pt -> piso absoluto; 0.03*842 = 25.26 pt -> acima do piso
+    expect(rect.width).toBe(SIGNATURE_STAMP_FLOOR.width)
+    expect(rect.height).toBeCloseTo(0.03 * 842, 6)
+    // Tamanho real desenhado: sem inflacao (comportamento Adobe Reader)
+    const exact = resolveCustomStampRect(pageOf(595, 842), 0.2, 0.2, 0.18, 0.08)
+    expect(exact.width).toBeCloseTo(0.18 * 595, 6)
+    expect(exact.height).toBeCloseTo(0.08 * 842, 6)
   })
 
   it('quebra de texto nunca excede a largura do quadro', async () => {
@@ -177,6 +183,85 @@ describe('carimbo premium (AurumBit Portal)', () => {
           line.x + fontOf(line.font).widthOfTextAtSize(line.text, line.size),
         ).toBeLessThanOrEqual(size.width + 0.5)
       }
+    }
+  })
+
+  it('layout encolhe proporcionalmente em quadros pequenos (abaixo do natural)', async () => {
+    const doc = await PDFDocument.create()
+    const fonts = await prepareFonts(doc)
+    const fontOf = (key: 'bold' | 'regular' | 'oblique') =>
+      key === 'bold' ? fonts.bold : key === 'oblique' ? fonts.oblique : fonts.regular
+    for (const size of [
+      { width: 96, height: 54 },
+      { width: 64, height: 34 },
+    ]) {
+      const layout = computeStampLayout({
+        width: size.width,
+        height: size.height,
+        signerName: material.holderName,
+        documentLine: '123.456.789-09',
+        signedAt: new Date('2026-11-09T15:00:00Z'),
+        issuerLine: `Emissor: ${material.issuerDn.slice(0, 80)}`,
+        fonts,
+        hasLogo: true,
+      })
+      // Título presente (encolhido) e todas as linhas dentro do quadro.
+      expect(layout.headerLines.length).toBe(1)
+      for (const line of layout.lines) {
+        expect(line.y).toBeGreaterThanOrEqual(2)
+        expect(line.y + line.size).toBeLessThanOrEqual(size.height)
+        expect(
+          line.x + fontOf(line.font).widthOfTextAtSize(line.text, line.size),
+        ).toBeLessThanOrEqual(size.width + 0.5)
+      }
+      // QR auto-contido, na lateral direita.
+      expect(layout.qrSize).toBeGreaterThanOrEqual(3)
+      expect(layout.qrX).toBeGreaterThanOrEqual(0)
+      expect(layout.qrX + layout.qrSize).toBeLessThanOrEqual(size.width)
+      expect(layout.qrY).toBeGreaterThanOrEqual(0)
+      expect(layout.qrY + layout.qrSize).toBeLessThanOrEqual(size.height)
+    }
+  })
+
+  it('QR proporcional ao bloco interno, escaneavel e nunca sobre os dados', async () => {
+    const doc = await PDFDocument.create()
+    const fonts = await prepareFonts(doc)
+    const fontOf = (key: 'bold' | 'regular' | 'oblique') =>
+      key === 'bold' ? fonts.bold : key === 'oblique' ? fonts.oblique : fonts.regular
+    const { size: modules } = qrModuleCountAndData()
+    for (const size of [
+      { width: 140, height: 104 }, // natural
+      { width: 220, height: 130 },
+      { width: 320, height: 150 },
+      { width: 150, height: 70 },
+      { width: 96, height: 54 },
+    ]) {
+      const layout = computeStampLayout({
+        width: size.width,
+        height: size.height,
+        signerName: material.holderName,
+        documentLine: '123.456.789-09',
+        signedAt: new Date('2026-11-09T15:00:00Z'),
+        issuerLine: `Emissor: ${material.issuerDn.slice(0, 80)}`,
+        fonts,
+        hasLogo: true,
+      })
+      // Proporcional: o QR ocupa a área útil, mas nunca ultrapassa a
+      // metade direita do quadro (45% da largura) nem a altura.
+      expect(layout.qrSize).toBeLessThanOrEqual(Math.floor(size.width * 0.45))
+      expect(layout.qrSize).toBeLessThanOrEqual(size.height)
+      // Legível: largura do módulo viável para escaneamento.
+      expect(layout.qrSize / modules).toBeGreaterThanOrEqual(0.6)
+      // Texto NUNCA entra na moldura/quiet zone do QR.
+      for (const line of layout.lines) {
+        const w = fontOf(line.font).widthOfTextAtSize(line.text, line.size)
+        expect(line.x + w).toBeLessThanOrEqual(layout.qrX - layout.qrPad - 1)
+      }
+      // Moldura auto-contida dentro do quadro.
+      expect(layout.qrX - layout.qrPad).toBeGreaterThanOrEqual(0)
+      expect(layout.qrX + layout.qrSize + layout.qrPad).toBeLessThanOrEqual(size.width)
+      expect(layout.qrY - layout.qrPad).toBeGreaterThanOrEqual(0)
+      expect(layout.qrY + layout.qrSize + layout.qrPad).toBeLessThanOrEqual(size.height)
     }
   })
 

@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray } from 'drizzle-orm'
+import { eq, and, desc, inArray, like } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import type {
   ApplyGroupInput,
@@ -11,7 +11,9 @@ import type {
   ObligationFilter,
   ObligationGroup,
   ObligationGroupObligation,
+  ObligationMonthItem,
   PasteLinksResult,
+  SetDeliveryResult,
   SetLinkResult,
 } from '../../../../shared/types'
 import {
@@ -25,10 +27,13 @@ import {
   obligationInputSchema,
   obligationUpdateSchema,
   pasteLinksSchema,
+  monthOverviewSchema,
   setLinkSchema,
+  setDeliverySchema,
   updateLinkSchema,
 } from '../../../../shared/contracts'
 import {
+  computeDueDate,
   nextDueDate,
   normalizeObligationRule,
   obligationRuleIssues,
@@ -44,12 +49,14 @@ import {
   departments,
   extraHolidays,
   notifications,
+  obligationDeliveries,
   obligations,
   obligationGroupItems,
   obligationGroups,
   type ClientObligationRow,
   type DepartmentRow,
   type ExtraHolidayRow,
+  type ObligationDeliveryRow,
   type ObligationGroupRow,
   type ObligationRow,
   type NotificationRow,
@@ -134,7 +141,14 @@ export function mapNotification(row: NotificationRow): AppNotification {
 }
 
 export function mapExtraHoliday(row: ExtraHolidayRow): ExtraHoliday {
-  return { id: row.id, date: row.date, name: row.name, createdAt: row.createdAt }
+  return {
+    id: row.id,
+    date: row.date,
+    name: row.name,
+    icon: row.icon ?? null,
+    color: row.color ?? null,
+    createdAt: row.createdAt,
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -911,6 +925,194 @@ export function pasteLinks(
 }
 
 /* ---------------------------------------------------------------------------
+ * Visão mensal (calendário) e baixas de entrega
+ * ------------------------------------------------------------------------- */
+
+type ObligationRuleFields = {
+  recurrence: ObligationRow['recurrence']
+  dueRule: ObligationRow['dueRule']
+  diaFixo: number | null
+  diaUtil: number | null
+  mesReferencia: number | null
+  antecedenciaNotificacaoDias: number
+}
+
+function ruleFromFields(fields: ObligationRuleFields): ObligationRule {
+  return {
+    recurrence: fields.recurrence,
+    dueRule: fields.dueRule ?? null,
+    diaFixo: fields.diaFixo ?? null,
+    diaUtil: fields.diaUtil ?? null,
+    mesReferencia: fields.mesReferencia ?? null,
+    antecedenciaNotificacaoDias: fields.antecedenciaNotificacaoDias,
+  }
+}
+
+function deliveryKey(clientId: string, obligationId: string, dueDate: string): string {
+  return `${clientId}|${obligationId}|${dueDate}`
+}
+
+/**
+ * Ocorrências do mês (AAAA-MM) para todos os vínculos ativos (cliente ativo,
+ * obrigação ativa). O vínculo só gera ocorrência a partir da competência em
+ * que foi criado — se o vencimento do mês já passou pela `dataInicio`, a
+ * obrigação só passa a contar na próxima competência (nunca nasce atrasada).
+ */
+export function listMonthOverview(db: AppDatabase, month: string): ObligationMonthItem[] {
+  const parsed = monthOverviewSchema.parse({ month })
+  const year = Number(parsed.month.slice(0, 4))
+  const monthIndex0 = Number(parsed.month.slice(5, 7)) - 1
+  const holidays = holidayDates(db)
+  const deptNames = departmentNameById(db)
+
+  const rows = db
+    .select({
+      linkId: clientObligations.id,
+      clientId: clients.id,
+      clientName: clients.name,
+      clientDocument: clients.document,
+      dataInicio: clientObligations.dataInicio,
+      dataFim: clientObligations.dataFim,
+      obligationId: obligations.id,
+      sigla: obligations.sigla,
+      name: obligations.name,
+      departmentId: obligations.departmentId,
+      recurrence: obligations.recurrence,
+      dueRule: obligations.dueRule,
+      diaFixo: obligations.diaFixo,
+      diaUtil: obligations.diaUtil,
+      mesReferencia: obligations.mesReferencia,
+      antecedenciaNotificacaoDias: obligations.antecedenciaNotificacaoDias,
+    })
+    .from(clientObligations)
+    .innerJoin(obligations, eq(obligations.id, clientObligations.obligationId))
+    .innerJoin(clients, eq(clients.id, clientObligations.clientId))
+    .where(
+      and(
+        eq(clientObligations.active, true),
+        eq(obligations.active, true),
+        eq(clients.status, 'active'),
+      ),
+    )
+    .all()
+
+  const deliveries = db
+    .select()
+    .from(obligationDeliveries)
+    .where(like(obligationDeliveries.dueDate, `${parsed.month}-%`))
+    .all()
+  const deliveryByKey = new Map<string, ObligationDeliveryRow>(
+    deliveries.map((delivery) => [
+      deliveryKey(delivery.clientId, delivery.obligationId, delivery.dueDate),
+      delivery,
+    ]),
+  )
+
+  const items: ObligationMonthItem[] = []
+  for (const row of rows) {
+    let dueDate: string | null = null
+    if (row.recurrence !== 'eventual') {
+      dueDate = computeDueDate(ruleFromFields(row), year, monthIndex0, holidays)
+      if (!dueDate) continue // mês não é de ocorrência da recorrência
+      if (dueDate < row.dataInicio) continue // competência anterior ao vínculo
+      if (row.dataFim && dueDate > row.dataFim) continue // vínculo encerrado
+    }
+    const delivery = dueDate
+      ? deliveryByKey.get(deliveryKey(row.clientId, row.obligationId, dueDate))
+      : undefined
+    items.push({
+      linkId: row.linkId,
+      clientId: row.clientId,
+      clientName: row.clientName,
+      clientDocument: row.clientDocument,
+      obligationId: row.obligationId,
+      sigla: row.sigla,
+      obligationName: row.name,
+      departmentName: deptNames.get(row.departmentId) ?? '—',
+      recurrence: row.recurrence,
+      dueDate,
+      dataInicio: row.dataInicio,
+      delivered: Boolean(delivery),
+      deliveredAt: delivery?.completedAt ?? null,
+    })
+  }
+
+  return items.sort(
+    (a, b) =>
+      sortPtBr(a.clientName, b.clientName) ||
+      (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31') ||
+      sortPtBr(a.sigla, b.sigla),
+  )
+}
+
+/**
+ * Dá (ou desfaz) a baixa de uma ocorrência. Idempotente: marcar duas vezes
+ * mantém a data da primeira baixa; desmarcar remove o registro.
+ */
+export function setDelivery(db: AppDatabase, input: unknown): SetDeliveryResult {
+  const parsed = setDeliverySchema.parse(input)
+  const obligation = getObligationRow(db, parsed.obligationId)
+  if (!obligation) throw new AppError('NOT_FOUND', 'Obrigação não encontrada')
+  if (obligation.recurrence === 'eventual') {
+    throw new AppError('VALIDATION', 'Obrigação eventual não possui vencimento para baixa.')
+  }
+  const link = db
+    .select()
+    .from(clientObligations)
+    .where(
+      and(
+        eq(clientObligations.clientId, parsed.clientId),
+        eq(clientObligations.obligationId, parsed.obligationId),
+      ),
+    )
+    .get()
+  if (!link) throw new AppError('NOT_FOUND', 'Vínculo não encontrado para este cliente.')
+
+  // A data precisa ser a ocorrência real da obrigação no mês dela.
+  const year = Number(parsed.dueDate.slice(0, 4))
+  const monthIndex0 = Number(parsed.dueDate.slice(5, 7)) - 1
+  const expected = computeDueDate(ruleFromFields(obligation), year, monthIndex0, holidayDates(db))
+  if (expected !== parsed.dueDate) {
+    throw new AppError(
+      'VALIDATION',
+      'A data informada não corresponde ao vencimento da obrigação nesta competência.',
+    )
+  }
+  if (parsed.dueDate < link.dataInicio || (link.dataFim && parsed.dueDate > link.dataFim)) {
+    throw new AppError('VALIDATION', 'Esta ocorrência está fora do período do vínculo.')
+  }
+
+  const filters = () =>
+    and(
+      eq(obligationDeliveries.clientId, parsed.clientId),
+      eq(obligationDeliveries.obligationId, parsed.obligationId),
+      eq(obligationDeliveries.dueDate, parsed.dueDate),
+    )
+
+  if (!parsed.delivered) {
+    db.delete(obligationDeliveries).where(filters()).run()
+    return { delivered: false, completedAt: null }
+  }
+
+  const existing = db.select().from(obligationDeliveries).where(filters()).get()
+  if (existing) return { delivered: true, completedAt: existing.completedAt }
+
+  const now = new Date().toISOString()
+  db.insert(obligationDeliveries)
+    .values({
+      id: randomUUID(),
+      clientId: parsed.clientId,
+      obligationId: parsed.obligationId,
+      dueDate: parsed.dueDate,
+      completedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run()
+  return { delivered: true, completedAt: now }
+}
+
+/* ---------------------------------------------------------------------------
  * Notificações (central de avisos)
  * ------------------------------------------------------------------------- */
 
@@ -1024,6 +1226,8 @@ export function addHoliday(db: AppDatabase, input: unknown): ExtraHoliday {
     id: randomUUID(),
     date: parsed.date,
     name: parsed.name.trim(),
+    icon: parsed.icon ?? null,
+    color: parsed.color ?? null,
     createdAt: new Date().toISOString(),
   }
   db.insert(extraHolidays).values(row).run()

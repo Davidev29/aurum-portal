@@ -281,4 +281,29 @@ CREATE TABLE IF NOT EXISTS extra_holidays (
 CREATE UNIQUE INDEX IF NOT EXISTS extra_holidays_date_unique ON extra_holidays(date);
 `,
   },
+  {
+    version: 6,
+    name: 'obligation_deliveries',
+    sql: `
+CREATE TABLE IF NOT EXISTS obligation_deliveries (
+  id TEXT PRIMARY KEY NOT NULL,
+  client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  obligation_id TEXT NOT NULL REFERENCES obligations(id) ON DELETE CASCADE,
+  due_date TEXT NOT NULL,
+  completed_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS obligation_deliveries_unique ON obligation_deliveries(client_id, obligation_id, due_date);
+CREATE INDEX IF NOT EXISTS obligation_deliveries_due_idx ON obligation_deliveries(due_date);
+`,
+  },
+  {
+    version: 7,
+    name: 'extra_holidays_presentation',
+    sql: `
+ALTER TABLE extra_holidays ADD COLUMN icon TEXT;
+ALTER TABLE extra_holidays ADD COLUMN color TEXT;
+`,
+  },
 ]

@@ -180,3 +180,47 @@ export function formatDateBr(dateStr: string | null | undefined): string {
   if (!match) return dateStr
   return `${match[3]}/${match[2]}/${match[1]}`
 }
+
+/* ---------------------------------------------------------------------------
+ * Feriados extras — apresentação (ícone e cor) configurável por feriado.
+ * As chaves de ícone mapeiam para componentes lucide no renderer; aqui ficam
+ * apenas os valores válidos para validação (zod) e defaults compartilhados.
+ * ------------------------------------------------------------------------- */
+
+export const EXTRA_HOLIDAY_ICONS = [
+  'flag',
+  'palmtree',
+  'star',
+  'flame',
+  'sun',
+  'coffee',
+  'cake',
+  'church',
+  'skull',
+  'sparkles',
+  'party',
+  'heart',
+] as const
+export type ExtraHolidayIcon = (typeof EXTRA_HOLIDAY_ICONS)[number]
+
+/** Cores pré-definidas (hex #RRGGBB) disponíveis para feriados extras. */
+export const EXTRA_HOLIDAY_COLORS = [
+  '#b91c1c', // vermelho — clássico
+  '#c2410c', // laranja queimado
+  '#a8853f', // dourado (marca)
+  '#15803d', // verde
+  '#3f4c5e', // ardósia
+  '#6d28d9', // violeta
+] as const
+
+export const EXTRA_HOLIDAY_ICON_DEFAULT: ExtraHolidayIcon = 'flag'
+export const EXTRA_HOLIDAY_COLOR_DEFAULT = EXTRA_HOLIDAY_COLORS[0]
+
+/** Defaults de apresentação para feriados nacionais (não personalizáveis). */
+export const NATIONAL_HOLIDAY_PRESENTATION: Record<
+  'official' | 'facultative',
+  { icon: ExtraHolidayIcon; color: string }
+> = {
+  official: { icon: 'flag', color: '#b91c1c' },
+  facultative: { icon: 'sparkles', color: '#a8853f' },
+}

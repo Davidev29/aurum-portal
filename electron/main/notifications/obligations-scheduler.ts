@@ -42,6 +42,8 @@ export function generateDueNotifications(db: AppDatabase, now: Date = new Date()
       diaUtil: obligations.diaUtil,
       mesReferencia: obligations.mesReferencia,
       antecedenciaNotificacaoDias: obligations.antecedenciaNotificacaoDias,
+      dataInicio: clientObligations.dataInicio,
+      dataFim: clientObligations.dataFim,
     })
     .from(clientObligations)
     .innerJoin(obligations, eq(obligations.id, clientObligations.obligationId))
@@ -70,6 +72,9 @@ export function generateDueNotifications(db: AppDatabase, now: Date = new Date()
       holidayDates,
     )
     if (!dueDate) continue
+    // Não avisa competência anterior à criação do vínculo nem posterior ao fim.
+    if (dueDate < link.dataInicio) continue
+    if (link.dataFim && dueDate > link.dataFim) continue
 
     const antecedencia = link.antecedenciaNotificacaoDias
     const when =

@@ -28,6 +28,7 @@ import {
 import type { Certificate, Client } from '@shared/types'
 import { certificateEffectiveValidToOf } from '@shared/certificate-renewal'
 import {
+  SIGNATURE_STAMP_FLOOR,
   SIGNATURE_STAMP_MIN,
   VALIDATE_ITI_URL,
   type PickedPdfFile,
@@ -294,39 +295,41 @@ export default function AssinaturasPage() {
     return pages[Math.min(Math.max(currentPage - 1, 0), pages.length - 1)]
   }, [picked, currentPage])
 
-  // Tamanho mínimo do carimbo em pontos PDF (pt): garante que todos os dados
-  // do carimbo premium caibam sem estourar o quadro. O zoom nunca afeta isso.
+  // Piso absoluto do carimbo em pontos PDF (pt): semelhante ao Adobe Reader,
+  // o bloco adota EXATAMENTE o retangulo desenhado pelo usuario — so impede
+  // retangulos degenerados invisiveis/invalidos no PDF. O conteudo encolhe
+  // proporcionalmente (nao o bloco). O zoom nunca afeta isso.
   const minPt = React.useMemo(() => {
     const pageW = currentPageSizePt?.width ?? 595
     const pageH = currentPageSizePt?.height ?? 842
     return {
-      w: Math.min(Math.max(SIGNATURE_STAMP_MIN.width, 40), pageW * 0.9),
-      h: Math.min(Math.max(SIGNATURE_STAMP_MIN.height, 24), pageH * 0.9),
+      w: Math.min(SIGNATURE_STAMP_FLOOR.width, pageW * 0.92),
+      h: Math.min(SIGNATURE_STAMP_FLOOR.height, pageH * 0.92),
     }
   }, [currentPageSizePt])
 
   // Frações da página derivadas dos pt absolutos — usadas na exibição (CSS %) e no backend.
-  // Os mínimos respeitam o schema Zod do backend (widthPct >= 0.05, heightPct >= 0.03).
-  // Quando ainda não há carimbo (stampPt == null) retorna zeros -> stampValid fica falso
-  // e o usuario é obrigado a desenhar o bloco antes de avançar.
+  // O bloco adota exatamente o tamanho desenhado; o piso fracionário só impede
+  // valores degenerados. Quando ainda não há carimbo (stampPt == null) retorna
+  // zeros -> stampValid fica falso e o usuario e obrigado a desenhar o bloco.
   const stampRect = React.useMemo(() => {
     if (!stampPt) return { x: 0, y: 0, w: 0, h: 0 }
     const pageW = currentPageSizePt?.width ?? 595
     const pageH = currentPageSizePt?.height ?? 842
-    const wFrac = Math.min(Math.max(stampPt.w / pageW, 0.05), 0.92)
-    const hFrac = Math.min(Math.max(stampPt.h / pageH, 0.03), 0.92)
+    const wFrac = Math.min(Math.max(stampPt.w / pageW, 0.005), 0.92)
+    const hFrac = Math.min(Math.max(stampPt.h / pageH, 0.005), 0.92)
     const xFrac = Math.min(Math.max(stampPt.x / pageW, 0), Math.max(0, 1 - wFrac))
     const yFrac = Math.min(Math.max(stampPt.y / pageH, 0), Math.max(0, 1 - hFrac))
     return { x: xFrac, y: yFrac, w: wFrac, h: hFrac }
   }, [stampPt, currentPageSizePt])
 
-  // Mínimo em frações para validação (derivado dos pt mínimos).
+  // Mínimo (piso absoluto) em frações para validação (derivado dos pt mínimos).
   const minFracs = React.useMemo(() => {
     const pageW = currentPageSizePt?.width ?? 595
     const pageH = currentPageSizePt?.height ?? 842
     return {
-      w: Math.min(Math.max(minPt.w / pageW, 0.05), 0.9),
-      h: Math.min(Math.max(minPt.h / pageH, 0.03), 0.9),
+      w: Math.min(Math.max(minPt.w / pageW, 0.005), 0.9),
+      h: Math.min(Math.max(minPt.h / pageH, 0.005), 0.9),
     }
   }, [minPt, currentPageSizePt])
 
@@ -813,6 +816,31 @@ export default function AssinaturasPage() {
     [stampRect],
   )
 
+  // Zoom da prévia: px por ponto PDF aplicado atualmente pelo render, derivado
+  // da mesma fórmula usada no efeito de renderização (modo/zoom/recipiente).
+  // Usado apenas para escalar o CONTEÚDO do carimbo na prévia.
+  const previewPxPerPt = React.useMemo(() => {
+    const page = currentPageSizePt
+    if (!page) return 1.3333
+    const availW = Math.max(120, containerSize.width - 32)
+    const availH = Math.max(120, containerSize.height - 32)
+    if (zoomMode === 'page') return Math.min(availW / page.width, availH / page.height)
+    return (availW / page.width) * zoom
+  }, [currentPageSizePt, containerSize, zoomMode, zoom])
+
+  // Estágio interno do carimbo na prévia: LAYOUT de design fixo (o tamanho
+  // natural 140x104 pt em px CSS 96dpi), escalado uniformemente via `zoom`
+  // para o tamanho REAL do bloco na tela — como o Adobe escala a aparência
+  // para dentro do retângulo desenhado. Nada estoura nem é cortado.
+  const previewStageZoom = React.useMemo(() => {
+    if (!stampPt) return 1
+    const naturalW = SIGNATURE_STAMP_MIN.width * (4 / 3)
+    const naturalH = SIGNATURE_STAMP_MIN.height * (4 / 3)
+    const stampPxW = stampPt.w * previewPxPerPt
+    const stampPxH = stampPt.h * previewPxPerPt
+    return Math.max(0.02, Math.min(stampPxW / naturalW, stampPxH / naturalH))
+  }, [stampPt, previewPxPerPt])
+
   // Aplica estilos diretamente no DOM durante o arrasto — sem re-render do React
   // a cada frame. Isso elimina o lag de interação do mouse.
   // recebe pt absolutos e converte para % com base no tamanho da pagina atual.
@@ -1139,16 +1167,28 @@ export default function AssinaturasPage() {
       boxDragRef.current.wrapperRect = null
       const wrapper = pageWrapperRef.current
       if (wrapper) wrapper.style.cursor = ''
-      if (pending && !cancelled) {
-        // Tamanho desenhado + posicao do carimbo, respeitando o minimo que garante
-        // todos os dados do carimbo premium (nao invalida a assinatura criptografica).
-        const clamped = clampPt(pending.x, pending.y, pending.w, pending.h)
-        const nextW = Math.max(clamped.w, minPt.w)
-        const nextH = Math.max(clamped.h, minPt.h)
-        const final = clampPt(clamped.x, clamped.y, nextW, nextH)
+      if (pending && !cancelled && (pending.w >= 4 || pending.h >= 4)) {
+        // Retangulo desenhado adotado como o tamanho do carimbo (igual ao
+        // Adobe): sem inflar para um minimo grande. Apenas o piso absoluto
+        // contra retangulos degenerados; o conteudo encolhe proporcionalmente.
+        const nextW = Math.max(pending.w, minPt.w)
+        const nextH = Math.max(pending.h, minPt.h)
+        const final = clampPt(pending.x, pending.y, nextW, nextH)
         setStampPt(final)
+        return
       }
-      return
+      // Arraste degenerado (<4 pt nas duas direções) cai no tratamento de
+      // clique simples abaixo — nunca cria um carimbo por engano.
+      if (!cancelled && stampPt && pending) {
+        // considera um clique no ponto onde soltou
+        const pt = ptFromClient(event.clientX, event.clientY)
+        if (pt) {
+          const next = clampPt(pt.x, pt.y, stampPt.w, stampPt.h)
+          setStampPt(next)
+        }
+        return
+      }
+      if (pending || cancelled) return
     }
     // Clique simples (sem arrastar): move o carimbo para o ponto, se ja houver carimbo.
     if (!cancelled && stampPt) {
@@ -1891,8 +1931,8 @@ export default function AssinaturasPage() {
                 </h2>
                 <p className="text-xs text-[var(--pv-muted)]">
                   Desenhe um bloco sobre o campo de assinatura e o sistema coloca a assinatura
-                  dentro dele, igual ao Adobe. O tamanho do bloco define o tamanho do carimbo no
-                  documento (minimo 200 x 84 pt).
+                  dentro dele, igual ao Adobe. O bloco adota exatamente o tamanho desenhado
+                  (o conteúdo do carimbo encolhe proporcionalmente para caber).
                 </p>
               </div>
             </div>
@@ -1980,7 +2020,7 @@ export default function AssinaturasPage() {
                             onPointerUp={handleStampPointerUp}
                             onPointerCancel={handleStampPointerCancel}
                             onKeyDown={handleStampKeyDown}
-                            className={`absolute flex cursor-grab touch-none select-none flex-col overflow-hidden rounded-xl bg-white shadow-md outline-none ring-1 ring-[var(--pv-border-strong)]/70 transition-shadow duration-150 ${!stampPt ? 'hidden' : ''} ${dragging ? 'shadow-lg ring-2 ring-brand-500/40' : ''}`}
+                            className={`absolute flex cursor-grab touch-none select-none items-center justify-center overflow-hidden rounded-xl bg-white shadow-md outline-none ring-1 ring-[var(--pv-border-strong)]/70 transition-shadow duration-150 ${!stampPt ? 'hidden' : ''} ${dragging ? 'shadow-lg ring-2 ring-brand-500/40' : ''}`}
                             style={stampPctToStyle}
                             aria-valuenow={Math.round(stampRect.x * 100)}
                             aria-valuetext={`Posição ${Math.round(stampRect.x * 100)}% horizontal, ${Math.round(stampRect.y * 100)}% vertical, largura ${Math.round(stampRect.w * 100)}%, altura ${Math.round(stampRect.h * 100)}%`}
@@ -2005,8 +2045,25 @@ export default function AssinaturasPage() {
                                 aria-hidden="true"
                               />
                             ))}
+                            {/* Estágio de design fixo (natural 140x104 pt em px CSS),
+                                escalado uniformemente via `zoom` para o tamanho real
+                                do bloco — conteúdo nunca transborda nem é cortado. */}
+                            <div
+                              aria-hidden="true"
+                              className="pointer-events-none relative flex h-[138.67px] w-[186.67px] shrink-0 flex-col overflow-hidden rounded-[10px] bg-white"
+                              style={{ zoom: previewStageZoom }}
+                            >
+                            {/* Marca d'água (biometria) centralizada no meio de tudo,
+                                atrás de todo o conteúdo do carimbo. */}
+                            <img
+                              src="/biometria-watermark.png"
+                              alt=""
+                              aria-hidden="true"
+                              draggable={false}
+                              className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[62%] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.18]"
+                            />
                             {/* Cabeçalho do carimbo */}
-                            <div className="flex shrink-0 items-center justify-between gap-2 px-2.5 py-1.5 bg-[#1b1a17] text-[#ece9e2]">
+                            <div className="relative z-10 flex shrink-0 items-center justify-between gap-2 px-2.5 py-1.5 bg-[#1b1a17] text-[#ece9e2]">
                               <div className="flex min-w-0 items-center gap-1.5">
                                 <GripHorizontal
                                   className="h-3 w-3 shrink-0 text-[#D4AF37] rotate-180"
@@ -2023,14 +2080,17 @@ export default function AssinaturasPage() {
                                 draggable={false}
                               />
                             </div>
-                            <div className="h-[1px] shrink-0 bg-[#D4AF37]/60" aria-hidden="true" />
-                            <div className="relative flex min-w-0 flex-1 items-end gap-2 px-2.5 pt-1 pb-1.5">
+                            <div
+                              className="relative z-10 h-[1px] shrink-0 bg-[#D4AF37]/60"
+                              aria-hidden="true"
+                            />
+                            <div className="relative z-10 flex min-w-0 flex-1 items-end gap-2 px-2.5 pt-1 pb-1.5">
                               <div className="relative min-w-0 flex-1">
                                 <div className="line-clamp-2 break-words text-[10px] font-bold leading-tight text-[var(--pv-text)]">
                                   {selectedCert?.holderName ?? ''}
                                 </div>
                                 {selectedCert ? (
-                                  <div className="mt-0.5 truncate text-[8px] text-[var(--pv-muted)]">
+                                  <div className="mt-0.5 truncate text-[8px] font-bold text-[var(--pv-text)]">
                                     {formatCpfCnpj(
                                       selectedCert.document,
                                       selectedCert.documentType,
@@ -2039,13 +2099,13 @@ export default function AssinaturasPage() {
                                 ) : null}
                                 {selectedCert ? (
                                   <div
-                                    className="truncate text-[8px] text-[var(--pv-faint)]"
+                                    className="truncate text-[8px] font-bold text-[var(--pv-muted)]"
                                     title={selectedCert.issuerDn}
                                   >
                                     Emissor: {issuerShort(selectedCert.issuerDn)}
                                   </div>
                                 ) : null}
-                                <div className="truncate text-[8px] text-[var(--pv-muted)]">
+                                <div className="truncate text-[8px] font-bold text-[var(--pv-muted)]">
                                   Data: {new Date().toLocaleDateString('pt-BR')} -03:00
                                 </div>
                               </div>
@@ -2053,14 +2113,15 @@ export default function AssinaturasPage() {
                                 <img
                                   src={qrDataUrl}
                                   alt="QR Code para validar em validar.iti.gov.br"
-                                  className="h-9 w-9 shrink-0 rounded-sm ring-1 ring-[var(--pv-border-strong)]/60"
+                                  className="h-12 w-12 shrink-0 rounded-sm ring-1 ring-[var(--pv-border-strong)]/60"
                                   draggable={false}
                                 />
                               ) : (
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-dashed border-[var(--pv-border-strong)] text-[8px] text-[var(--pv-faint)]">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm border border-dashed border-[var(--pv-border-strong)] text-[8px] text-[var(--pv-faint)]">
                                   QR
                                 </div>
                               )}
+                            </div>
                             </div>
                           </div>
                           {renderingPage ? (

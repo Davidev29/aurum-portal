@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { aurumBitPortal } from './api'
 import type { ObligationFilter } from '@shared/types'
 
@@ -11,6 +11,7 @@ export const obligationKeys = {
   groups: ['obligations', 'groups'] as const,
   links: ['obligations', 'links'] as const,
   linksByClient: (clientId: string) => ['obligations', 'links', 'client', clientId] as const,
+  month: (month: string) => ['obligations', 'month', month] as const,
   notifications: ['notifications'] as const,
   holidays: ['obligations', 'holidays'] as const,
 }
@@ -48,6 +49,15 @@ export function useClientLinks(clientId: string | null) {
     queryKey: obligationKeys.linksByClient(clientId ?? ''),
     queryFn: () => aurumBitPortal().obligations.listLinksByClient(clientId as string),
     enabled: Boolean(clientId),
+  })
+}
+
+export function useMonthOverview(month: string | null) {
+  return useQuery({
+    queryKey: obligationKeys.month(month ?? 'pending'),
+    queryFn: () => aurumBitPortal().obligations.listMonth({ month: month as string }),
+    enabled: month !== null,
+    placeholderData: keepPreviousData,
   })
 }
 

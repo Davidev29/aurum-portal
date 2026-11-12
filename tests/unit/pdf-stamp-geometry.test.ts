@@ -181,17 +181,23 @@ describe('resolveCustomStampRect', () => {
     expect(rect.y).toBeCloseTo(842 - 168.4, 6)
   })
 
-  it('mínimo premium garantido mesmo para fração pequena', async () => {
+  it('bloco desenhado pequeno e adotado exatamente (Adobe Reader); piso anti-degenerado', async () => {
     const { page } = await makePdf({ pageWidth: 595, pageHeight: 842 })
-    const rect = resolveCustomStampRect(page, 0.5, 0.5, 0.05, 0.03)
-    expect(rect.width).toBeGreaterThanOrEqual(140)
-    expect(rect.height).toBeGreaterThanOrEqual(58)
+    // Fração pequena: adotada, limitada só pelo piso absoluto (40x16 pt).
+    const small = resolveCustomStampRect(page, 0.5, 0.5, 0.05, 0.03)
+    expect(small.width).toBeGreaterThanOrEqual(40)
+    expect(small.height).toBeGreaterThanOrEqual(16)
+    expect(small.width).toBeLessThan(140) // sem inflar para o mínimo premium antigo
+    // Fração real: adotada exatamente, sem ajuste.
+    const exact = resolveCustomStampRect(page, 0.1, 0.1, 0.2, 0.09)
+    expect(exact.width).toBeCloseTo(0.2 * 595, 3)
+    expect(exact.height).toBeCloseTo(0.09 * 842, 3)
   })
 
   it('página rotacionada: frações medidas na tela viram user space correto', async () => {
     const { page } = await makePdf({ rotate: 90 }) // addPage([400,600]) + Rotate 90
     const rect = resolveCustomStampRect(page, 0.1, 0.2, 0.3, 0.3)
-    // Tela: 600x400; dx=60, dyTop=80, dw=180, dh=120 (>= 104pt mínimo)
+    // Tela: 600x400; dx=60, dyTop=80, dw=180, dh=120 (acima do piso de 16 pt)
     // user space: x = 0+80, y = 0+60, w=dh=120, h=dw=180
     expect(rect).toEqual({ x: 80, y: 60, width: 120, height: 180 })
   })
@@ -240,6 +246,16 @@ describe('pdfSignSchema', () => {
   it('aceita o payload válido do frontend', () => {
     const r = pdfSignSchema.safeParse({ ...base, widthPct: 0.4, heightPct: 0.1 })
     expect(r.success).toBe(true)
+  })
+
+  it('aceita frações pequenas (bloco desenhado pequeno, Adobe-like)', () => {
+    const r = pdfSignSchema.safeParse({ ...base, widthPct: 0.02, heightPct: 0.015 })
+    expect(r.success).toBe(true)
+  })
+
+  it('rejeita frações degeneradas (zero/negativas)', () => {
+    expect(pdfSignSchema.safeParse({ ...base, widthPct: 0 }).success).toBe(false)
+    expect(pdfSignSchema.safeParse({ ...base, heightPct: -0.1 }).success).toBe(false)
   })
 
   it('rejeita carimbo que ultrapassa a largura', () => {

@@ -1,4 +1,4 @@
-# Guia do usu??rio
+﻿# Guia do usu??rio
 
 Este guia cobre o uso di??rio do AurumBit Portal 0.1.x em Windows 10/11. Para instala????o, build e diagn??stico, consulte o [README](../README.md) e o [SPIKE_GO_NO_GO](SPIKE_GO_NO_GO.md).
 
@@ -36,7 +36,7 @@ Este guia cobre o uso di??rio do AurumBit Portal 0.1.x em Windows 10/11. Para in
 | --- | --- |
 | **Store** | Abre portais, mostra sess??es abertas e certificados a vencer. |
 | **Clientes** | Cadastro dos titulares, consentimento, tags, arquivamento e exporta????o CSV. |
-| **Obrigações** | Catálogo de obrigações recorrentes, matriz cliente × obrigação, grupos reutilizáveis e avisos de vencimento. |
+| **Obrigações** | Calendário do mês com baixa de entregas por cliente, catálogo de obrigações recorrentes, matriz cliente × obrigação, grupos reutilizáveis e avisos de vencimento. | 
 | **Certificados** | Importa????o PFX, leitura do Windows, v??nculo, teste, backup e remo????o. |
 | **Credenciais** | Usu??rios e senhas por cliente/servi??o, gera????o e c??pia. |
 | **Sess??es** | Lista, foco e encerramento das janelas abertas. |
@@ -347,10 +347,21 @@ A tela **Sobre e diagn??stico** mostra vers??o, Electron, Chromium, Node, plataf
 
 O módulo **Obrigações** controla rotinas recorrentes por cliente (SPED, DCTF, FGTS, eSocial etc.), com avisos de vencimento na **central de avisos** (sino no topo da janela, ao lado da contagem de sessões).
 
+### Visão do mês (calendário e baixas)
+
+A aba padrão do módulo, **Obrigações**, mostra a competência do mês:
+
+- **À esquerda**, a lista de empresas em ordem alfabética (com busca). Ao expandir uma empresa (dropdown), aparecem as obrigações vinculadas dela no mês, com as datas de vencimento e a situação (**Pendente**, **Vence hoje**, **Atrasada**, **Entregue**).
+- **À direita**, o calendário do mês. Cada dia com obrigações mostra um número (quantidade de obrigações a vencer). O dia fica **verde** quando todas foram baixadas, **amarelo** quando há pendências e **vermelho** quando há atrasadas; bolinhas e cores seguem a legenda do rodapé do calendário.
+- **Clique em qualquer dia** para abrir o modal. Sem vencimentos, ele mostra "Tudo tranquilo neste dia" — e, se for feriado, o nome dele com ícone e cor próprios. Com vencimentos, mostra as empresas que devem entregar e permite marcar o **check** de cada baixa (ou desmarcar). Feriados cadastrados aparecem no dia com o ícone e a cor escolhidos, e o modal oferece **Adicionar feriado** direto a partir do calendário.
+- Use as setas para navegar entre os meses e **Hoje** para voltar ao mês atual.
+
+**Competência do vínculo:** um vínculo novo vale a partir da competência em que foi criado. Se o vencimento do dia/mês já passou pela data de início do vínculo, a obrigação só conta a partir da competência seguinte (nunca “nasce atrasada”). Obrigações **eventuais** não têm vencimento e, por isso, não recebem baixa.
+
 ### Catálogo (departamentos e obrigações)
 
 1. Abra **Obrigações → Departamentos** e cadastre as áreas (Fiscal, Trabalhista, Contábil…). Um departamento com obrigações vinculadas não pode ser excluído — inative-o.
-2. Em **Obrigações → Obrigações**, cadastre cada rotina com nome, sigla (única por departamento), departamento, recorrência e regra de vencimento:
+2. Em **Obrigações → Catálogo**, cadastre cada rotina com nome, sigla (única por departamento), departamento, recorrência e regra de vencimento:
    - **Dia fixo do mês** (1–31) — em mês curto, vence no último dia;
    - **N-ésimo dia útil do mês** — desconsidera fins de semana e feriados (nacionais + extras de Configurações);
    - **Antecedência do aviso** — quantos dias antes do vencimento o aviso aparece na central.
@@ -360,7 +371,7 @@ O módulo **Obrigações** controla rotinas recorrentes por cliente (SPED, DCTF,
 
 - **Linhas**: clientes ativos; **colunas**: obrigações ativas (sigla). Passe o mouse sobre a sigla para ver nome completo e departamento.
 - **Filtros**: departamentos (marque/desmarque vários), busca de cliente, grupo de obrigações e status do vínculo.
-- Clique na célula para vincular; para desvincular, confirme — o vínculo fica **inativo** (histórico preservado). A remoção definitiva fica em **Gerenciar vínculos** (ícone de lista na linha), onde também se editam data de início/fim.
+- Clique na célula para vincular; para desvincular, confirme — o vínculo fica **inativo** (histórico preservado). As ações de cada cliente (copiar/colar vínculos, **Gerenciar vínculos**, abrir ficha) aparecem **abaixo do nome do cliente** ao passar o mouse (ou ao focar com Tab). Em **Gerenciar vínculos** também se editam data de início/fim.
 
 ### Copiar e colar vínculos entre clientes
 
@@ -373,11 +384,11 @@ Em **Obrigações → Grupos**, monte templates (ex.: “Lucro Presumido”) sel
 
 ### Avisos de vencimento
 
-O aplicativo confere diariamente (ao abrir e a cada 6 horas enquanto aberto) quais obrigações vencem na antecedência configurada e deposita o aviso na **central de avisos**. Não há e-mail nem usuários: o aviso é in-app, destinado ao operador. Clique em um aviso para marcá-lo como lido.
+O aplicativo confere diariamente (ao abrir e a cada 6 horas enquanto aberto) quais obrigações vencem na antecedência configurada e deposita o aviso na **central de avisos**. Não há e-mail nem usuários: o aviso é in-app, destinado ao operador. Clique em um aviso para marcá-lo como lido. Competências anteriores à criação do vínculo não geram aviso.
 
 ### Feriados
 
-Em **Configurações → Feriados e dias não úteis**, adicione feriados municipais/estaduais. Os nacionais (incluindo Carnaval, Sexta-feira da Paixão e Corpus Christi) são calculados automaticamente. Eles valem para o cálculo do N-ésimo dia útil.
+Em **Configurações → Feriados e dias não úteis**, adicione feriados municipais/estaduais escolhendo **ícone e cor** próprios (bandeira, bolo, igreja, palmeira…) — eles aparecem assim no calendário de Obrigações. Os nacionais (incluindo Carnaval, Sexta-feira da Paixão e Corpus Christi) são calculados automaticamente. Todos valem para o cálculo do N-ésimo dia útil. Também é possível cadastrar um feriado diretamente pelo **modal de um dia** no calendário ("Adicionar feriado"), com os mesmos seletores.
 
 
 ## 12. Backup e migra????o
@@ -459,13 +470,13 @@ Para problemas, consulte [SUPPORT.md](SUPPORT.md).
 
 Assine PDFs com certificado ICP-Brasil A1 do cofre. O documento original nunca e sobrescrito: e gerado <nome>-assinado.pdf ao lado dele. A assinatura e PAdES-B-T (com carimbo de tempo RFC 3161) e pode ser verificada em https://validar.iti.gov.br e no Adobe Acrobat/Reader (com raizes ICP-Brasil instaladas).
 
-O carimbo visual e premium: cabe??alho azul-marinho com t??tulo "ASSINADO DIGITALMENTE", selo do ITI, filete dourado e QR para o validador do ITI. Exibe nome, documento, emissor do certificado (AC) e data ??? sem localiza????o. Os textos quebram/encolhem automaticamente para nunca estourarem o quadro; o tamanho m??nimo desenhado ?? de 140 x 104 pt (validado por teste: no m??nimo, a legenda completa e todos os dados cabem). A pr??via tem zoom (50%???400%) e a posi????o do carimbo acompanha o zoom na mesma propor????o do documento.
+O carimbo visual e premium: cabe??alho azul-marinho com t??tulo "ASSINADO DIGITALMENTE", selo do ITI, filete dourado e QR para o validador do ITI. Exibe nome, documento, emissor do certificado (AC) e data ??? sem localiza????o. Os textos quebram/encolhem automaticamente para nunca estourarem o quadro; o bloco adota exatamente o tamanho desenhado (piso absoluto de 40 x 16 pt); abaixo do tamanho natural (140 x 104 pt) o conteudo encolhe proporcionalmente para caber, como o Adobe Reader escala a aparencia do carimbo. A pr??via tem zoom (50%???400%) e a posi????o do carimbo acompanha o zoom na mesma propor????o do documento.
 
 Passos:
 1. Abra Assinaturas no menu.
 2. Escolha um certificado A1 com PFX no cofre (nao vencido).
 3. Clique em Escolher PDF e selecione um arquivo (ate 50 MB). O original nao sera alterado.
-4. Posicione o carimbo arrastando-o sobre a pagina e ajuste o tamanho (m??nimo 140 x 104 pt). Use o zoom na barra inferior para ampliar e assinar onde desejar.
+4. Posicione o carimbo arrastando-o sobre a pagina e ajuste o tamanho (o tamanho do bloco desenhado e o tamanho do carimbo; conteudo encolhe proporcionalmente para caber). Use o zoom na barra inferior para ampliar e assinar onde desejar.
 5. Revise e clique em Assinar PDF. Aguarde o carimbo de tempo.
 
 A assinatura usa o PFX do cofre e nao depende do repositorio do Windows. Apenas o hash SHA-256 do valor da assinatura e enviado a TSA configurada (padrao DigiCert publica); o documento nunca sai da estacao. A TSA pode ser trocada em Configuracoes (com botao Testar TSA).

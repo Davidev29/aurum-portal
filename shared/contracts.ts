@@ -35,8 +35,10 @@ import type {
   Obligation,
   ObligationFilter,
   ObligationGroup,
+  ObligationMonthItem,
   PasteLinksInput,
   PasteLinksResult,
+  SetDeliveryResult,
   PasswordGeneratorOptions,
   PortalSession,
   RecipeSummary,
@@ -55,7 +57,7 @@ import type {
   ClientBrasilApiRefreshProgress,
 } from './types'
 import { obligationRuleIssues, RECURRENCE_TYPES } from './obligation-rules'
-import { isDateOnly } from './holidays'
+import { isDateOnly, EXTRA_HOLIDAY_ICONS } from './holidays'
 
 export const IPC = {
   clients: {
@@ -178,6 +180,8 @@ export const IPC = {
     updateLink: 'obligations:links:update',
     removeLink: 'obligations:links:remove',
     pasteLinks: 'obligations:links:paste',
+    listMonth: 'obligations:month:list',
+    setDelivery: 'obligations:deliveries:set',
     listNotifications: 'obligations:notifications:list',
     markNotificationRead: 'obligations:notifications:markRead',
     markAllNotificationsRead: 'obligations:notifications:markAllRead',
@@ -552,8 +556,14 @@ export const pdfSignSchema = z
     xPct: z.number().min(0).max(1),
     yPct: z.number().min(0).max(1),
     size: z.enum(['small', 'medium', 'large']),
-    widthPct: z.number().min(0.05).max(0.95).optional(),
-    heightPct: z.number().min(0.03).max(0.95).optional(),
+    /**
+     * Tamanho desenhado pelo usuario (fracoes da pagina EXIBIDA). O bloco
+     * adota exatamente o retangulo desenhado (como o Adobe Reader); o
+     * piso absoluto fica no backend (SIGNATURE_STAMP_FLOOR, ~1 cm).
+     * Aqui so se rejeitam valores degenerados/fora da pagina.
+     */
+    widthPct: z.number().min(0.005).max(0.95).optional(),
+    heightPct: z.number().min(0.005).max(0.95).optional(),
     /** @deprecated localizacao removida do carimbo; ignorado. */
     location: z.string().trim().max(120).optional(),
     reason: z.string().trim().max(120).optional(),
@@ -746,9 +756,25 @@ export const pasteLinksSchema = z.object({
 export const markNotificationReadSchema = z.object({ id: idSchema })
 export const clearReadNotificationsSchema = z.object({}).optional()
 
+export const monthOverviewSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Informe o mês no formato AAAA-MM'),
+})
+
+export const setDeliverySchema = z.object({
+  clientId: idSchema,
+  obligationId: idSchema,
+  dueDate: dateOnlySchema,
+  delivered: z.boolean(),
+})
+
 export const holidayInputSchema = z.object({
   date: dateOnlySchema,
   name: z.string().trim().min(1, 'Informe o nome do feriado').max(120),
+  icon: z.enum(EXTRA_HOLIDAY_ICONS).nullish(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Informe uma cor em hexadecimal (#RRGGBB)')
+    .nullish(),
 })
 export const holidayIdSchema = z.object({ id: idSchema })
 
@@ -934,6 +960,8 @@ export interface AurumBitPortalApi {
     updateLink(input: z.input<typeof updateLinkSchema>): Promise<ClientObligation>
     removeLink(id: string): Promise<void>
     pasteLinks(input: PasteLinksInput): Promise<PasteLinksResult>
+    listMonth(input: z.input<typeof monthOverviewSchema>): Promise<ObligationMonthItem[]>
+    setDelivery(input: z.input<typeof setDeliverySchema>): Promise<SetDeliveryResult>
     listNotifications(): Promise<NotificationList>
     markNotificationRead(id: string): Promise<void>
     markAllNotificationsRead(): Promise<void>

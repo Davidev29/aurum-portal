@@ -8,6 +8,7 @@ import {
   type RGB,
 } from 'pdf-lib'
 import {
+  SIGNATURE_STAMP_FLOOR,
   SIGNATURE_STAMP_MIN,
   SIGNATURE_STAMP_SIZES,
   STAMP_TITLE,
@@ -28,9 +29,14 @@ import { concatTransformationMatrix, popGraphicsState, pushGraphicsState } from 
  * esta na assinatura criptografica).
  *
  * Garantias de layout (independente do tamanho desenhado):
- *  - textos fazem quebra de linha por palavras e encolhem ate caber;
+ *  - o bloco adota exatamente o retangulo desenhado (como o Adobe Reader);
+ *    o piso absoluto e SIGNATURE_STAMP_FLOOR (~1 cm), so contra retangulos
+ *    degenerados;
+ *  - abaixo do tamanho natural (SIGNATURE_STAMP_MIN), TODO o conteudo
+ *    (textos, faixas, selo e QR) encolhe PROPORCIONALMENTE — como o Adobe
+ *    escala a aparencia do carimbo para dentro do retangulo desenhado;
+ *  - textos tambem fazem quebra de linha por palavras e encolhem ate caber;
  *  - nada e desenhado fora do retangulo do carimbo.
- * O tamanho minimo (SIGNATURE_STAMP_MIN) garante todos os dados legiveis.
  */
 
 export interface StampInput {
@@ -52,6 +58,8 @@ export interface StampInput {
   fonts: PreparedFonts
   /** Selo ITI ja embutido (cabeçalho do carimbo). */
   seal?: PDFImage | null
+  /** Marca d'água da biometria ja embutida (fundo do carimbo). */
+  watermark?: PDFImage | null
 }
 
 export interface StampRect {
@@ -82,9 +90,12 @@ export interface FittedLine {
 
 export interface StampLayout {
   headerH: number
+  goldH: number
   qrSize: number
   qrX: number
   qrY: number
+  /** Quiet zone ao redor do QR (≈2 módulos): moldura branca obrigatória para leitura. */
+  qrPad: number
   /** Geometria do selo ITI no cabeçalho (side 0 = sem selo). */
   sealX: number
   sealY: number
@@ -97,14 +108,40 @@ const COLOR_BORDER = rgb(0.2, 0.27, 0.37)
 const COLOR_NAVY = rgb(0.04, 0.07, 0.14)
 const COLOR_GOLD = rgb(0.83, 0.69, 0.31)
 const COLOR_NAME = rgb(0.06, 0.09, 0.16)
-const COLOR_BODY = rgb(0.2, 0.25, 0.33)
-const COLOR_MUTED = rgb(0.39, 0.45, 0.55)
+const COLOR_BODY = rgb(0.14, 0.17, 0.23)
+const COLOR_MUTED = rgb(0.27, 0.32, 0.42)
 const COLOR_WHITE = rgb(1, 1, 1)
 
 const PAD = 7
 
+/** Opacidade da marca d'água (biometria) — visível sem competir com os dados. */
+export const WATERMARK_OPACITY = 0.18
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
+}
+
+/**
+ * Caixa centralizada da marca d'água no quadro do carimbo: ~62% da menor
+ * dimensão, aspecto preservado, no exato centro do quadro ("no meio de
+ * tudo", como pedido). Usada igual nos dois caminhos de render (pdf-lib e
+ * incremental) e na prévia da tela.
+ */
+export function watermarkBox(
+  width: number,
+  height: number,
+  imgWidth: number,
+  imgHeight: number,
+): { x: number; y: number; width: number; height: number } {
+  const side = Math.min(width, height) * 0.62
+  const aspect = imgWidth > 0 && imgHeight > 0 ? imgWidth / imgHeight : 1
+  let w = side
+  let h = side / aspect
+  if (h > side) {
+    h = side
+    w = side * aspect
+  }
+  return { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h }
 }
 
 /**
@@ -155,9 +192,11 @@ export function resolveStampRect(
 
 /**
  * Tamanho desenhado pelo usuario (fracoes da pagina EXIBIDA, origem
- * superior-esquerda). Nunca menor que o minimo que garante todos os dados do
- * carimbo premium. Retorna o retangulo em user space (desloca/rotaciona por
- * /Rotate) — pronto para desenhar e para o widget /Rect.
+ * superior-esquerda). O retangulo retornado adota EXATAMENTE o tamanho
+ * desenhado (como o Adobe Reader), limitado apenas pelo piso absoluto
+ * SIGNATURE_STAMP_FLOOR e pela pagina. Retorna o retangulo em user space
+ * (desloca/rotaciona por /Rotate) — pronto para desenhar e para o widget
+ * /Rect.
  */
 export function resolveCustomStampRect(
   page: PDFPage,
@@ -171,8 +210,8 @@ export function resolveCustomStampRect(
   const displayH = view.displayHeight
   const availW = Math.max(40, displayW)
   const availH = Math.max(28, displayH)
-  const minW = Math.min(SIGNATURE_STAMP_MIN.width, availW)
-  const minH = Math.min(SIGNATURE_STAMP_MIN.height, availH)
+  const minW = Math.min(SIGNATURE_STAMP_FLOOR.width, availW)
+  const minH = Math.min(SIGNATURE_STAMP_FLOOR.height, availH)
   const dw = clamp(wPct * displayW, minW, availW)
   const dh = clamp(hPct * displayH, minH, availH)
   const dx = clamp(xPct * displayW, 0, Math.max(0, displayW - dw))
@@ -294,7 +333,12 @@ interface DataSpec {
 
 /**
  * Calcula o layout premium em coordenadas relativas ao carimbo (origem no
- * canto inferior-esquerdo, em pt). Ajusta tamanhos ate caber na altura.
+ * canto inferior-esquerdo, em pt). Abaixo do tamanho natural (140x104),
+ * TODO o conteudo encolhe PROPORCIONALMENTE a um fator uniforme `u` — como
+ * o Adobe Reader escala a aparencia do carimbo para dentro do retangulo
+ * desenhado — e textos tambem quebram/encolhem ate caber. Nada e descartado
+ * antes de esgotar a escala; so quadros absurdamente baixos perdem as
+ * linhas finais (nunca o nome).
  */
 export function computeStampLayout(input: {
   width: number
@@ -309,19 +353,50 @@ export function computeStampLayout(input: {
 }): StampLayout {
   const { width, height, fonts } = input
   const hasLogo = input.hasLogo === true
+  // Fator uniforme em relacao ao tamanho natural (140x104). Acima dele,
+  // mantem o natural (o espaco extra vira folga de conteudo); abaixo,
+  // tudo encolhe junto — proporcao identica, como o Adobe.
+  const u = clamp(
+    Math.min(width / SIGNATURE_STAMP_MIN.width, height / SIGNATURE_STAMP_MIN.height),
+    0.08,
+    1,
+  )
+  const pad = PAD * u
   const compact = height < 90
-  const headerH = hasLogo ? clamp(height * 0.21, 18, 30) : 0
-  const goldH = 1.2
-  // Bloco do QR na LATERAL DIREITA (abaixo do cabeçalho): proporcional,
-  // auto-contido (moldura própria, dentro do quadro) numa coluna própria.
-  // O bloco de texto ocupa a coluna esquerda — nunca fica sob o QR.
-  const qrSize = clamp(Math.floor(height * 0.3), 22, 110)
-  const qrBottomMargin = 6
-  const qrColumnGap = 10
-  const qrX = width - qrSize - PAD
-  const qrY = qrBottomMargin
+  const headerH = hasLogo ? clamp(height * 0.21, 18 * u, 30 * u) : 0
+  const goldH = Math.max(0.4, 1.2 * u)
+  // Bloco do QR na LATERAL DIREITA: PROPORCIONAL AO BLOCO INTERNO — ocupa
+  // toda a área útil da coluna abaixo do filete dourado (a "caixa" que o
+  // usuário desenhou), sem invadir a coluna do texto (80pt × u garantidos),
+  // sem ultrapassar a metade direita do quadro nem o cabeçalho. A moldura
+  // (quiet zone de ~2 módulos) é obrigatória para leitura; o texto NUNCA
+  // fica sob (ou toca) o QR nem a sua quiet zone.
+  const { size: qrModules } = qrModuleCountAndData()
+  const innerH = Math.max(0, height - headerH - goldH)
+  const minTextCol = 80 * u
+  const qrBottomMargin = Math.max(6 * u, 1.2)
+  const qrColumnGapGuess = Math.max(10 * u, 1.5)
+  const byHeight = Math.floor(Math.max(0, innerH - qrBottomMargin - 1))
+  const byWidth = Math.floor(Math.max(0, width - pad * 2 - minTextCol - qrColumnGapGuess))
+  const byHalf = Math.floor(width * 0.45)
+  let qrSize = Math.max(3, Math.min(byHeight, byWidth, byHalf, 110))
+  const cell = qrSize / qrModules
+  let qrPad = clamp(Math.round(cell * 2 * 10) / 10, 1.2, 4)
+  qrPad = Math.min(qrPad, Math.max(1.2, pad))
+  const qrColumnGap = Math.max(10 * u, qrPad + 1.5)
+  const qrY = Math.max(qrBottomMargin, qrPad)
+  // Ajuste final: QR + quiet zone + margem inferior nunca ultrapassam o
+  // quadro (e mantém 1pt de folga para o filete dourado).
+  const topLimit = innerH - 1 >= 0 ? innerH - 1 : height - 1
+  if (qrY + qrSize + qrPad > topLimit) {
+    qrSize = Math.max(3, Math.floor(topLimit - qrY - qrPad))
+  }
+  const qrX = width - qrSize - pad
 
-  const bodyMaxWidth = Math.max(60, width - PAD * 2 - qrSize - qrColumnGap)
+  // Coluna de texto ESTRITA: termina antes da moldura do QR (gap >= qrPad).
+  // Sem piso que estoure a coluna — se não couber nem o minimo, o texto
+  // quebra em mais linhas, mas jamais colide com o QR.
+  const bodyMaxWidth = Math.max(2 * u, width - pad * 2 - qrSize - qrColumnGap)
 
   const specs: DataSpec[] = [
     {
@@ -336,7 +411,7 @@ export function computeStampLayout(input: {
       ? [
           {
             text: input.documentLine,
-            font: 'regular' as const,
+            font: 'bold' as const,
             size: 7.5,
             minSize: 5.4,
             color: COLOR_BODY,
@@ -346,7 +421,7 @@ export function computeStampLayout(input: {
       : []),
     {
       text: input.issuerLine,
-      font: 'regular',
+      font: 'bold',
       size: 7,
       minSize: 5.4,
       color: COLOR_MUTED,
@@ -354,7 +429,7 @@ export function computeStampLayout(input: {
     },
     {
       text: `Data: ${formatSignedAt(input.signedAt)} -03:00`,
-      font: 'regular',
+      font: 'bold',
       size: 7,
       minSize: 5.4,
       color: COLOR_BODY,
@@ -364,28 +439,28 @@ export function computeStampLayout(input: {
 
   const build = (scale: number): { lines: FittedLine[]; bottom: number } => {
     const lines: FittedLine[] = []
-    let cursorTop = height - headerH - goldH - (compact ? 2 : 5)
+    let cursorTop = height - headerH - goldH - (compact ? 2 : 5) * u
     for (const spec of specs) {
-      const size = Math.max(spec.size * scale, 4.2)
+      const size = Math.max(spec.size * scale * u, 4.2 * u)
       const wrapped = wrapText(spec.text, fontFor(fonts, spec.font), size, bodyMaxWidth)
       for (const chunk of wrapped.length > 0
         ? wrapped
         : [truncateToWidth(spec.text, fontFor(fonts, spec.font), size, bodyMaxWidth)]) {
         const baseline = cursorTop - size
-        lines.push({ text: chunk, font: spec.font, size, color: spec.color, x: PAD, y: baseline })
-        cursorTop -= size * 1.15
+        lines.push({ text: chunk, font: spec.font, size, color: spec.color, x: pad, y: baseline })
+        cursorTop -= size * 1.28
       }
-      cursorTop -= spec.afterGap
+      cursorTop -= spec.afterGap * u
     }
     const bottom = lines.length > 0 ? lines[lines.length - 1]!.y : cursorTop
     return { lines, bottom }
   }
 
   // Texto ocupa toda a coluna esquerda (do topo ao rodapé do quadro) —
-  // nunca sob o QR. O mínimo do carimbo garante legibilidade.
+  // nunca sob o QR. A escala uniforme u garante que tudo caiba.
   const textFloor = qrY
   const fits = (r: { lines: FittedLine[]; bottom: number }): boolean =>
-    r.lines.length === 0 || r.bottom >= textFloor + 2
+    r.lines.length === 0 || r.bottom >= textFloor + Math.max(1, 2 * u)
 
   let best = build(1)
   if (!fits(best)) {
@@ -395,24 +470,28 @@ export function computeStampLayout(input: {
     }
   }
 
-  // Ultimo recurso (quadro abaixo do minimo): descarta as linhas finais
+  // Ultimo recurso (quadro abaixo do piso): descarta as linhas finais
   // de dados (nunca o nome) para nunca vazar do quadro.
   while (!fits(best) && best.lines.length > 1) {
     best.lines.pop()
     best = {
       lines: best.lines,
-      bottom: best.lines[best.lines.length - 1]?.y ?? height - headerH - goldH - 5,
+      bottom: best.lines[best.lines.length - 1]?.y ?? height - headerH - goldH - 5 * u,
     }
   }
 
   // Título no cabeçalho (branco sobre azul-marinho) + selo ITI à direita.
-  const sealSide = hasLogo ? Math.max(14, headerH - 5) : 0
-  const sealX = width - sealSide - PAD
+  const sealSide = hasLogo ? Math.max(14 * u, headerH - 5 * u) : 0
+  const sealX = width - sealSide - pad
   const sealY = height - headerH + (headerH - sealSide) / 2
-  const headerWidth = Math.max(60, width - PAD * 2 - sealSide - 8)
-  let headerSize = 7.6
-  while (headerSize > 5 && fonts.bold.widthOfTextAtSize(STAMP_TITLE, headerSize) > headerWidth) {
-    headerSize -= 0.25
+  const headerWidth = Math.max(20 * u, width - pad * 2 - sealSide - 8 * u)
+  let headerSize = 7.6 * u
+  const headerFloor = Math.max(1.5, 4 * u)
+  while (
+    headerSize > headerFloor &&
+    fonts.bold.widthOfTextAtSize(STAMP_TITLE, headerSize) > headerWidth
+  ) {
+    headerSize -= Math.max(0.05, 0.25 * u)
   }
   const headerLines: FittedLine[] = [
     {
@@ -420,16 +499,18 @@ export function computeStampLayout(input: {
       font: 'bold',
       size: headerSize,
       color: COLOR_WHITE,
-      x: PAD,
+      x: pad,
       y: height - headerH / 2 - headerSize * 0.35,
     },
   ]
 
   return {
     headerH,
+    goldH,
     qrSize,
     qrX,
     qrY,
+    qrPad,
     sealX,
     sealY,
     sealSide,
@@ -494,6 +575,23 @@ export function drawSignatureStamp(input: StampInput): void {
     borderOpacity: 1,
   })
 
+  // Marca d'água (biometria) centralizada no quadro, atrás de todo o
+  // conteudo — exibe a identidade sem competir com os dados.
+  if (input.watermark) {
+    const box = watermarkBox(width, height, input.watermark.width, input.watermark.height)
+    try {
+      page.drawImage(input.watermark, {
+        x: ox + box.x,
+        y: oy + box.y,
+        width: box.width,
+        height: box.height,
+        opacity: WATERMARK_OPACITY,
+      })
+    } catch {
+      // sem a marca d'agua, o carimbo continua valido
+    }
+  }
+
   // Faixa superior azul-marinho com filete dourado e selo ITI.
   if (layout.headerH > 0) {
     page.drawRectangle({
@@ -507,9 +605,9 @@ export function drawSignatureStamp(input: StampInput): void {
   }
   page.drawRectangle({
     x: ox,
-    y: oy + height - layout.headerH - 1.2,
+    y: oy + height - layout.headerH - layout.goldH,
     width,
-    height: 1.2,
+    height: layout.goldH,
     color: COLOR_GOLD,
     opacity: 1,
   })
@@ -526,16 +624,18 @@ export function drawSignatureStamp(input: StampInput): void {
     }
   }
 
-  // Bloco do QR: moldura própria, centralizado, abaixo do bloco de texto
-  // (nunca cobre os dados). Auto-contido: quadro branco + borda + QR vetorial.
+  // Bloco do QR: moldura própria com quiet zone (~2 módulos), centralizado,
+  // abaixo do bloco de texto (nunca cobre os dados). Auto-contido:
+  // quadro branco + borda + QR vetorial escaneavel.
   const qrSize = layout.qrSize
+  const qrPad = layout.qrPad
   const qrX = ox + layout.qrX
   const qrY = oy + layout.qrY
   page.drawRectangle({
-    x: qrX - 2,
-    y: qrY - 2,
-    width: qrSize + 4,
-    height: qrSize + 4,
+    x: qrX - qrPad,
+    y: qrY - qrPad,
+    width: qrSize + qrPad * 2,
+    height: qrSize + qrPad * 2,
     borderWidth: 0.75,
     borderColor: COLOR_BORDER,
     color: COLOR_WHITE,

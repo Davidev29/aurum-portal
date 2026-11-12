@@ -13,14 +13,20 @@ export const SIGNATURE_STAMP_SIZES = {
 } as const
 
 /**
- * Tamanho minimo do carimbo (pt): garante que nome, documento, emissor,
- * data, legenda AurumBit Portal e o bloco do QR caibam em faixas separadas
- * (cabecalho → dados → QR centralizado, auto-contido) sem sobreposicao e
- * sem estourar o quadro, independentemente do tamanho desenhado pelo
- * usuario. Validado por teste: no minimo, todas as linhas de dados e o QR
- * cabem.
+ * Tamanho natural de referencia (pt): no minimo este tamanho, todos os dados do
+ * carimbo premium (nome, documento, emissor, data, selo ITI e QR) cabem sem
+ * descarte de linhas. Abaixo dele o layout encolhe PROPORCIONALMENTE (como o
+ * Adobe escala a aparencia do carimbo para dentro do retangulo desenhado) e
+ * nunca vaza do quadro.
  */
 export const SIGNATURE_STAMP_MIN = { width: 140, height: 104 } as const
+
+/**
+ * Piso absoluto do carimbo (pt) — semelhante ao Adobe Reader: o bloco adota
+ * exatamente o tamanho desenhado pelo usuario; so impede retangulos
+ * degenerados (invisivel / invalido no PDF). O conteudo e escalado para caber.
+ */
+export const SIGNATURE_STAMP_FLOOR = { width: 40, height: 16 } as const
 
 /** Plataforma exibida nos metadados da assinatura. */
 export const AURUMBIT_PLATFORM = 'AurumBit Portal'

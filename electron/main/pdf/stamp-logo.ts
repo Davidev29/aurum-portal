@@ -13,6 +13,8 @@ import type { PDFDocument, PDFImage } from 'pdf-lib'
  */
 
 export const ITI_SEAL_FILE = 'iti-certificacao.png'
+/** Marca d'água da biometria (fundo transparente) exibida no carimbo. */
+export const STAMP_WATERMARK_FILE = 'biometria-watermark.png'
 
 const MAX_BYTES = 512 * 1024
 
@@ -42,18 +44,18 @@ function appRootCandidates(): string[] {
   return [...new Set(roots.filter(Boolean))]
 }
 
-let cached: Buffer | null | undefined
+/** Carrega os bytes de um PNG de asset do app (validados), cacheados por nome. */
+const pngCache = new Map<string, Buffer | null>()
 
-/** Carrega os bytes do selo ITI (validados como PNG), cacheados. */
-export function loadItiSeal(): Buffer | null {
-  if (cached !== undefined) return cached
-  cached = null
+function loadPngAsset(fileName: string): Buffer | null {
+  if (pngCache.has(fileName)) return pngCache.get(fileName)!
+  let found: Buffer | null = null
   try {
     for (const root of appRootCandidates()) {
       for (const candidate of [
-        path.join(root, 'out', ITI_SEAL_FILE),
-        path.join(root, 'public', ITI_SEAL_FILE),
-        path.join(root, ITI_SEAL_FILE),
+        path.join(root, 'out', fileName),
+        path.join(root, 'public', fileName),
+        path.join(root, fileName),
       ]) {
         try {
           if (!existsSync(candidate)) continue
@@ -70,18 +72,52 @@ export function loadItiSeal(): Buffer | null {
             bytes[6] === 0x1a &&
             bytes[7] === 0x0a
           ) {
-            cached = bytes
-            return cached
+            found = bytes
+            break
           }
         } catch {
           // tenta o proximo candidato
         }
       }
+      if (found) break
     }
   } catch {
-    cached = null
+    found = null
   }
+  pngCache.set(fileName, found)
+  return found
+}
+
+let cached: Buffer | null | undefined
+
+/** Carrega os bytes do selo ITI (validados como PNG), cacheados. */
+export function loadItiSeal(): Buffer | null {
+  if (cached !== undefined) return cached
+  cached = loadPngAsset(ITI_SEAL_FILE)
   return cached
+}
+
+/**
+ * Embute a marca d'água da biometria uma única vez por documento. Retorna
+ * null quando o arquivo não está disponível — o carimbo continua válido sem
+ * a imagem (o texto e o QR permanecem legíveis por cima do branco).
+ */
+export async function prepareStampWatermark(doc: PDFDocument): Promise<PDFImage | null> {
+  const holder = doc as unknown as { __pvWatermark?: PDFImage | null }
+  if (holder.__pvWatermark !== undefined) return holder.__pvWatermark
+  const bytes = loadPngAsset(STAMP_WATERMARK_FILE)
+  if (!bytes) {
+    holder.__pvWatermark = null
+    return null
+  }
+  try {
+    const image = await doc.embedPng(bytes)
+    holder.__pvWatermark = image
+    return image
+  } catch {
+    holder.__pvWatermark = null
+    return null
+  }
 }
 
 /**

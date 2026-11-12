@@ -13,13 +13,16 @@ import {
   listHolidays,
   listLinksByClient,
   listAllLinks,
+  listMonthOverview,
   listNotifications,
   markAllNotificationsRead,
   clearReadNotifications,
   pasteLinks,
   removeHoliday,
   setClientObligationLink,
+  setDelivery,
   updateGroup,
+  updateLink,
   updateObligation,
 } from '../../electron/main/db/repositories/obligations'
 import { generateDueNotifications } from '../../electron/main/notifications/obligations-scheduler'
@@ -233,6 +236,194 @@ describe('regras de recorrência', () => {
       antecedenciaNotificacaoDias: 7,
     })
     expect(parsed.sigla).toBe('DCTF')
+  })
+})
+
+describe('migration v7', () => {
+  it('adiciona as colunas de apresentação em extra_holidays', () => {
+    const sqlite = new BetterSqlite3(':memory:')
+    try {
+      const v5 = MIGRATIONS.find((m) => m.version === 5)?.sql ?? ''
+      const v7 = MIGRATIONS.find((m) => m.version === 7)?.sql ?? ''
+      sqlite.exec(v5)
+      sqlite.exec(v7)
+      const columns = (
+        sqlite.prepare(`PRAGMA table_info(extra_holidays)`).all() as Array<{
+          name: string
+        }>
+      ).map((row) => row.name)
+      expect(columns).toContain('icon')
+      expect(columns).toContain('color')
+    } finally {
+      sqlite.close()
+    }
+  })
+})
+
+describe('migration v6', () => {
+  it('cria a tabela de baixas (obligation_deliveries)', () => {
+    const sqlite = new BetterSqlite3(':memory:')
+    try {
+      const v5 = MIGRATIONS.find((m) => m.version === 5)?.sql ?? ''
+      const v6 = MIGRATIONS.find((m) => m.version === 6)?.sql ?? ''
+      sqlite.exec(v5)
+      sqlite.exec(v6)
+      const tables = (
+        sqlite
+          .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
+          .all() as Array<{
+          name: string
+        }>
+      ).map((row) => row.name)
+      expect(tables).toContain('obligation_deliveries')
+    } finally {
+      sqlite.close()
+    }
+  })
+})
+
+describe('visão mensal — competência e baixa', () => {
+  it('ocorrência vale a partir do vencimento >= dataInicio; se já passou, só a próxima', () => {
+    const { db, close } = createDatabase(':memory:')
+    try {
+      const { dept, client1 } = seedBase(db)
+      const obligation = createObligation(db, {
+        ...mensalRule,
+        name: 'DCTF',
+        sigla: 'DCTF',
+        departmentId: dept.id,
+        diaFixo: 15,
+      })
+      const created = setClientObligationLink(db, {
+        clientId: client1.id,
+        obligationId: obligation.id,
+        active: true,
+      })
+
+      // Cenário 1: vínculo criado em 10/09/2026 → o vencimento de 15/09 vale.
+      updateLink(db, { id: created.link.id, dataInicio: '2026-09-10' })
+      let items = listMonthOverview(db, '2026-09')
+      expect(items.map((item) => item.dueDate)).toEqual(['2026-09-15'])
+
+      // Cenário 2: vínculo criado em 22/09/2026 → setembro não vale; outubro vale.
+      updateLink(db, { id: created.link.id, dataInicio: '2026-09-22' })
+      items = listMonthOverview(db, '2026-09')
+      expect(items).toHaveLength(0)
+      items = listMonthOverview(db, '2026-10')
+      expect(items.map((item) => item.dueDate)).toEqual(['2026-10-15'])
+    } finally {
+      close()
+    }
+  })
+
+  it('baixa marca a ocorrência como entregue, é idempotente e desfazível', () => {
+    const { db, close } = createDatabase(':memory:')
+    try {
+      const { dept, client1 } = seedBase(db)
+      const obligation = createObligation(db, {
+        ...mensalRule,
+        name: 'DCTF',
+        sigla: 'DCTF',
+        departmentId: dept.id,
+        diaFixo: 15,
+      })
+      const created = setClientObligationLink(db, {
+        clientId: client1.id,
+        obligationId: obligation.id,
+        active: true,
+      })
+      updateLink(db, { id: created.link.id, dataInicio: '2026-09-01' })
+
+      const first = setDelivery(db, {
+        clientId: client1.id,
+        obligationId: obligation.id,
+        dueDate: '2026-09-15',
+        delivered: true,
+      })
+      expect(first.delivered).toBe(true)
+      expect(first.completedAt).toBeTruthy()
+
+      const second = setDelivery(db, {
+        clientId: client1.id,
+        obligationId: obligation.id,
+        dueDate: '2026-09-15',
+        delivered: true,
+      })
+      // idempotente: mantém a data da primeira baixa
+      expect(second.completedAt).toBe(first.completedAt)
+
+      let items = listMonthOverview(db, '2026-09')
+      expect(items[0]?.delivered).toBe(true)
+      expect(items[0]?.deliveredAt).toBe(first.completedAt)
+
+      const reverted = setDelivery(db, {
+        clientId: client1.id,
+        obligationId: obligation.id,
+        dueDate: '2026-09-15',
+        delivered: false,
+      })
+      expect(reverted.delivered).toBe(false)
+      items = listMonthOverview(db, '2026-09')
+      expect(items[0]?.delivered).toBe(false)
+    } finally {
+      close()
+    }
+  })
+
+  it('rejeita baixa com data que não é a ocorrência da obrigação', () => {
+    const { db, close } = createDatabase(':memory:')
+    try {
+      const { dept, client1 } = seedBase(db)
+      const obligation = createObligation(db, {
+        ...mensalRule,
+        name: 'DCTF',
+        sigla: 'DCTF',
+        departmentId: dept.id,
+        diaFixo: 15,
+      })
+      const created = setClientObligationLink(db, {
+        clientId: client1.id,
+        obligationId: obligation.id,
+        active: true,
+      })
+      updateLink(db, { id: created.link.id, dataInicio: '2026-09-01' })
+      expect(() =>
+        setDelivery(db, {
+          clientId: client1.id,
+          obligationId: obligation.id,
+          dueDate: '2026-09-16',
+          delivered: true,
+        }),
+      ).toThrow(/vencimento/i)
+    } finally {
+      close()
+    }
+  })
+
+  it('agendador não avisa competência anterior à criação do vínculo', () => {
+    const { db, close } = createDatabase(':memory:')
+    try {
+      const { dept, client1 } = seedBase(db)
+      const obligation = createObligation(db, {
+        ...mensalRule,
+        name: 'DCTF',
+        sigla: 'DCTF',
+        departmentId: dept.id,
+        diaFixo: 15,
+        antecedenciaNotificacaoDias: 7,
+      })
+      const created = setClientObligationLink(db, {
+        clientId: client1.id,
+        obligationId: obligation.id,
+        active: true,
+      })
+      // Vínculo criado depois do vencimento de 15/09: nunca avisa essa competência.
+      updateLink(db, { id: created.link.id, dataInicio: '2026-09-16' })
+      const createdNotifications = generateDueNotifications(db, new Date(2026, 8, 8, 9, 0, 0))
+      expect(createdNotifications).toBe(0)
+    } finally {
+      close()
+    }
   })
 })
 
@@ -495,32 +686,26 @@ describe('central de avisos — agendador diário', () => {
         departmentId: dept.id,
         antecedenciaNotificacaoDias: 7,
       })
-      setClientObligationLink(db, {
-        clientId: client1.id,
-        obligationId: obligation.id,
-        active: true,
-      })
-      setClientObligationLink(db, {
-        clientId: client2.id,
-        obligationId: obligation.id,
-        active: true,
-      })
-      setClientObligationLink(db, {
-        clientId: client3.id,
-        obligationId: obligation.id,
-        active: true,
-      })
+      const activeLinkIds: string[] = []
+      for (const client of [client1, client2, client3, client4]) {
+        const created = setClientObligationLink(db, {
+          clientId: client.id,
+          obligationId: obligation.id,
+          active: true,
+        })
+        activeLinkIds.push(created.link.id)
+      }
       // client4: vínculo inativo — não recebe aviso
-      setClientObligationLink(db, {
-        clientId: client4.id,
-        obligationId: obligation.id,
-        active: true,
-      })
       setClientObligationLink(db, {
         clientId: client4.id,
         obligationId: obligation.id,
         active: false,
       })
+      // Simula que os vínculos existem desde antes de 08/03/2026 (a
+      // dataInicio do vínculo recém-criado é o "hoje" real do sistema).
+      for (const linkId of activeLinkIds) {
+        updateLink(db, { id: linkId, dataInicio: '2026-03-01' })
+      }
 
       // Hoje = 08/03/2026 (antecedência 7) → vencimento 15/03/2026
       const now = new Date(2026, 2, 8, 9, 0, 0)
@@ -556,11 +741,12 @@ describe('central de avisos — agendador diário', () => {
         departmentId: dept.id,
         antecedenciaNotificacaoDias: 7,
       })
-      setClientObligationLink(db, {
+      const link = setClientObligationLink(db, {
         clientId: client1.id,
         obligationId: obligation.id,
         active: true,
       })
+      updateLink(db, { id: link.link.id, dataInicio: '2026-03-01' })
       expect(generateDueNotifications(db, new Date(2026, 2, 9, 9, 0, 0))).toBe(0)
     } finally {
       close()
@@ -578,11 +764,12 @@ describe('central de avisos — agendador diário', () => {
         departmentId: dept.id,
         antecedenciaNotificacaoDias: 0,
       })
-      setClientObligationLink(db, {
+      const link = setClientObligationLink(db, {
         clientId: client1.id,
         obligationId: obligation.id,
         active: true,
       })
+      updateLink(db, { id: link.link.id, dataInicio: '2026-03-01' })
       expect(generateDueNotifications(db, new Date(2026, 2, 15, 9, 0, 0))).toBe(1)
     } finally {
       close()
@@ -627,6 +814,35 @@ describe('feriados extras', () => {
       expect(isBusinessDay('2026-08-14')).toBe(true) // sexta-feira, sem feriado
       removeHoliday(db, holiday.id)
       expect(listHolidays(db)).toHaveLength(0)
+    } finally {
+      close()
+    }
+  })
+
+  it('aceita ícone e cor personalizados; rejeita valores inválidos', () => {
+    const { db, close } = createDatabase(':memory:')
+    try {
+      const holiday = addHoliday(db, {
+        date: '2026-09-07',
+        name: 'Aniversário da cidade',
+        icon: 'cake',
+        color: '#6d28d9',
+      })
+      expect(holiday.icon).toBe('cake')
+      expect(holiday.color).toBe('#6d28d9')
+      const [listed] = listHolidays(db)
+      expect(listed?.icon).toBe('cake')
+      expect(listed?.color).toBe('#6d28d9')
+
+      // Ícone fora do conjunto permitido
+      expect(() => addHoliday(db, { date: '2026-09-08', name: 'X', icon: 'rocket' })).toThrow()
+      // Cor fora do formato #RRGGBB
+      expect(() => addHoliday(db, { date: '2026-09-09', name: 'X', color: 'vermelho' })).toThrow()
+
+      // Sem apresentação: null (a UI aplica os defaults)
+      const legacy = addHoliday(db, { date: '2026-09-10', name: 'Sem ícone' })
+      expect(legacy.icon).toBeNull()
+      expect(legacy.color).toBeNull()
     } finally {
       close()
     }

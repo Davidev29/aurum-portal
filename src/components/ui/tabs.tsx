@@ -28,7 +28,7 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'pv-pressable inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium text-[var(--pv-muted)] hover:text-[var(--pv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 data-[state=active]:bg-[var(--pv-panel)] data-[state=active]:font-semibold data-[state=active]:text-[var(--pv-text)] data-[state=active]:shadow',
+        'pv-pressable inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium text-[var(--pv-muted)] hover:text-[var(--pv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 data-[state=active]:bg-[var(--pv-accent-solid)] data-[state=active]:font-semibold data-[state=active]:text-[var(--pv-on-accent)] data-[state=active]:shadow-sm',
         className,
       )}
       {...props}

@@ -376,19 +376,13 @@ export function MatrixGrid() {
                   </span>
                 </th>
               ))}
-              <th
-                scope="col"
-                className="sticky right-0 z-10 min-w-44 border-l border-[var(--pv-border)] bg-[var(--pv-panel-2)] px-3 py-3 text-right text-xs font-semibold uppercase tracking-[0.06em] text-[var(--pv-muted)]"
-              >
-                Ações
-              </th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
                 <td
-                  colSpan={columns.length + 2}
+                  colSpan={columns.length + 1}
                   className="px-4 py-10 text-center text-sm text-[var(--pv-muted)]"
                 >
                   Carregando matriz…
@@ -397,7 +391,7 @@ export function MatrixGrid() {
             ) : rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length + 2}
+                  colSpan={columns.length + 1}
                   className="px-4 py-10 text-center text-sm text-[var(--pv-muted)]"
                 >
                   Nenhum cliente encontrado{debouncedSearch ? ` para “${debouncedSearch}”` : ''}.
@@ -405,7 +399,7 @@ export function MatrixGrid() {
               </tr>
             ) : columns.length === 0 ? (
               <tr>
-                <td colSpan={2} className="px-4 py-10 text-center text-sm text-[var(--pv-muted)]">
+                <td colSpan={1} className="px-4 py-10 text-center text-sm text-[var(--pv-muted)]">
                   Nenhuma obrigação ativa para os filtros selecionados. Cadastre obrigações na aba
                   “Obrigações” ou ajuste os departamentos/grupo.
                 </td>
@@ -435,6 +429,54 @@ export function MatrixGrid() {
                           <span className="text-[10px] font-medium text-[var(--pv-faint)]">
                             {formatDocumentMasked(client.document)} · {activeCount} vínculo(s)
                           </span>
+                          {/* Ações abaixo do nome, reveladas no hover/foco (sem coluna dedicada) */}
+                          <div className="grid grid-rows-[0fr] opacity-0 transition-all duration-150 ease-out focus-within:grid-rows-[1fr] focus-within:opacity-100 group-hover:grid-rows-[1fr] group-hover:opacity-100">
+                            <div className="overflow-hidden">
+                              <div className="flex items-center gap-1 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => copyFrom(client)}
+                                  title="Copiar vínculos"
+                                  aria-label={`Copiar vínculos de ${client.name}`}
+                                  className="pv-icon-btn flex h-8 w-8 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-3)] hover:text-[var(--pv-text)] disabled:cursor-not-allowed disabled:opacity-35"
+                                  disabled={activeCount === 0}
+                                >
+                                  <Copy className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void pasteTo(client)}
+                                  title={
+                                    clipboard.obligationIds.length > 0
+                                      ? `Colar ${clipboard.obligationIds.length} vínculo(s) da área de transferência`
+                                      : 'Área de transferência vazia'
+                                  }
+                                  aria-label={`Colar vínculos em ${client.name}`}
+                                  className="pv-icon-btn flex h-8 w-8 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-3)] hover:text-[var(--pv-text)] disabled:cursor-not-allowed disabled:opacity-35"
+                                  disabled={clipboard.obligationIds.length === 0}
+                                >
+                                  <ClipboardPaste className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setManageClient(client)}
+                                  title="Gerenciar vínculos (datas e remoção definitiva)"
+                                  aria-label={`Gerenciar vínculos de ${client.name}`}
+                                  className="pv-icon-btn flex h-8 w-8 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-3)] hover:text-[var(--pv-text)]"
+                                >
+                                  <ListChecks className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                                <Link
+                                  href={`/clients/detail/?id=${client.id}`}
+                                  title="Abrir ficha do cliente"
+                                  aria-label={`Abrir ficha de ${client.name}`}
+                                  className="pv-icon-btn flex h-8 w-8 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-3)] hover:text-[var(--pv-text)]"
+                                >
+                                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -484,51 +526,6 @@ export function MatrixGrid() {
                         </td>
                       )
                     })}
-                    <td className="sticky right-0 z-10 border-l border-[var(--pv-border)] bg-[var(--pv-panel)] px-2 py-2 text-right group-hover:bg-[var(--pv-panel-2)]">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => copyFrom(client)}
-                          title="Copiar vínculos"
-                          aria-label={`Copiar vínculos de ${client.name}`}
-                          className="pv-icon-btn flex h-8 w-8 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-3)] hover:text-[var(--pv-text)] disabled:cursor-not-allowed disabled:opacity-35"
-                          disabled={activeCount === 0}
-                        >
-                          <Copy className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void pasteTo(client)}
-                          title={
-                            clipboard.obligationIds.length > 0
-                              ? `Colar ${clipboard.obligationIds.length} vínculo(s) da área de transferência`
-                              : 'Área de transferência vazia'
-                          }
-                          aria-label={`Colar vínculos em ${client.name}`}
-                          className="pv-icon-btn flex h-8 w-8 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-3)] hover:text-[var(--pv-text)] disabled:cursor-not-allowed disabled:opacity-35"
-                          disabled={clipboard.obligationIds.length === 0}
-                        >
-                          <ClipboardPaste className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setManageClient(client)}
-                          title="Gerenciar vínculos (datas e remoção definitiva)"
-                          aria-label={`Gerenciar vínculos de ${client.name}`}
-                          className="pv-icon-btn flex h-8 w-8 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-3)] hover:text-[var(--pv-text)]"
-                        >
-                          <ListChecks className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <Link
-                          href={`/clients/detail/?id=${client.id}`}
-                          title="Abrir ficha do cliente"
-                          aria-label={`Abrir ficha de ${client.name}`}
-                          className="pv-icon-btn flex h-8 w-8 items-center justify-center rounded-lg text-[var(--pv-muted)] hover:bg-[var(--pv-panel-3)] hover:text-[var(--pv-text)]"
-                        >
-                          <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                        </Link>
-                      </div>
-                    </td>
                   </tr>
                 )
               })
@@ -538,7 +535,8 @@ export function MatrixGrid() {
       </div>
 
       <p className="text-xs text-[var(--pv-faint)]">
-        Clique na célula para vincular/desvincular. Desvincular na célula inativa o vínculo (o
+        Clique na célula para vincular/desvincular. As ações de cada cliente aparecem abaixo do nome
+        ao passar o mouse (ou ao focar com Tab). Desvincular na célula inativa o vínculo (o
         histórico é preservado); a remoção definitiva fica em “Gerenciar vínculos”. A cópia de
         vínculos fica apenas na memória de sessão e cria registros independentes por cliente.
       </p>

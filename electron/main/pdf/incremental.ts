@@ -29,10 +29,12 @@ import {
   prepareFonts,
   resolveCustomStampRect,
   resolveStampRect,
+  watermarkBox,
+  WATERMARK_OPACITY,
   type PreparedFonts,
 } from './stamp'
 import { displayStampSize, getPageView, stampContentsRelativeMatrix } from './page-geometry'
-import { prepareItiSeal } from './stamp-logo'
+import { prepareItiSeal, prepareStampWatermark } from './stamp-logo'
 import { CmsError } from './cms'
 
 export interface IncrementalPlaceholderInput {
@@ -137,6 +139,8 @@ function buildStampContent(input: {
   issuerLine: string
   fonts: PreparedFonts
   hasImage: boolean
+  /** Caixa da marca d'água no frame local (null = sem marca d'água). */
+  watermarkBox?: { x: number; y: number; width: number; height: number } | null
 }): string {
   const { width, height, fonts, hasImage } = input
   const layout = computeStampLayout({
@@ -154,17 +158,24 @@ function buildStampContent(input: {
   let content = ''
   // Fundo branco com borda slate.
   content += `q 1 1 1 rg 0 0 ${w} ${h} re f 0.2 0.27 0.37 RG 0.75 w 0 0 ${w} ${h} re S Q\n`
+  // Marca d'água (biometria) centralizada, atrás de todo o conteudo.
+  if (input.watermarkBox) {
+    const b = input.watermarkBox
+    content += `q /GS1 gs ${b.width.toFixed(2)} 0 0 ${b.height.toFixed(2)} ${b.x.toFixed(2)} ${b.y.toFixed(2)} cm /Im2 Do Q\n`
+  }
   // Faixa superior azul-marinho com filete dourado e selo ITI.
   if (layout.headerH > 0) {
     content += `q 0.04 0.07 0.14 rg 0 ${(height - layout.headerH).toFixed(2)} ${w} ${layout.headerH.toFixed(2)} re f Q\n`
   }
-  content += `q 0.83 0.69 0.31 rg 0 ${(height - layout.headerH - 1.2).toFixed(2)} ${w} 1.2 re f Q\n`
+  content += `q 0.83 0.69 0.31 rg 0 ${(height - layout.headerH - layout.goldH).toFixed(2)} ${w} ${layout.goldH.toFixed(2)} re f Q\n`
   if (hasImage && layout.sealSide > 0) {
     const side = layout.sealSide.toFixed(2)
     content += `q ${side} 0 0 ${side} ${layout.sealX.toFixed(2)} ${layout.sealY.toFixed(2)} cm /Im1 Do Q\n`
   }
-  // Bloco do QR auto-contido: moldura própria, centralizado, abaixo dos dados.
-  content += `q 1 1 1 rg 1 1 1 RG 0.75 w ${(layout.qrX - 2).toFixed(2)} ${(layout.qrY - 2).toFixed(2)} ${(layout.qrSize + 4).toFixed(2)} ${(layout.qrSize + 4).toFixed(2)} re f S Q\n`
+  // Bloco do QR auto-contido: moldura própria com quiet zone (~2 módulos),
+  // centralizado, abaixo dos dados (nunca cobre o texto do certificado).
+  const qrPad = layout.qrPad
+  content += `q 1 1 1 rg 1 1 1 RG 0.75 w ${(layout.qrX - qrPad).toFixed(2)} ${(layout.qrY - qrPad).toFixed(2)} ${(layout.qrSize + qrPad * 2).toFixed(2)} ${(layout.qrSize + qrPad * 2).toFixed(2)} re f S Q\n`
   content += 'q 0 0 0 rg\n'
   try {
     const qr = createQr(VALIDATE_ITI_URL, { errorCorrectionLevel: 'M' })
@@ -257,6 +268,12 @@ export async function createIncrementalPlaceholder(
   } catch {
     seal = null
   }
+  let watermark: Awaited<ReturnType<typeof prepareStampWatermark>> = null
+  try {
+    watermark = await prepareStampWatermark(doc)
+  } catch {
+    watermark = null
+  }
 
   // AcroForm (existente ou novo).
   let acro = catalog.lookupMaybe(PDFName.of('AcroForm'), PDFDict) as PDFDict | undefined
@@ -334,6 +351,7 @@ export async function createIncrementalPlaceholder(
   const rotation = view.rotation
   const { width, height } = displayStampSize(view, rect)
   const hasImage = Boolean(seal)
+  const wmBox = watermark ? watermarkBox(width, height, watermark.width, watermark.height) : null
   const contentString = buildStampContent({
     width,
     height,
@@ -343,6 +361,7 @@ export async function createIncrementalPlaceholder(
     issuerLine,
     fonts,
     hasImage,
+    watermarkBox: wmBox,
   })
   // /Rotate ≠ 0: a pagina gira na exibicao — o conteudo do AP precisa ser
   // "pre-rotacionado" para aparecer em pe, exatamente onde o usuario desenhou.
@@ -358,8 +377,15 @@ export async function createIncrementalPlaceholder(
       F3: { Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica-Oblique' },
     },
   }
-  if (seal) {
-    resources.XObject = { Im1: seal.ref }
+  const xobjects: Record<string, unknown> = {}
+  if (seal) xobjects.Im1 = seal.ref
+  if (watermark) xobjects.Im2 = watermark.ref
+  if (Object.keys(xobjects).length > 0) resources.XObject = xobjects
+  if (watermark) {
+    // Opacidade da marca d'água (ExtGState /GS1, ca/CA = 18%).
+    resources.ExtGState = {
+      GS1: { Type: 'ExtGState', ca: WATERMARK_OPACITY, CA: WATERMARK_OPACITY },
+    }
   }
   const apStream = ctx.stream(new Uint8Array(contentBytes), {
     Type: 'XObject',
@@ -415,20 +441,20 @@ export async function createIncrementalPlaceholder(
     { ref: pageRef, object: pageNode as unknown as PDFObject },
     { ref: acroRef, object: acro as unknown as PDFObject },
   ]
-  if (seal) {
+  // Materializa uma imagem embedPng no contexto incremental (incluindo a
+  // SMask de transparencia, quando houver) para gravar no append.
+  const materializeImage = async (image: { ref: PDFRef } | null) => {
+    if (!image) return
     try {
-      // embedPng nao registra no contexto ate o save; materializa o XObject
-      // do selo manualmente (incluindo a SMask de transparencia, quando houver)
-      // para gravar incrementalmente.
       const embedder = (
-        seal as unknown as {
+        image as unknown as {
           embedder: { embedIntoContext: (context: unknown, ref: PDFRef) => Promise<PDFRef> }
         }
       ).embedder
-      await embedder.embedIntoContext(ctx, seal.ref)
-      const imageObject = ctx.lookup(seal.ref) as PDFObject
-      toWrite.push({ ref: seal.ref, object: imageObject })
-      const imageStream = ctx.lookup(seal.ref)
+      await embedder.embedIntoContext(ctx, image.ref)
+      const imageObject = ctx.lookup(image.ref) as PDFObject
+      toWrite.push({ ref: image.ref, object: imageObject })
+      const imageStream = ctx.lookup(image.ref)
       if (imageStream instanceof PDFStream) {
         const smask = imageStream.dict.get(PDFName.of('SMask'))
         if (smask instanceof PDFRef) {
@@ -440,6 +466,8 @@ export async function createIncrementalPlaceholder(
       // Sem a imagem no incremental, o carimbo visual continua valido.
     }
   }
+  await materializeImage(seal)
+  await materializeImage(watermark)
   if (isNewAcro && catalogRef) {
     toWrite.push({ ref: catalogRef, object: catalog as unknown as PDFObject })
   }

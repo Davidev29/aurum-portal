@@ -279,7 +279,7 @@ select {
 /* Hover estável: nunca desloca o elemento (sem "pulo"). Só sombra/borda. */
 .pv-surface-hover {
   transition:
-    box-shadow var(--pv-dur-base) cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow var(--pv-dur-base) var(--pv-ease-out-expo),
     border-color var(--pv-dur-base) ease;
 }
 
@@ -408,13 +408,13 @@ select {
 }
 
 .pv-anim-fade-up {
-  animation: pv-fade-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: pv-fade-up 0.32s var(--pv-ease-out-expo) both;
 }
 
 /* `backwards`, não `both`: o fill-forwards manteria transform no elemento e
- * impediria micro-interações de hover (translateY) após a entrada. */
+ * impediria micro-interações de hover após a entrada. */
 .pv-stagger > * {
-  animation: pv-fade-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: pv-fade-up 0.32s var(--pv-ease-out-expo) backwards;
 }
 
 .pv-stagger > *:nth-child(1) {
@@ -440,14 +440,16 @@ select {
 }
 
 /* ==========================================================================
-   AurumBit Portal — Sistema de movimento (micro-interações elásticas)
+   AurumBit Portal — Sistema de movimento (micro-interações sutis)
    Tokens, keyframes e utilitários. Tudo respeita prefers-reduced-motion.
-   Curvas: spring (overshoot elegante) aplicada em botões, menus, modais.
+   Curvas: spring com overshoot contido (nunca "pula") em entradas, press
+   táctil consistente em todo elemento interativo.
    ========================================================================== */
 
 :root {
-  --pv-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --pv-ease-spring-soft: cubic-bezier(0.22, 1.36, 0.36, 1);
+  /* Spring contido: ~2% de overshoot — presença de elasticidade sem bounce. */
+  --pv-ease-spring: cubic-bezier(0.33, 1.24, 0.4, 1);
+  --pv-ease-spring-soft: cubic-bezier(0.25, 1.1, 0.35, 1);
   --pv-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --pv-ease-in-out: cubic-bezier(0.65, 0.05, 0.36, 1);
   --pv-dur-micro: 120ms;
@@ -476,15 +478,11 @@ select {
 }
 
 @keyframes pv-pop-in {
-  0% {
+  from {
     opacity: 0;
-    transform: scale(0.9) translateY(6px);
+    transform: scale(0.94) translateY(5px);
   }
-  60% {
-    opacity: 1;
-    transform: scale(1.03) translateY(-1px);
-  }
-  100% {
+  to {
     opacity: 1;
     transform: scale(1) translateY(0);
   }
@@ -495,17 +493,12 @@ select {
    translate(-50%, -50%) aqui — no Tailwind v4 `translate` e `transform`
    se somam e o modal fica descentralizado (duplo deslocamento). */
 @keyframes pv-dialog-in {
-  0% {
+  from {
     opacity: 0;
-    transform: scale(0.92) translateY(14px);
-    filter: blur(2px);
+    transform: scale(0.94) translateY(10px);
+    filter: blur(1px);
   }
-  60% {
-    opacity: 1;
-    transform: scale(1.015) translateY(-2px);
-    filter: blur(0);
-  }
-  100% {
+  to {
     opacity: 1;
     transform: scale(1) translateY(0);
     filter: blur(0);
@@ -524,15 +517,11 @@ select {
 }
 
 @keyframes pv-page-in {
-  0% {
+  from {
     opacity: 0;
-    transform: translateY(14px) scale(0.995);
+    transform: translateY(12px) scale(0.997);
   }
-  60% {
-    opacity: 1;
-    transform: translateY(-2px) scale(1.002);
-  }
-  100% {
+  to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
@@ -563,11 +552,7 @@ select {
 @keyframes pv-slide-in-up {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.98);
-  }
-  65% {
-    opacity: 1;
-    transform: translateY(-2px) scale(1.01);
+    transform: translateY(12px) scale(0.99);
   }
   to {
     opacity: 1;
@@ -578,11 +563,7 @@ select {
 @keyframes pv-scale-in {
   from {
     opacity: 0;
-    transform: scale(0.94);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.02);
+    transform: scale(0.95);
   }
   to {
     opacity: 1;
@@ -591,15 +572,11 @@ select {
 }
 
 @keyframes pv-toast-in {
-  0% {
+  from {
     opacity: 0;
-    transform: translateY(12px) scale(0.92);
+    transform: translateY(10px) scale(0.95);
   }
-  60% {
-    opacity: 1;
-    transform: translateY(-2px) scale(1.015);
-  }
-  100% {
+  to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
@@ -618,10 +595,10 @@ select {
 
 @keyframes pv-check-pop {
   0% {
-    transform: scale(0.6);
+    transform: scale(0.7);
   }
-  60% {
-    transform: scale(1.18);
+  55% {
+    transform: scale(1.12);
   }
   100% {
     transform: scale(1);
@@ -630,13 +607,13 @@ select {
 
 @keyframes pv-heart-pop {
   0% {
-    transform: scale(0.8);
+    transform: scale(0.85);
   }
-  50% {
-    transform: scale(1.25) rotate(-8deg);
+  55% {
+    transform: scale(1.15) rotate(-6deg);
   }
   100% {
-    transform: scale(1.1);
+    transform: scale(1) rotate(0deg);
   }
 }
 
@@ -750,12 +727,19 @@ select {
   animation-delay: 270ms;
 }
 
-/* Botão — base táctil global (aplica-se a todo <button> sem classe customizada) */
+/* Botão — base táctil global (aplica-se a todo <button> sem classe customizada).
+ * `scale` (propriedade individual) compõe com `transform` sem conflitos. */
 button,
 [role='button'] {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  will-change: transform;
+  scale: 1;
+  transition: scale var(--pv-dur-micro) var(--pv-ease-out-expo);
+}
+
+button:active,
+[role='button']:active {
+  scale: 0.96;
 }
 
 /* Botão — família .pv-btn (usada pelo componente Button) */
@@ -768,7 +752,8 @@ button,
     background-color var(--pv-dur-fast) ease,
     border-color var(--pv-dur-fast) ease,
     color var(--pv-dur-fast) ease,
-    filter var(--pv-dur-fast) ease;
+    filter var(--pv-dur-fast) ease,
+    scale var(--pv-dur-micro) var(--pv-ease-out-expo);
 }
 
 .pv-btn::before {
@@ -794,6 +779,7 @@ button,
 
 .pv-btn:active {
   filter: brightness(0.96);
+  scale: 0.97;
 }
 
 .pv-btn svg {
@@ -806,7 +792,12 @@ button,
   transition:
     background-color var(--pv-dur-fast) ease,
     color var(--pv-dur-fast) ease,
-    box-shadow var(--pv-dur-fast) ease;
+    box-shadow var(--pv-dur-fast) ease,
+    scale var(--pv-dur-micro) var(--pv-ease-out-expo);
+}
+
+.pv-nav-link:active {
+  scale: 0.98;
 }
 
 .pv-nav-link::before {
@@ -820,8 +811,8 @@ button,
   background: currentColor;
   transform: translateY(-50%) scaleY(0);
   transition:
-    height var(--pv-dur-base) var(--pv-ease-spring),
-    transform var(--pv-dur-base) var(--pv-ease-spring);
+    height var(--pv-dur-base) var(--pv-ease-spring-soft),
+    transform var(--pv-dur-base) var(--pv-ease-spring-soft);
   opacity: 0.8;
 }
 
@@ -842,16 +833,22 @@ button,
     color var(--pv-dur-fast) ease;
 }
 
-/* Cartões e cards — hover estável: sem "levantar", só sombra/borda */
+/* Cartões e cards — hover estável: sem "levantar", só sombra/borda.
+ * Clique comprime levemente — sensação táctil de papel. */
 .pv-lift {
   transition:
     box-shadow var(--pv-dur-base) var(--pv-ease-out-expo),
-    border-color var(--pv-dur-base) ease;
+    border-color var(--pv-dur-base) ease,
+    scale var(--pv-dur-micro) var(--pv-ease-out-expo);
 }
 
 .pv-lift:hover {
   box-shadow: var(--pv-shadow-lg);
   border-color: var(--pv-border-strong);
+}
+
+.pv-lift:active {
+  scale: 0.99;
 }
 
 /* Store — card de serviço: elevação táctil suave ao passar o mouse.
@@ -924,10 +921,10 @@ button,
 /* Favorito: estouro de estrela ao marcar */
 @keyframes pv-star-pop {
   0% {
-    transform: scale(0.5) rotate(-24deg);
+    transform: scale(0.6) rotate(-15deg);
   }
   55% {
-    transform: scale(1.35) rotate(8deg);
+    transform: scale(1.18) rotate(6deg);
   }
   100% {
     transform: scale(1) rotate(0deg);
@@ -955,11 +952,16 @@ button,
   line-height: 1.5;
 }
 
-/* Ícone — hover estável: só cor/fundo, sem "pop" ou escala */
+/* Ícone — hover estável: só cor/fundo, sem "pop" ou escala; clique comprime */
 .pv-icon-btn {
   transition:
     background-color var(--pv-dur-fast) ease,
-    color var(--pv-dur-fast) ease;
+    color var(--pv-dur-fast) ease,
+    scale var(--pv-dur-micro) var(--pv-ease-out-expo);
+}
+
+.pv-icon-btn:active {
+  scale: 0.88;
 }
 
 /* Elemento genérico (chips, linhas clicáveis, links) — hover sem deslocamento */
@@ -967,12 +969,17 @@ button,
   transition:
     box-shadow var(--pv-dur-fast) var(--pv-ease-out-expo),
     border-color var(--pv-dur-fast) ease,
-    background-color var(--pv-dur-fast) ease;
+    background-color var(--pv-dur-fast) ease,
+    scale var(--pv-dur-micro) var(--pv-ease-out-expo);
 }
 
 .pv-pressable:hover {
   box-shadow: var(--pv-shadow);
   border-color: var(--pv-border-strong);
+}
+
+.pv-pressable:active {
+  scale: 0.98;
 }
 
 /* Ripple — elemento injetado pelo JS do Button */
@@ -1012,7 +1019,7 @@ button,
   animation: pv-slide-in-up 280ms var(--pv-ease-spring-soft) both;
 }
 
-/* Sonner — entrada elástica dos toasts */
+/* Sonner — entrada suave dos toasts */
 [data-sonner-toaster] [data-sonner-toast] {
   animation: pv-toast-in var(--pv-dur-slow) var(--pv-ease-spring-soft) both;
   transition: transform var(--pv-dur-fast) var(--pv-ease-spring);
@@ -1040,7 +1047,7 @@ button,
 .pv-row-hover {
   transition:
     background-color var(--pv-dur-fast) ease,
-    transform var(--pv-dur-micro) var(--pv-ease-spring);
+    transform var(--pv-dur-micro) var(--pv-ease-out-expo);
 }
 
 .pv-row-hover:hover {

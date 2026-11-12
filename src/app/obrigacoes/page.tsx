@@ -1,6 +1,13 @@
 'use client'
 
-import { CalendarClock, ClipboardCheck, ListChecks, Building2, FolderOpen } from 'lucide-react'
+import {
+  CalendarDays,
+  ClipboardCheck,
+  ListChecks,
+  Building2,
+  FolderOpen,
+  CalendarClock,
+} from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { PageHeader } from '@/components/page-header'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -8,6 +15,7 @@ import { MatrixGrid } from '@/components/obligations/matrix-grid'
 import { ObligationsTab } from '@/components/obligations/obligations-tab'
 import { DepartmentsTab } from '@/components/obligations/departments-tab'
 import { GroupsTab } from '@/components/obligations/groups-tab'
+import { ObligationsMonthView } from '@/components/obligations/obligations-month-view'
 
 export default function ObrigacoesPage() {
   return (
@@ -15,19 +23,23 @@ export default function ObrigacoesPage() {
       <PageHeader
         eyebrow="Rotinas recorrentes"
         title="Obrigações"
-        description="Catálogo de obrigações recorrentes (SPED, DCTF, FGTS, eSocial…), matriz de vínculos por cliente, grupos reutilizáveis e avisos de vencimento na central de avisos."
+        description="Calendário do mês com as obrigações de cada cliente e baixa de entregas por dia; catálogo de obrigações, matriz de vínculos, grupos, departamentos e avisos de vencimento na central de avisos."
         icon={<ClipboardCheck className="h-6 w-6" aria-hidden="true" />}
       />
 
-      <Tabs defaultValue="matriz">
-        <TabsList aria-label="Seções de obrigações">
+      <Tabs defaultValue="obrigacoes">
+        <TabsList aria-label="Seções de obrigações" className="mx-auto flex w-fit">
+          <TabsTrigger value="obrigacoes">
+            <CalendarDays className="h-4 w-4" aria-hidden="true" />
+            Obrigações
+          </TabsTrigger>
           <TabsTrigger value="matriz">
             <CalendarClock className="h-4 w-4" aria-hidden="true" />
             Matriz de vínculos
           </TabsTrigger>
-          <TabsTrigger value="obrigacoes">
+          <TabsTrigger value="catalogo">
             <ListChecks className="h-4 w-4" aria-hidden="true" />
-            Obrigações
+            Catálogo
           </TabsTrigger>
           <TabsTrigger value="departamentos">
             <Building2 className="h-4 w-4" aria-hidden="true" />
@@ -39,10 +51,13 @@ export default function ObrigacoesPage() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="obrigacoes">
+          <ObligationsMonthView />
+        </TabsContent>
         <TabsContent value="matriz">
           <MatrixGrid />
         </TabsContent>
-        <TabsContent value="obrigacoes">
+        <TabsContent value="catalogo">
           <ObligationsTab />
         </TabsContent>
         <TabsContent value="departamentos">

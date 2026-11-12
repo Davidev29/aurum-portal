@@ -1,11 +1,11 @@
 /**
  * Sistema de movimento — AurumBit Portal
- * Tokens e helpers para micro-interações elásticas.
+ * Tokens e helpers para micro-interações sutis (sem bounce).
  * Ver docs/motion-system.md para a projeção completa.
  */
 export const motion = {
-  easeSpring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-  easeSpringSoft: 'cubic-bezier(0.22, 1.36, 0.36, 1)',
+  easeSpring: 'cubic-bezier(0.33, 1.24, 0.4, 1)',
+  easeSpringSoft: 'cubic-bezier(0.25, 1.1, 0.35, 1)',
   easeOutExpo: 'cubic-bezier(0.16, 1, 0.3, 1)',
   durations: { micro: 120, fast: 160, base: 220, slow: 380, modal: 340 },
 } as const

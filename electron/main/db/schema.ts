@@ -300,6 +300,33 @@ export const clientObligations = sqliteTable(
   ],
 )
 
+export const obligationDeliveries = sqliteTable(
+  'obligation_deliveries',
+  {
+    id: text('id').primaryKey(),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    obligationId: text('obligation_id')
+      .notNull()
+      .references(() => obligations.id, { onDelete: 'cascade' }),
+    /** AAAA-MM-DD do vencimento da ocorrência. */
+    dueDate: text('due_date').notNull(),
+    /** ISO timestamp da baixa. */
+    completedAt: text('completed_at').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('obligation_deliveries_unique').on(
+      table.clientId,
+      table.obligationId,
+      table.dueDate,
+    ),
+    index('obligation_deliveries_due_idx').on(table.dueDate),
+  ],
+)
+
 export const notifications = sqliteTable(
   'notifications',
   {
@@ -333,6 +360,10 @@ export const extraHolidays = sqliteTable(
     id: text('id').primaryKey(),
     date: text('date').notNull(),
     name: text('name').notNull(),
+    /** Chave de ícone (flag, palmtree…); null = padrão. */
+    icon: text('icon'),
+    /** Cor em hex (#RRGGBB); null = padrão. */
+    color: text('color'),
     createdAt: text('created_at').notNull(),
   },
   (table) => [uniqueIndex('extra_holidays_date_unique').on(table.date)],
@@ -375,6 +406,7 @@ export const schema = {
   obligationGroups,
   obligationGroupItems,
   clientObligations,
+  obligationDeliveries,
   notifications,
   extraHolidays,
   auditEvents,
@@ -394,6 +426,7 @@ export type ObligationRow = typeof obligations.$inferSelect
 export type ObligationGroupRow = typeof obligationGroups.$inferSelect
 export type ObligationGroupItemRow = typeof obligationGroupItems.$inferSelect
 export type ClientObligationRow = typeof clientObligations.$inferSelect
+export type ObligationDeliveryRow = typeof obligationDeliveries.$inferSelect
 export type NotificationRow = typeof notifications.$inferSelect
 export type ExtraHolidayRow = typeof extraHolidays.$inferSelect
 export type AuditEventRow = typeof auditEvents.$inferSelect
@@ -408,6 +441,7 @@ export type NewDepartmentRow = typeof departments.$inferInsert
 export type NewObligationRow = typeof obligations.$inferInsert
 export type NewObligationGroupRow = typeof obligationGroups.$inferInsert
 export type NewClientObligationRow = typeof clientObligations.$inferInsert
+export type NewObligationDeliveryRow = typeof obligationDeliveries.$inferInsert
 export type NewNotificationRow = typeof notifications.$inferInsert
 export type NewExtraHolidayRow = typeof extraHolidays.$inferInsert
 export type NewAuditEventRow = typeof auditEvents.$inferInsert

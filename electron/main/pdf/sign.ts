@@ -16,7 +16,7 @@ import {
   resolveCustomStampRect,
   resolveStampRect,
 } from './stamp'
-import { prepareItiSeal } from './stamp-logo'
+import { prepareItiSeal, prepareStampWatermark } from './stamp-logo'
 import { buildDetachedCmsWithInfo, CmsError } from './cms'
 import { verifySignedPdf } from './verify'
 
@@ -209,6 +209,7 @@ export async function signPdfDocument(input: SignPdfDocumentInput): Promise<Sign
         : resolveStampRect(targetPage, xPct, yPct, size)
     const fonts = await prepareFonts(doc)
     const seal = await prepareItiSeal(doc).catch(() => null)
+    const watermark = await prepareStampWatermark(doc).catch(() => null)
     drawSignatureStamp({
       page: targetPage,
       x: rect.x,
@@ -222,6 +223,7 @@ export async function signPdfDocument(input: SignPdfDocumentInput): Promise<Sign
       issuerLine: `Emissor: ${issuerShortName(certificate.issuerDn)}`,
       fonts,
       seal,
+      watermark,
     })
 
     // 3. Insere o placeholder de assinatura (PAdES: SubFilter ETSI.CAdES.detached).

@@ -17,7 +17,7 @@ export const Select = React.forwardRef<
       </select>
       <ChevronDown
         aria-hidden="true"
-        className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pv-muted)] transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] peer-hover:rotate-180"
+        className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pv-muted)] transition-transform duration-200 ease-[var(--pv-ease-out-expo)] peer-hover:rotate-180"
       />
     </div>
   )

@@ -124,6 +124,8 @@ export const AUDIT_TYPES = [
   'obligation_link.updated',
   'obligation_link.deleted',
   'obligation_link.pasted',
+  'obligation_delivery.completed',
+  'obligation_delivery.reverted',
   'holiday.added',
   'holiday.removed',
   'obligation.notifications_sent',
