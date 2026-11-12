@@ -167,6 +167,14 @@ export async function runPowerShell(script: string, timeoutMs = 60_000): Promise
   const scriptPath = path.join(directory, 'script.ps1')
   await writeFile(scriptPath, script.endsWith('\n') ? script : `${script}\n`, 'utf8')
 
+  // Sempre aguarda a remocao do diretorio antes de resolver/rejeitar: o
+  // script pode conter material sensivel em base64 (ex.: senha do PFX em
+  // buildInstallScript) e o rm fire-and-forget anterior vazava arquivos
+  // quando o processo encerrava cedo demais ou o AV retinha o arquivo.
+  const cleanup = async (): Promise<void> => {
+    await rm(directory, { recursive: true, force: true }).catch(() => undefined)
+  }
+
   return new Promise((resolve, reject) => {
     let stdout = ''
     let stderr = ''
@@ -184,11 +192,18 @@ export async function runPowerShell(script: string, timeoutMs = 60_000): Promise
       ],
       { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
     )
+
+    const finish = (action: () => void): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      void cleanup().finally(action)
+    }
+
     const timer = setTimeout(() => {
-      if (!settled) {
-        child.kill()
-        reject(new Error('Tempo esgotado ao executar o PowerShell'))
-      }
+      if (settled) return
+      child.kill()
+      finish(() => reject(new Error('Tempo esgotado ao executar o PowerShell')))
     }, timeoutMs)
 
     child.stdout.setEncoding('utf8')
@@ -197,29 +212,23 @@ export async function runPowerShell(script: string, timeoutMs = 60_000): Promise
       stdout += chunk
       if (stdout.length > 8_000_000) {
         child.kill()
-        reject(new Error('Saida do PowerShell excedeu o limite'))
+        finish(() => reject(new Error('Saida do PowerShell excedeu o limite')))
       }
     })
     child.stderr.on('data', (chunk: string) => {
       stderr += chunk.slice(0, 20_000)
     })
     child.on('error', (error) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      void rm(directory, { recursive: true, force: true }).catch(() => undefined)
-      reject(
-        new Error(
-          `Nao foi possivel executar o PowerShell: ${error.message}. Verifique se o Windows PowerShell esta disponivel.`,
+      finish(() =>
+        reject(
+          new Error(
+            `Nao foi possivel executar o PowerShell: ${error.message}. Verifique se o Windows PowerShell esta disponivel.`,
+          ),
         ),
       )
     })
     child.on('close', (exitCode) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      void rm(directory, { recursive: true, force: true }).catch(() => undefined)
-      resolve({ stdout: stdout.trim(), stderr: stderr.trim(), exitCode })
+      finish(() => resolve({ stdout: stdout.trim(), stderr: stderr.trim(), exitCode }))
     })
   })
 }

@@ -252,9 +252,21 @@ export function setDefaultCredential(db: AppDatabase, id: string): Credential {
 }
 
 export function getCredentialView(db: AppDatabase, id: string): Credential {
-  const found = listCredentials(db).find((credential) => credential.id === id)
-  if (!found) throw new AppError('NOT_FOUND', 'Credencial nao encontrada')
-  return found
+  // Visao de um unico registro sem varrer a tabela: contagem de reuso
+  // restrita a propria impressão digital da credencial (o mapa do
+  // fingerprintCounts global custaria O(N) e uma ordenacao pt-BR completa
+  // a cada criacao/edicao — criacao em lote degradava quadraticamente).
+  const row = getCredentialRow(db, id)
+  const client = db.select().from(clients).where(eq(clients.id, row.clientId)).get()
+  const service = db.select().from(services).where(eq(services.id, row.serviceId)).get()
+  if (!client || !service) throw new AppError('NOT_FOUND', 'Credencial nao encontrada')
+  const reuseRow = db
+    .select({ total: sql<number>`count(*)` })
+    .from(credentials)
+    .where(eq(credentials.passwordFingerprint, row.passwordFingerprint))
+    .get()
+  const counts = new Map([[row.passwordFingerprint, Number(reuseRow?.total ?? 0)]])
+  return mapCredential(row, client.name, service.name, service.slug, counts)
 }
 
 export function revealCredential(

@@ -189,6 +189,11 @@ export async function runAgenticLogin(options: AgentOptions): Promise<AgentResul
     options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   const autoSubmit = options.autoSubmit !== false
   const startUrl = target.getURL()
+  // Sequencia de observacoes sem nada a fazer (ex.: pagina pos-login carregou
+  // enquanto o agente esperava o formulario). Apos algumas, o loop encerra e
+  // delega a confirmacao ao watcher de pos-login — em vez de queimar todas as
+  // iteracoes em paginas sem formulario.
+  let noWorkStreak = 0
 
   for (let index = 0; index < maxIterations; index += 1) {
     if (target.isDestroyed()) {
@@ -246,6 +251,7 @@ export async function runAgenticLogin(options: AgentOptions): Promise<AgentResul
 
     // 1) Há formulário de login? Preenche / confirma.
     if (obs.userPresent || obs.passPresent) {
+      noWorkStreak = 0
       if (!obs.userFilled || !obs.passFilled) {
         await safeExecute(target, FILL_SCRIPT(values.username, values.password), 6_000)
         await sleep(350)
@@ -287,6 +293,7 @@ export async function runAgenticLogin(options: AgentOptions): Promise<AgentResul
       obs.buttons.some((label) => label === candidate || label.includes(candidate)),
     )
     if (cta) {
+      noWorkStreak = 0
       await safeExecute(target, CLICK_CTA_SCRIPT(cta), 6_000)
       await sleep(800)
       continue
@@ -294,6 +301,7 @@ export async function runAgenticLogin(options: AgentOptions): Promise<AgentResul
 
     // 3) Há botão de avanço (CPF preenchido em duas etapas)?
     if (obs.userFilled && !obs.passPresent) {
+      noWorkStreak = 0
       const advanced = await safeExecute<{ ok: boolean; detail: string }>(
         target,
         ADVANCE_SCRIPT,
@@ -305,7 +313,21 @@ export async function runAgenticLogin(options: AgentOptions): Promise<AgentResul
       }
     }
 
-    // 4) Nada a fazer ainda (página navegando/renderizando).
+    // 4) Nada a fazer ainda (página navegando/renderizando). Se a página pós-
+    // login já carregou (form sumiu sem vestígios de login pendente), encerra
+    // e deixa o watcher de pós-login confirmar a autenticação.
+    noWorkStreak += 1
+    if (noWorkStreak >= 4) {
+      return {
+        status: 'awaiting_login',
+        message:
+          'O portal não confirmou o login no tempo esperado. Use a tela aberta para concluir.',
+        twoFactorDetected: false,
+        captchaDetected: false,
+        iterations: index + 1,
+        lastUrl: obs.href,
+      }
+    }
     await sleep(600)
   }
 

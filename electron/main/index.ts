@@ -288,6 +288,7 @@ if (!singleInstance) {
         trusted,
         broadcast,
         databasePath,
+        isShuttingDown: () => quitting,
       })
       stopObligationReminders = startObligationReminderScheduler({ db, broadcast })
 

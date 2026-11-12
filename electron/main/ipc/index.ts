@@ -47,9 +47,11 @@ import {
   obligationInputSchema,
   obligationSetActiveSchema,
   applyGroupSchema,
+  monthOverviewSchema,
   pasteLinksSchema,
   removeLinkSchema,
   setLinkSchema,
+  setDeliverySchema,
   updateLinkSchema,
   passwordGeneratorSchema,
   pdfLoadPreviewSchema,
@@ -145,6 +147,7 @@ import {
   listGroups,
   listHolidays,
   listLinksByClient,
+  listMonthOverview,
   listNotifications,
   listObligations,
   markAllNotificationsRead,
@@ -154,6 +157,7 @@ import {
   removeHoliday,
   removeLink,
   setClientObligationLink,
+  setDelivery,
   setDepartmentActive,
   setObligationActive,
   updateDepartment,
@@ -198,6 +202,9 @@ export interface IpcHandlerDeps {
   trusted: TrustedContentsRegistry
   broadcast: Broadcast
   databasePath: string
+  /** Quando true, o app esta encerrando: handlers respondem SHUTTING_DOWN
+   * sem tocar no banco (o banco fecha em before-quit antes do processo sair). */
+  isShuttingDown?: () => boolean
 }
 
 function assertTrustedSender(event: IpcMainInvokeEvent, trusted: TrustedContentsRegistry): void {
@@ -209,7 +216,20 @@ function assertTrustedSender(event: IpcMainInvokeEvent, trusted: TrustedContents
   }
 }
 
-function toErrorResponse(error: unknown): IpcResponse<never> {
+function shuttingDownResponse(): IpcResponse<never> {
+  return {
+    ok: false,
+    error: { code: 'SHUTTING_DOWN', message: 'O aplicativo está sendo encerrado.' },
+  }
+}
+
+function toErrorResponse(
+  error: unknown,
+  isShuttingDown?: () => boolean,
+): IpcResponse<never> {
+  // Corrida de encerramento: se o app esta saindo, nao loga INTERNAL para
+  // chamadas que apenas esbarram no banco ja fechado.
+  if (isShuttingDown?.()) return shuttingDownResponse()
   const appError = asAppError(error)
   if (appError.code === 'INTERNAL') {
     logger.error('ipc.unhandled', {
@@ -275,7 +295,8 @@ async function prepareClientInput(
 }
 
 export function registerIpcHandlers(deps: IpcHandlerDeps): void {
-  const { db, vault, certificates, sessions, trusted, broadcast, databasePath } = deps
+  const { db, vault, certificates, sessions, trusted, broadcast, databasePath, isShuttingDown } =
+    deps
   let brasilApiRefreshing = false
 
   const handle = <TInput, TResult>(
@@ -284,12 +305,13 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     fn: (input: TInput, event: IpcMainInvokeEvent) => TResult | Promise<TResult>,
   ): void => {
     ipcMain.handle(channel, async (event, raw): Promise<IpcResponse<TResult>> => {
+      if (isShuttingDown?.()) return shuttingDownResponse()
       try {
         assertTrustedSender(event, trusted)
         const input = schema ? schema.parse(raw) : (undefined as TInput)
         return { ok: true, value: await fn(input, event) }
       } catch (error) {
-        return toErrorResponse(error)
+        return toErrorResponse(error, isShuttingDown)
       }
     })
   }
@@ -620,6 +642,20 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     obligationsChanged()
     return result
   })
+  handle(IPC.obligations.listMonth, monthOverviewSchema, ({ month }) =>
+    listMonthOverview(db, month),
+  )
+  handle(IPC.obligations.setDelivery, setDeliverySchema, (input) => {
+    const result = setDelivery(db, input)
+    audit(
+      result.delivered ? 'obligation_delivery.completed' : 'obligation_delivery.reverted',
+      'client',
+      input.clientId,
+      { obligationId: input.obligationId, dueDate: input.dueDate },
+    )
+    obligationsChanged()
+    return result
+  })
 
   handle(IPC.obligations.listNotifications, null, () => listNotifications(db))
   handle(IPC.obligations.markNotificationRead, markNotificationReadSchema, ({ id }) => {
@@ -641,7 +677,12 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
   handle(IPC.obligations.listHolidays, null, () => listHolidays(db))
   handle(IPC.obligations.addHoliday, holidayInputSchema, (input) => {
     const holiday = addHoliday(db, input)
-    audit('holiday.added', 'holiday', holiday.id, { date: holiday.date, name: holiday.name })
+    audit('holiday.added', 'holiday', holiday.id, {
+      date: holiday.date,
+      name: holiday.name,
+      icon: holiday.icon,
+      color: holiday.color,
+    })
     obligationsChanged()
     return holiday
   })

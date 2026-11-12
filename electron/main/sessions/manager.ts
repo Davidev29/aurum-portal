@@ -462,10 +462,10 @@ export class SessionManager {
     win.on('closed', () => this.dispose(record, 'Janela fechada pelo usuario'))
 
     void win.loadURL(this.deps.buildAppUrl(`/session/?sessionId=${encodeURIComponent(id)}`))
-    // Carrega uma pagina em branco para preparar a WebContentsView.
-    view.webContents.loadURL('about:blank').catch(() => {})
-    // Carrega a URL real do portal. A view permanece oculta (bounds 0x0)
-    // ate a autenticacao; did-finish-load ignora o documento em branco ao iniciar a receita.
+    // Carrega a URL real do portal em uma unica navegacao. (Historico: a
+    // versao anterior emitia um loadURL('about:blank') no mesmo tick —
+    // corrida de navegacao associada a um crash intermitente do render
+    // process neste fluxo; mitigacao F-RD-4 em docs/qa/QA-STRESS-REPORT.md.)
     view.webContents.loadURL(service.baseUrl).catch((error: unknown) => {
       if (record.closed) return
       record.status = 'error'
@@ -482,8 +482,9 @@ export class SessionManager {
       if (record.closed) return
       record.loading = false
       record.currentUrl = view.webContents.getURL()
-      // Inicia a receita apenas quando o documento commitado NAO for a pagina
-      // em branco (corrige a corrida about:blank x baseUrl).
+      // Inicia a receita apenas quando o documento commitado e o portal
+      // (o warm-up de about:blank foi removido; o guarda permanece como
+      // defesa para cargas em branco futuras).
       const currentUrl = record.view.webContents.getURL()
       const isBlankDocument = !currentUrl || currentUrl === 'about:blank'
       if (!record.recipeAttempted && !isBlankDocument) {
