@@ -24,6 +24,7 @@ import {
   recipeDefinitionSchema,
   type PostLogin,
   type RecipeDefinition,
+  type RecipeFieldSpec,
   type RecipeStep,
 } from '../../../shared/recipe'
 import {
@@ -98,6 +99,31 @@ export interface RecordedDrain {
 
 const MAX_STEPS = 60
 const FUSION_WINDOW_MS = 5_000
+
+/** Normaliza o nome de um campo do portal para chave de `{{credential.<key>}}`. */
+export function normalizeFieldKey(raw: string): string {
+  const base = String(raw ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_{2,}/g, '_')
+    .slice(0, 48)
+  const safe = base.replace(/^[^a-z]+/, '') || 'campo'
+  return safe
+}
+
+/** Chave única para um campo "extra" do portal (garantida sem colisões). */
+export function uniqueExtraFieldKey(raw: string, used: Set<string>): string {
+  const base = `f_${normalizeFieldKey(raw)}`
+  if (!used.has(base)) return base
+  for (let counter = 2; counter < 100; counter += 1) {
+    const candidate = `${base}_${counter}`
+    if (!used.has(candidate)) return candidate
+  }
+  return `${base}_${Date.now().toString(36)}`
+}
 
 /**
  * Política de throttle do broadcast `wizard:progress` (C8): no máximo 1/s,
@@ -432,6 +458,12 @@ export function compileRecording(
 
   const navigations = [...(ctx.navigations ?? [])].sort((left, right) => left.at - right.at)
 
+  // Campos nomeados que o serviço aprende: a credencial do cliente é criada
+  // com exatamente estes nomes (usuario/senha/extras) — o valor vive na
+  // credencial, nunca no serviço.
+  const fieldSpecs = new Map<string, RecipeFieldSpec>()
+  const usedExtraKeys = new Set<string>()
+
   interface StepDraft {
     step: RecipeStep
     at: number
@@ -599,6 +631,12 @@ export function compileRecording(
           })
         }
       }
+      fieldSpecs.set('password', {
+        key: 'password',
+        label: meta.labelText || meta.name || 'Senha',
+        kind: 'password',
+        selector: meta.name ? `[name="${meta.name}"]` : undefined,
+      })
       drafts.push({
         step: {
           action: 'fill',
@@ -628,6 +666,12 @@ export function compileRecording(
           resolved = '{{credential.username}}'
         }
       }
+      fieldSpecs.set('username', {
+        key: 'username',
+        label: meta.labelText || meta.name || 'Usuário',
+        kind: 'username',
+        selector: meta.name ? `[name="${meta.name}"]` : undefined,
+      })
       drafts.push({
         step: {
           action: 'fill',
@@ -643,16 +687,28 @@ export function compileRecording(
       continue
     }
 
-    // d) campo desconhecido — valor descartado (§14-B)
+    // d) campo "extra" que o portal exige (ex.: código da empresa, inscrição):
+    // aprendemos o NOME — o valor vive na credencial do cliente (placeholder).
+    const extraKey = uniqueExtraFieldKey(
+      meta.name || meta.id || meta.labelText || meta.placeholder || 'campo',
+      usedExtraKeys,
+    )
+    usedExtraKeys.add(extraKey)
+    fieldSpecs.set(extraKey, {
+      key: extraKey,
+      label: meta.labelText || meta.name || 'Campo',
+      kind: 'text',
+      selector: meta.name ? `[name="${meta.name}"]` : undefined,
+    })
     warn({
       code: 'value-not-recorded',
-      detail: `O campo "${(meta.labelText || meta.name || 'sem nome').slice(0, 60)}" não foi gravado (não é um dado que guardamos). Preencha-o manualmente ao entrar.`,
+      detail: `O campo "${(meta.labelText || meta.name || 'sem nome').slice(0, 60)}" foi aprendido — o valor fica na credencial do cliente.`,
     })
     drafts.push({
       step: {
         action: 'fill',
         selectors: fillSelectors(meta),
-        value: '',
+        value: `{{credential.${extraKey}}}`,
         label: meta.labelText || meta.name || 'Campo',
         source: 'recorded',
         screen: event.screen,
@@ -710,7 +766,7 @@ export function compileRecording(
 
   const screenNumbers = new Set<number>()
   for (const event of events) {
-    const match = /^T(\d{1,2})$/.exec(event.screen ?? '')
+    const match = /^T(\d{1,3})$/.exec(event.screen ?? '')
     if (match) screenNumbers.add(Number(match[1]))
   }
   const recordedScreens = screenNumbers.size > 0 ? Math.max(...screenNumbers) : 0
@@ -740,6 +796,7 @@ export function compileRecording(
     origin: 'recorded',
     recordedAt: new Date(now()).toISOString(),
     recordedScreens,
+    fields: fieldSpecs.size > 0 ? [...fieldSpecs.values()] : undefined,
   })
 
   return { definition, warnings }

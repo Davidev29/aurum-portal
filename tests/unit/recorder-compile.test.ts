@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   compileRecording,
+  normalizeFieldKey,
   type CompileContext,
   type RecordedEvent,
 } from '../../electron/main/recipes/recorder'
@@ -179,17 +180,19 @@ describe('compileRecording — placeholders e segredos (D4/C2)', () => {
     expect(definition.steps[0]?.value).toBe('{{client.document}}')
   })
 
-  it('campo desconhecido → value "" opcional + value-not-recorded (§14-B)', () => {
+  it('campo desconhecido → aprendido como nomeado ({{credential.f_…}}) + value-not-recorded', () => {
     const { definition, warnings } = compileRecording(
       [fillUnknown(0, 1000)],
       ['1234'],
       makeContext(),
     )
     const step = definition.steps[0]
-    expect(step?.value).toBe('')
+    expect(step?.value).toMatch(/^\{\{credential\.f_agencia\}\}$/)
     expect(step?.optional).toBe(true)
-    expect(JSON.stringify(definition)).not.toContain('1234')
     expect(warnings.map((w) => w.code)).toContain('value-not-recorded')
+    const spec = definition.fields?.find((field) => field.key === 'f_agencia')
+    expect(spec?.kind).toBe('text')
+    expect(spec?.label).toBe('Agência')
   })
 
   it('one-time-code → value "" opcional + otp-not-recorded', () => {
@@ -199,6 +202,55 @@ describe('compileRecording — placeholders e segredos (D4/C2)', () => {
     expect(step?.optional).toBe(true)
     expect(JSON.stringify(definition)).not.toContain('123456')
     expect(warnings.map((w) => w.code)).toContain('otp-not-recorded')
+  })
+})
+
+describe('compileRecording — campos nomeados aprendidos', () => {
+  it('registra username/password como campos nomeados do serviço', () => {
+    const { definition } = compileRecording(
+      [
+        fillPassword(0, 1000),
+        {
+          t: 'fill',
+          at: 500,
+          seq: 1,
+          valueRef: 0,
+          field: {
+            type: 'text',
+            name: 'cpf',
+            id: 'cpf',
+            autocomplete: 'username',
+            ariaLabel: '',
+            placeholder: '',
+            labelText: 'CPF',
+          },
+          screen: 'T2',
+        },
+      ],
+      ['senha-certa', '52998224725'],
+      makeContext(),
+    )
+    const keys = (definition.fields ?? []).map((field) => field.key).sort()
+    expect(keys).toContain('username')
+    expect(keys).toContain('password')
+  })
+
+  it('normaliza nomes de campo para placeholders válidos', () => {
+    expect(normalizeFieldKey('Código da empresa')).toBe('codigo_da_empresa')
+    expect(normalizeFieldKey('inscrição estadual')).toBe('inscricao_estadual')
+    expect(normalizeFieldKey('__x!!')).toBe('x')
+    expect(normalizeFieldKey('3campos')).toBe('campos')
+    expect(normalizeFieldKey('')).toBe('campo')
+  })
+
+  it('nunca persiste valores literais — só placeholders e metadados', () => {
+    const { definition } = compileRecording(
+      [fillPassword(0, 1000), fillUnknown(1, 2000)],
+      ['senha-certa', 'VALOR-SECRETO-EMPRESA'],
+      makeContext(),
+    )
+    expect(JSON.stringify(definition)).not.toContain('VALOR-SECRETO-EMPRESA')
+    expect(JSON.stringify(definition)).not.toContain('senha-certa')
   })
 })
 
