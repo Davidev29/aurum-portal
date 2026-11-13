@@ -11,7 +11,9 @@ import {
   ChevronRight,
   ClipboardCheck,
   Coffee,
+  FileText,
   Flag,
+  Loader2,
   Plus,
   Search,
 } from 'lucide-react'
@@ -30,6 +32,9 @@ import {
 import { holidayColorOf, holidayIconOf, type DayHoliday } from '@/lib/holiday-meta'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
 import { useHolidays, useMonthOverview, useObligationsInvalidate } from '@/lib/obligations-queries'
+import { useSettings } from '@/lib/queries'
+import { generateObligationsMonthReport } from '@/lib/pdf/obligation-reports'
+import { saveReportPdf } from '@/lib/pdf/save-report'
 import { cn, formatDocumentMasked } from '@/lib/utils'
 import { Avatar } from '@/components/ui/primitives'
 import { Button } from '@/components/ui/button'
@@ -103,6 +108,8 @@ export function ObligationsMonthView() {
   const monthKey = cursor ? monthKeyOf(cursor) : null
   const { data: items, isLoading, isPlaceholderData } = useMonthOverview(monthKey)
   const { data: extraHolidays } = useHolidays()
+  const { data: settings } = useSettings()
+  const [exporting, setExporting] = React.useState(false)
 
   const [search, setSearch] = React.useState('')
   const [expanded, setExpanded] = React.useState<ReadonlySet<string>>(new Set())
@@ -238,6 +245,47 @@ export function ObligationsMonthView() {
     const now = new Date()
     setCursor({ year: now.getFullYear(), monthIndex0: now.getMonth() })
     setToday(toDateOnly(now))
+  }
+
+  const exportPdf = async () => {
+    if (!settings) {
+      toast.error('Configurações ainda não carregadas. Tente novamente em instantes.')
+      return
+    }
+    if (!cursor || !today) return
+    if (groups.length === 0) {
+      toast.info('Nada para exportar — nenhum cliente no filtro atual.')
+      return
+    }
+    setExporting(true)
+    try {
+      const key = monthKeyOf(cursor)
+      const result = await generateObligationsMonthReport({
+        items: groups.flatMap((group) => group.items),
+        monthTitle: `${MONTH_LABELS[cursor.monthIndex0] ?? ''} de ${cursor.year}`,
+        filterDescription: search.trim()
+          ? `Busca: "${search.trim()}"`
+          : 'Todos os clientes com obrigações no mês',
+        today,
+        settings,
+      })
+      const saved = await saveReportPdf({
+        filename: `obrigacoes-${key}-${result.trackingCode}.pdf`,
+        bytes: result.bytes,
+        trackingCode: result.trackingCode,
+        title: 'Relatorio de Obrigacoes',
+      })
+      if (saved.path) {
+        toast.success(`${result.pageCount} página(s) exportadas em PDF.`, {
+          description: `Código de rastreio: ${result.trackingCode}`,
+        })
+        await invalidate.audit()
+      }
+    } catch (error) {
+      toast.error(errorMessage(error))
+    } finally {
+      setExporting(false)
+    }
   }
 
   const toggleExpanded = (clientId: string) => {
@@ -520,6 +568,20 @@ export function ObligationsMonthView() {
             </div>
             <Button variant="secondary" size="sm" onClick={goToToday}>
               Hoje
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void exportPdf()}
+              disabled={exporting || !settings}
+              title="Exportar checklist de obrigações do mês (PDF timbrado)"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <FileText className="h-4 w-4" aria-hidden="true" />
+              )}
+              {exporting ? 'Gerando…' : 'Exportar PDF'}
             </Button>
             <div
               className={cn(

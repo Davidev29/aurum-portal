@@ -27,6 +27,12 @@ export interface ReportTable {
   /** Frações relativas (ex.: [2, 1, 1]); omitir = colunas iguais. */
   widths?: number[]
   rows: string[][]
+  /**
+   * Índice da coluna renderizada como caixa de seleção (vazia ou com visto) —
+   * para checklists impressos que serão marcados a caneta ou espelham baixas.
+   * Valor da célula: 'x' = marcada; qualquer outra coisa = caixa vazia.
+   */
+  checkboxColumn?: number
 }
 
 export interface ReportSection {
@@ -701,6 +707,14 @@ export async function generateReportPdf(input: GenerateReportInput): Promise<Gen
       accX += w
     }
 
+    const checkboxIndex =
+      typeof table.checkboxColumn === 'number' &&
+      Number.isInteger(table.checkboxColumn) &&
+      table.checkboxColumn >= 0 &&
+      table.checkboxColumn < colCount
+        ? table.checkboxColumn
+        : null
+
     const drawTableHeader = (): void => {
       ensureSpace(TABLE_HEADER_H + 2)
       page.drawRectangle({
@@ -717,8 +731,14 @@ export async function generateReportPdf(input: GenerateReportInput): Promise<Gen
           7,
           (colWidths[index] ?? 80) - 8,
         )
+        if (!text) return
+        let textX = (colX[index] ?? MARGIN) + 4
+        if (index === checkboxIndex) {
+          const textW = fonts.bold.widthOfTextAtSize(text, 7)
+          textX = (colX[index] ?? MARGIN) + ((colWidths[index] ?? 80) - textW) / 2
+        }
         page.drawText(text, {
-          x: (colX[index] ?? MARGIN) + 4,
+          x: textX,
           y: cursor - TABLE_HEADER_H + 5,
           size: 7,
           font: fonts.bold,
@@ -732,9 +752,12 @@ export async function generateReportPdf(input: GenerateReportInput): Promise<Gen
     table.rows.forEach((row, rowIndex) => {
       const cells = table.columns.map((_, index) => toWinAnsiSafe(row[index] ?? ''))
       const wrapped = cells.map((cell, index) =>
-        wrapText(cell, fonts.regular, TABLE_SIZE, (colWidths[index] ?? 80) - 8),
+        index === checkboxIndex
+          ? [] // a coluna de caixa de seleção é desenhada como gráfico, não texto
+          : wrapText(cell, fonts.regular, TABLE_SIZE, (colWidths[index] ?? 80) - 8),
       )
       const offsets = wrapped.map(() => 0)
+      let checkboxDrawn = false
       for (;;) {
         const remaining = Math.max(
           1,
@@ -776,6 +799,41 @@ export async function generateReportPdf(input: GenerateReportInput): Promise<Gen
           if (x === MARGIN) return
           page.drawRectangle({ x, y: cursor - chunkH, width: 0.4, height: chunkH, color: border })
         })
+        // Caixa de seleção desenhada apenas no primeiro pedaço da linha (não se
+        // repete quando a linha quebra entre páginas).
+        if (checkboxIndex !== null && !checkboxDrawn) {
+          const cell = (row[checkboxIndex] ?? '').trim().toLowerCase()
+          const checked = cell === 'x' || cell === '1' || cell === 'true'
+          const colW = colWidths[checkboxIndex] ?? 40
+          const boxSize = 9
+          const boxX = (colX[checkboxIndex] ?? MARGIN) + (colW - boxSize) / 2
+          const boxY = cursor - chunkH / 2 - boxSize / 2
+          page.drawRectangle({
+            x: boxX,
+            y: boxY,
+            width: boxSize,
+            height: boxSize,
+            borderWidth: 1,
+            borderColor: checked ? primary : muted,
+            color: checked ? primary : rgb(1, 1, 1),
+          })
+          if (checked) {
+            const tick = rgb(1, 1, 1)
+            page.drawLine({
+              start: { x: boxX + 2, y: boxY + boxSize / 2 + 0.4 },
+              end: { x: boxX + boxSize / 2 - 0.6, y: boxY + 2.2 },
+              thickness: 1.3,
+              color: tick,
+            })
+            page.drawLine({
+              start: { x: boxX + boxSize / 2 - 0.6, y: boxY + 2.2 },
+              end: { x: boxX + boxSize - 1.8, y: boxY + boxSize - 2 },
+              thickness: 1.3,
+              color: tick,
+            })
+          }
+          checkboxDrawn = true
+        }
         cursor -= chunkH
         if (wrapped.every((lines, index) => (offsets[index] ?? 0) >= lines.length)) break
         newPage()
