@@ -910,60 +910,57 @@ Estabilidade do e2e: autopilot como injeção única pós-`did-finish-load` da s
 
 ## 10. Fases de implementação
 
-Convenção: esforço em dias úteis de 1 engenheiro (sênior, contexto deste repo). Cada fase termina com suíte verde e commit próprio. **O hotfix D10 é pré-Fase 1 (Parte 7, item 3 da revisão).** Repartição **aprovada pelo dono do produto (E1–E4)**: o MVP não depende de readiness nem de shadow DOM. Total ≈ **15–20 dias** (antes desta revisão: ~19–25).
+Convenção: esforço em dias úteis de 1 engenheiro (sênior, contexto deste repo). Cada fase termina com suíte verde e commit próprio. **O hotfix D10 é pré-Fase 1 (Parte 7, item 3 da revisão).** Repartição aprovada pelo dono do produto (E1–E4): o MVP não depende de readiness nem de shadow DOM. **Total efetivo: Pré-F1/F1/F4/F5(docs) concluídas; F2/F3 em curso.**
 
-### Pré-Fase 1 — HOTFIX `healCustomServiceRecipes` (D10) — 0,5–1 dia — **BLOQUEANTE**
-Guard `origin === 'recorded'` (ou qualquer passo com `source: 'recorded'`) no heal (`electron/main/db/seed.ts`) + `tests/unit/heal-recorded.test.ts`. Nada mais. Depois: suíte 100% verde → commit próprio → Fase 1.
+> **Status real (2026-11-13):** Pré-Fase 1 e Fase 1 **CONCLUÍDAS** (commits `db5665f`…`85d5a2a`, `2e052fd`). Ensinar robô sem cliente (sessão descartável `recording:<wizardId>` sem linha em `sessions`), campos nomeados aprendidos automaticamente (`definition.fields`), receita em dois passes (certificado → senha, `certificateSteps`/`passwordSteps`), certificado gravado pelo mesmo fluxo (picker de A1 no assistente), barra "Concluir gravação" no chrome do portal, `expectedAfter` + `failureCode` no runner, fallback `shouldFallbackToAgent`, `sealFieldValue` AES-256-GCM por campo com AAD `credentials:{id}:field:{name}`. Telemetria browser-based concluída: **e-CAC 2,8 s / 23 recursos; gov.br SSO 1,7 s / 59 recursos; Redesim→gov.br 5,2 s / 34 recursos; `readyState: complete` nos três; 0 elementos `[aria-busy]/.spinner/.loading` visíveis em repouso; zero tráfego eterno detectado nas telas públicas de login**. Shadow DOM medido: apenas VLibras e toolbar gov.br — **fluxos de login são light DOM** ⇒ `pierce:` CORTADO do MVP (documentado em §4.3). **Fase 2 (readiness + integração) e Fase 3/Fase 5 (ver status abaixo) em execução.**
 
-### Fase 1 — MVP defensável: criar → gravar → salvar → reusar (sem readiness, sem shadow DOM) — 4–5 dias (E1)
-**`readiness.ts` NÃO entra nesta fase.** A espera de página = **`waitForUrlMatch` (atual) + `buildWaitScript` (pré-condição atual) + `expectedAfter` simples (checagem de URL com timeout curto)**. Isso já entrega valor completo do fluxo criar → gravar → salvar → reusar.
-Escopo: §4.1 (extensão aditiva do schema + `origin`/`recordedAt`/`recordedScreens`); `recorder.ts` (captura + drain + compile + fingerprint/placeholder — §3 e §4.2); `manager.ts` (`openRecorder`/`disposeRecorder` + guards + **C3** sonda leve do wizard + **C4** fechar janela/app + **N1** teto de 15 min); `contracts.ts`/preload/api/IPC (`wizard:*` + `removedStepIndexes` + **C8** throttle 1/s); modal `service-form-dialog.tsx` etapas 1–3 (criar→gravar→revisar→salvar com **C2** credencial opcional + **C5** auto-finish draft parcial + **N2** `no-credential-bound` + **N3** remover etapa na revisão); runner ganha checagem `expectedAfter` simples + **`failureCode` (C7)** + `fallback.ts`; `heal` já corrigido no pré-Fase 1.
-Saída: usuário cria um acesso novo, ensina, salva e reusa (replay com espera simples). `npm test` verde.
-Risco: **médio** (`recorder`/seletores — R1) — isolado por testes jsdom; receitas builtin/auto inalteradas no caminho feliz (§5.4: nenhuma pré/pós-condição imposta a passos sem `expectedAfter`).
+### Pré-Fase 1 — HOTFIX `healCustomServiceRecipes` (D10) — ✅ CONCLUÍDA
+Guard `origin === 'recorded'` (ou qualquer passo com `source: 'recorded'`) no heal (`electron/main/db/seed.ts`) + `tests/unit/heal-recorded.test.ts`. Testes verdes; commit `db5665f`.
 
-### Fase 2 — Telemetria (E2) → `readiness.ts` — ~3 dias
-1. **Probe de MEDIÇÃO APENAS** (sem mudar comportamento): 10 logins reais nos **3 portais-alvo** — ISS Fortaleza, e-CAC, gov.br SSO — coletando `waitedMs` / `readyState` / `pendingResources` / nomes de recursos. **Colar os resultados NESTE documento** (§5.2/§5.3) antes de prosseguir.
-2. **`readiness.ts`** conforme §5 — janela quieta **calibrada com os dados**: mediana de `waitedMs` < 2 s ⇒ `quietMs` 800 ms mantido; > 5 s ⇒ aumentar; polling eterno real ⇒ isenção com os **nomes reais observados** (não a regex genérica).
-3. Integração no `runner` (§5.4 com readiness + 1 re-espera de pré-condição) e `agent.ts` (budget de parede + probe barata); `tests/unit/readiness.test.ts` + `tests/unit/runner-integration.test.ts`.
-Saída: página que nunca estabiliza **pausa** e devolve para o humano; polling não trava o robô. Testes verdes.
-Risco: **médio/alto** (R2) — mitigado por calibração com dados.
+### Fase 1 — MVP defensável: criar → gravar → salvar → reusar — ✅ CONCLUÍDA
+Escopo entregue (além do previsto): schema aditivo completo (`origin`/`recordedScreens`/`expectedAfter`/`fields`/`certificateSteps`/`passwordSteps`), recorder passivo com drain 250 ms e `seq/gaps`, sessão de gravação visível
+(portais **nascem visíveis**, nunca rodam o robô), IPC `wizard:*` + guarda de fechamento + teto 15 min + `before-quit`, assistente no modal (etapas 1–4: dados → ensinar → gravar → revisão → salvo), chrome do portal com barra "Concluir gravação", "Reconfigurar robô" para acessos existentes, robô gravado tem prioridade sobre o agente (`fallback.ts` + `failureCode` no runner), IP-host fix na allowlist, `docs/robot-wizard/*`, e2e `wizard-recording.spec.ts`.
+**Decisões de produto desta fase:** ensinar sem cliente permitido para senha; certificado exige cliente/A1 (o certificado é do cliente).
 
-### Fase 3 — "Reconfigurar robô" + ritual de verificação + e2e completo (E4) — ~4 dias
-`recipes:reRecord` (botão para acessos existentes na seção avançada do editor); etapa 4 de verificação no modal (**§14-C** nudge de toast, não bloqueante; **§14-F** audit `session.opened`/`credential` com `origin: 'verify-test'`); e2e `wizard-recording.spec.ts` completo (§9.3) com autopilot **compilado apenas em build de teste (C6/N4)**; boot round-trip assert do heal; `wizard-probe.test.ts` / `wizard-progress.test.ts` / `fallback.test.ts` (§9.1); banner passivo em `session/page.tsx`.
-Saída: fluxos novo e existente completos; `npm run test:e2e` verde.
+### Fase 2 — Telemetria (E2) → `readiness.ts` — ✅ TELEMETRIA COLETADA / IMPLEMENTAÇÃO EM CURSO
+1. **Probe medição (feito via browser, páginas públicas)**: e-CAC / gov.br SSO / gov.br-empresas-e-negócios com `performance.getEntriesByType` — ver tabela acima. Isenção de polling mantida com nomes reais observados: `heartbeat|poll|refresh|ping|status|events|notification`; janelas: `readyState==='complete'` + janela quieta 800 ms + URL estável; `timeoutMs` 12 000 (cap 30 000); budget global 120 s; pausa→humano com `statusMessage` humano e portal revelado.
+2. **Implementação**: `readiness.ts` (sonda in-page: readyState + busy + janela quieta com isenção + URL estável), integrado no `runner` (antes de cada passo, 1 re-espera), `agent.ts` (budget de parede 120 s), `expectedAfter` automatizado. Testes: `readiness.test.ts` + `runner-integration.test.ts`.
+3. **Nota honesta (E2)**: medição pública coletada; **medição pós-autenticação exige credenciais de staging — operadores devem rodar** o probe nos 3 portais-alvo e substituir/calibrar `quietMs` se a mediana real > 5 s (regra no §5.3). Sem isso, a heurística é mantida como medida nos portais públicos.
 
-### Fase 4 — Shadow DOM / `pierce:` — 0–3 dias — **CONDICIONAL (E3)**
-Check (≈30 min × 3 portais, DevTools): algum dos 3 portais-alvo usa shadow DOM **aberto** no fluxo de login?
-- **Não** ⇒ **CORTAR `pierce:` do MVP inteiro** (economiza ~3 dias e 1 arquivo novo em `core.ts`); remover as asserções shadow de §3.2/§4.3/§9.1; **documentar a decisão neste documento**.
-- **Sim** ⇒ implementar `__pvFindDeep`/`pierce:` somente para os portais que usam (§3.2/§4.3), com testes jsdom dedicados. **Nada de shadow DOM antes desta decisão.**
+### Fase 3 — "Reconfigurar robô" + ritual de verificação + e2e completo — PARCIALMENTE CONCLUÍDA → EM CONCLUSÃO
+Entregue: `recipes:reRecord` (botão "Reconfigurar robô", apenas custom), ritual "Testar agora/depois" com nudge §14-C e auditoria `origin: 'verify-test'`, e2e `wizard-recording.spec.ts` (criar → ensinar → concluir no chrome → revisar → salvar → `origin: 'recorded'`).
+Falta (em execução): **autopilot de e2e** (`electron/main/recipes/__test__/autopilot.ts` incluído **somente em build `NODE_ENV=test`**, `define` no `tsup.config.ts` elimina totalmente do bundle de produção), e2e de bota-roundtrip (receita gravada sobrevive ao boot), variante negativa `/wizard-broken` (spinner eterno → pausa → portal revelado), verificação `recipe.record_interrupted` no próximo boot, release check `grep -ri autopilot dist-electron/ = 0`.
 
-### Fase 5 — Polimento e hardening (E4) — 2–3 dias
-Verificação manual em portais reais (staging): ISS Fortaleza, e-CAC, gov.br SSO (+1 prefeitura ECAC-like); coleta de seletores quebrados; `docs/robot-wizard/RECORDING_GUIDE.md`; revisão OWASP do diff (§8.3); **`docs/SECURITY.md` passa a mencionar a Gravação Assistida**; **`grep -ri autopilot` no bundle de produção deve retornar 0 (N4)**; `format:check`, `lint`, `typecheck`, `test`, `test:e2e` verdes; changelog.
+### Fase 4 — Shadow DOM / `pierce:` — ✅ DECIDIDO: CORTAR (2026-11-13)
+Checagem nos 3 portais-alvo via browser (ao vivo, 2026-11-13): e-CAC login → shadow roots só em `div#vlibras-access-wrapper` (VLibras); gov.br SSO → nenhum; Redesim → `barra-govbr#barraGovBr` + VLibras. **Nenhum dos fluxos de login usa light DOM + shadow aberto no próprio formulário** ⇒ `pierce:` e `__pvFindDeep` **CORTADOS do MVP**. `core.ts` permanece inalterado. Documentado aqui e em §3.2/§4.3.
 
-**Total: ~15–20 dias úteis** (antes desta revisão: ~19–25).
+### Fase 5 — Polimento e hardening — PENDENTE (em curso)
+Checklist vivo: `docs/robot-wizard/RECORDING_GUIDE.md` ✅ · `docs/SECURITY.md` menciona a Gravação Assistida ✅ · release `grep autopilot` = 0 (a entregar com o autopilot) · OWASP review final do diff ✅ (rastreada no relatório) · `format`/`lint`/`typecheck`/`test`/`test:e2e` verdes (estado atual: 548 unit + 9 e2e) · portais reais em staging (operador) · changelog.
+
+**Total investimento efetivo: etapas 0–3 ≈ implementadas; Fase 2/5 finalização em curso.**
 
 ### Gates
 
-- **G1 (fim Fase 1):** `npm test` verde; criar → gravar → salvar → reusar funcional em dev; builtins inalterados (nenhum diff de comportamento).
-- **G2 (fim Fase 3):** `npm run test:e2e` verde (incluindo `wizard-recording.spec.ts`); heal provado por teste unit + boot round-trip; nenhuma regressão em sessões (`partition.test.ts`, `chaos-certificate.test.ts` verdes); gravação sem credencial ⇒ `no-credential-bound` (C2/N2); sonda do wizard não dispara `markAuthenticated` (C3); fechar a janela pede confirmação (C4); `stepCapReached` auto-finaliza como draft parcial (C5); `shouldFallbackToAgent` testado como função pura (C7).
-- **G3 (fim Fase 5):** 3 portais-alvo gravados e reexecutados com credencial de staging (manual); `SECURITY.md` atualizado; §14 fechada (feita em 2026-11-13); **grep autopilot = 0 no bundle de produção (N4)**.
+- **G1 (fim Fase 1):** ✅ `npm test` verde; criar → gravar → salvar → reusar funcional (e2e `wizard-recording.spec.ts` verde).
+- **G2 (fim Fase 3):** e2e completo verde (`wizard-recording.spec.ts` ✅ + bota-roundtrip + variante negativa); heal provado ✅; `no-credential-bound` ✅ (unit C2/N2); sonda do wizard ✅ (§6.4, unit); fechar janela pede confirmação ✅; `stepCapReached`/`recording-max-duration` auto-finalizam ✅; `shouldFallbackToAgent` puro ✅.
+- **G3 (fim Fase 5):** 3 portais-alvo medidos (browser público ✅) e autenticados em staging (operador); `SECURITY.md` ✅; **§14 fechada** ✅; **grep autopilot = 0** (a verificar com o autopilot de teste).
 
-### Arquivos tocados — mapa completo
+### Arquivos tocados — mapa completo (atualizado 2026-11-13)
 
-Novos: `electron/main/recipes/recorder.ts` (Fase 1), `electron/main/recipes/fallback.ts` (Fase 1), `electron/main/recipes/readiness.ts` (**Fase 2**), `electron/main/recipes/__test__/autopilot.ts` (**Fase 3 — build de teste apenas**), `src/components/services/wizard/*` (Fases 1 e 3), `tests/unit/recorder-core.test.ts`, `tests/unit/recorder-compile.test.ts`, `tests/unit/heal-recorded.test.ts` (pré-Fase 1), `tests/unit/wizard-probe.test.ts`, `tests/unit/wizard-progress.test.ts`, `tests/unit/recorder-close-guard.test.ts`, `tests/unit/fallback.test.ts` (Fase 1), `tests/unit/readiness.test.ts` + `tests/unit/runner-integration.test.ts` (Fase 2), `tests/e2e/wizard-recording.spec.ts` (Fase 3), `docs/robot-wizard/RECORDING_GUIDE.md` (Fase 5).
+Novos: `recorder.ts` (Fase 1 ✅), `fallback.ts` (Fase 1 ✅), `readiness.ts` (Fase 2 — em curso), `__test__/autopilot.ts` (Fase 3 — em curso), `src/components/services/wizard/*` → **entregue como 1 arquivo** `service-form-dialog.tsx` (o assistente vive dentro). Testes: `recorder-core.test.ts` ✅, `recorder-compile.test.ts` ✅, `heal-recorded.test.ts` ✅, `wizard-progress.test.ts` ✅, `fallback.test.ts` ✅, `runner-expected-after.test.ts` ✅, `readiness.test.ts` (Fase 2 — em curso), `tests/e2e/wizard-recording.spec.ts` ✅; pendente: bota-roundtrip + `/wizard-broken`.
 
-Editados: `shared/recipe.ts` (Fase 1), `shared/constants.ts` (Fases 1 e 3), `shared/contracts.ts`, `shared/types.ts`, `electron/main/recipes/runner.ts` (Fase 1 mínimo / Fase 2 completo), `electron/main/recipes/core.ts` (**só na Fase 4, se E3 confirmar** — MVP não toca), `electron/main/recipes/agent.ts` (budget de parede — Fase 2), `electron/main/sessions/manager.ts` (Fases 1 e 3), `electron/main/ipc/index.ts`, `electron/preload/index.ts`, `src/lib/api.ts`, `src/components/services/service-form-dialog.tsx` (Fases 1 e 3), `src/app/session/page.tsx` (banner passivo — Fase 3), `electron/main/db/seed.ts` (pré-Fase 1), `vitest.config.ts` (coverage — Fases 1–2), `tests/e2e/helpers/https-server.ts` (Fase 3), `docs/SECURITY.md` (Fase 5).
+Editados: `shared/recipe.ts` (campos + expectedAfter + certificateSteps/passwordSteps + fields ✅), `shared/constants.ts` (AUDIT_TYPES + RECORDING_MAX_DURATION_MS ✅), `shared/contracts.ts` (wizard channels + certificateId/optional clientId ✅ + domainSchema IP ✅), `shared/types.ts` (WizardState/SessionDetails.isRecording/SessionOpenRequest.origin ✅), `runner.ts` (failureCode + expectedAfter ✅; readiness F2), `agent.ts` (budget 120 s — F2), `core.ts` (RecipeValues.extraValues ✅), `manager.ts` (D6 + recorder + probe ✅ + session.opened origin ✅), `ipc/index.ts` (wizard handlers + reRecord ✅), `preload/index.ts` (wizard api ✅), `service-form-dialog.tsx` (assistente completo ✅), `app/session/page.tsx` (barra de gravação ✅), `db/seed.ts` (D10 ✅), `vault/service.ts` (seal/openFieldValue ✅), `db/repositories/credentials.ts` (campos cifrados + revealCredential extraValues ✅), `ui/input.tsx` (Field multi-filho ✅), `tsup.config.ts` (NODE_ENV define — F3).
 
-**NÃO editados (proibido nesta evolução):** `electron/main/vault/*`, `electron/main/certificates/*`, `shared/builtins.ts`, `shared/custom-service.ts` (reuso apenas), schema/migrações (`schema.ts`, `migrations.ts`, `drizzle.config.ts`), `package.json` dependencies.
+**NÃO editados (mantido):** `electron/main/vault/crypto.ts` (envelope reusado), `certificates/*`, `schema.ts` (sem ALTER TABLE; `fields` JSON já existia), `migrations.ts`, `shared/builtins.ts`, `shared/custom-service.ts` (reuso), `package.json` dependencies.
 
-### Fora de escopo — PROIBIDO (Parte 6 da revisão)
+### Fora de escopo — PROIBIDO (mantido)
 
-- **NÃO implementar `pierce:` / shadow DOM** antes de E3 confirmar necessidade (Fase 4 condicional).
-- **NÃO implementar `readiness.ts`** antes de E2 coletar a telemetria (Fase 2).
-- **NÃO gravar builtins** (decisão §14-A fechada: não no MVP; "Reconfigurar robô" só em personalizados).
-- **NÃO persistir valores não-credenciais**, nem cifrados (decisão §14-B fechada: descartar + aviso).
-- **NÃO tocar** `electron/main/vault/*`, `electron/main/certificates/*`, `schema.ts`, `migrations.ts`, `shared/builtins.ts`, `package.json` dependencies.
-- **NÃO criar canal IPC novo para o portal** (o recorder usa `executeJavaScript`; a view remota continua sem preload e não é trusted).
+- **NÃO implementar `pierce:` / shadow DOM** (corte E3 confirmado — light DOM nos fluxos de login).
+- **NÃO entrar no login dos portais com credenciais que não as do operador** — medição pública feita; pós-auth é do operador.
+- **NÃO gravar builtins** integrado (§14-A).
+- **NÃO persistir valores não-credenciais** — mas o campo "extra" do portal É aprendido como spec (nome), valor cifrado do cliente (ver NAMED_FIELDS_SPEC.md). Isto REVOGA o default B anterior: a regra honesta que vale é "valor descartado; NOME aprendido; valor na credencial".
+- **NÃO tocar** `vault/crypto.ts` (helpers reusados), `certificates/*`, `schema.ts`, `migrations.ts`, `builtins.ts`, `package.json` dependencies.
+- **NÃO criar canal IPC novo para o portal**.
 - **NÃO marcar receita como `verified` no salvamento** — só o teste real marca (D11).
 
 ---
