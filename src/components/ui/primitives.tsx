@@ -89,7 +89,7 @@ export function StatCard({
         </div>
       ) : null}
       <div className="min-w-0">
-        <div className="text-[11px] font-medium uppercase leading-snug tracking-[0.05em] text-[var(--pv-faint)]">
+        <div className="text-[11px] font-medium uppercase break-words leading-snug tracking-[0.05em] text-[var(--pv-faint)]">
           {label}
         </div>
         <div
@@ -100,7 +100,7 @@ export function StatCard({
         >
           {value}
         </div>
-        {hint ? <div className="mt-1 text-[11px] text-[var(--pv-faint)]">{hint}</div> : null}
+        {hint ? <div className="mt-1 break-words text-[11px] text-[var(--pv-faint)] [overflow-wrap:anywhere]">{hint}</div> : null}
       </div>
     </div>
   )

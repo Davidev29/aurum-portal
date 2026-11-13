@@ -31,6 +31,11 @@ superfícies carregam a hierarquia — nunca sombras pesadas nem arco-íris.
   estado. Nunca dois acentos decorativos.
 - **Tipografia:** Inter (substituto aberto do Linear) com o stack de sistema
   como fallback — o app roda offline (Electron) e não baixa fontes.
+- **Adaptação Mercury (2026-11):** a tela inicial ("Acessos", rota `/`) usa a
+  superfície tonal do Mercury (catálogo awesome-design-md, pasta `mercury`):
+  fills lavanda-pálida/noite-violeta, radius 12/32px, hierarquia por tamanho e
+  cor, pill primário única por card. O acento do app é preservado. Nenhuma
+  criação é afiliada à marca Mercury. Detalhes em §2 (Acessos) e §4.
 
 ## 2. Cores
 
@@ -115,6 +120,27 @@ cores fora desta escada.**
   **texto** (soft backgrounds). Fundo sólido com texto branco usa `--pv-*-solid`.
 - Destrutivo nunca é só vermelho: peso 700 + tint + borda (`.pv-danger-surface`).
 
+### Acessos (tela inicial) — linguagem tonal Mercury adaptada
+
+Frame do card de acesso derivado do catálogo awesome-design-md (pasta `mercury`),
+**adaptado**, não afiliado. Mercury entra pela **superfície, forma e tom** — o acento
+de ação continua `--pv-accent-solid` (`#5E6AD2`, índigo a 2% de matiz do Mercury
+`#5266eb`); adotar os dois criaria deriva dual-accent no mesmo pixel. Cards são
+separados por **fill**, nunca por borda/sombra de repouso.
+
+| Token | Claro | Escuro | Uso |
+|---|---|---|---|
+| `--pv-access-fill` | `#edecfb` | `#1e1e2a` | fill do card (lavender / night-raised Mercury) |
+| `--pv-access-fill-hover` | `#e2e1f8` | `#242432` | hover — UM degrau tonal, sem translateY |
+| `--pv-access-fill-active` | `#d7d6ef` | `#1a1a26` | press |
+| `--pv-access-ink` | `#28253b` | `#ededf3` | título do acesso (plum-ink / on-dark) |
+| `--pv-access-ink-2` | `#554e7b` | `#c3c3cc` | secundário (ink-secondary / fog) |
+| `--pv-access-divider` | `rgba(40,37,59,.08)` | `rgba(237,237,243,.08)` | hairline do rodapé de ações |
+
+Contraste no card (medido, WCAG): `#28253b` sobre `#edecfb` 12,7:1; `#554e7b` 6,5:1.
+No escuro: `#ededf3` sobre `#1e1e2a` 14,1:1; fog `#c3c3cc` 9,4:1. Branco sobre CTA
+`#5e6ad2` 4,7:1. Tudo ≥ 4,5:1 (AA).
+
 ## 3. Tipografia
 
 - **Família:** `Inter` → `'Segoe UI Variable Text'` → `'Segoe UI'` → `system-ui`
@@ -156,9 +182,34 @@ cores fora desta escada.**
 
 ### Cards (`ui/card.tsx`, `ui/primitives.tsx`)
 - `pv-lift`: painel 12px, hairline, hover: `--pv-shadow-md` + borda forte (sem subir).
-- `StatCard`: label 11px CAPS/faint, valor 20px/600 `pv-num`; ícone em chip
-  tonal (brand/success/warning/danger/teal=accent-2).
+- `StatCard`: label 11px CAPS/faint (`break-words`/`[overflow-wrap:anywhere]`),
+  valor 20px/600 `pv-num`; ícone em chip tonal (brand/success/warning/danger/teal=accent-2).
 - `Toolbar`, `SectionTitle`, `SkeletonGrid`, `SkeletonTable`: mesma linguagem.
+
+### Acessos — card de acesso (`app/page.tsx`, `.pv-access-card` / `.pv-access-logo`)
+
+Tela inicial ("Acessos", rota `/`). Mercury adaptado (ver §2). Regras do card:
+
+- **Sem borda nem sombra de repouso** — separação por `--pv-access-fill`;
+  hover = UM degrau tonal (`-hover`), press = `-active`. Nada de `translateY`.
+- Anatomia: cabeçalho (logo 72px em tile arredondado 18px, nome 16px/500
+  `--pv-access-ink`, máx. 2 linhas via `line-clamp-2` + `title`; eyebrow de
+  categoria 10px/500 uppercase `+0.14em` `--pv-access-ink-2`) → linha 1 de
+  badges (sessões abertas primeiro, `AuthMethodBadges`, chip `gov.br`, estados
+  de atenção: `Desabilitado` danger / `Automação com falha` warning) →
+  linha 2 quieta: `Origem · automação` em `--pv-access-ink-2` + switch Ativo/Inativo
+  à direita → rodapé com hairline `--pv-access-divider`: **uma** ação sólida
+  ("Abrir portal", pill 40px, raio 32px, `--pv-accent-solid`) + ações
+  translúcidas redondas (`variant="soft"`, `rounded-full`) para editar/menu.
+- Favorito: estrela flutuante absoluta no canto superior direito (botão 40×40,
+  ícone 20px), hover âmbar + `pv-star-pop`; `focus-visible:ring-2`.
+- `Nativo`/`Personalizado` e `sem automação`/`automação ativa` são **texto**,
+  não badge — badges só para o que pede atenção.
+- Grid 1/2/3 colunas por **container query** (`@container` + `@min-[600px]`,
+  `@min-[1080px]` — a sidebar fixa de 264px invalida breakpoints de viewport);
+  gap 20px; `SkeletonGrid` permanece em sm/xl (estado de carga).
+- Logos: `loading="lazy"` removido — 8 ícones de ≤ 35 KB, eager evita frame
+  vazio no primeiro paint.
 
 ### Navegação (`components/app-shell.tsx`)
 - Sidebar 264px, `--pv-panel`, borda direita hairline; seções: OPERAÇÃO / TRABALHO / SISTEMA
@@ -217,6 +268,8 @@ diferente não se aplica entre origens). Regras globais de elemento vivem em
 - Shell: sidebar 264px fixa + coluna principal; header 64px sticky dentro da coluna;
   conteúdo com `max-width: 1440px`, padding 24–32px.
 - Grid de cards: 2–3 colunas responsivas; stats em 3–4 col (`sm:grid-cols-2/3/4`).
+  A grade de acessos usa **container queries** (`@container`, `@min-[600px]`/`@min-[1080px]`)
+  porque a sidebar fixa de 264px torna breakpoints de viewport mentirosos.
 - Páginas de formulário (settings): coluna `max-w-[980px]` centralizada.
 - Unit base 4px; gaps 12/16/24/32; paddings de seção 24–32.
 - Superfícies: canvas `--pv-bg` < painel `--pv-panel` < `--pv-panel-2` < `--pv-panel-3`.
@@ -233,8 +286,10 @@ diferente não se aplica entre origens). Regras globais de elemento vivem em
 
 - No escuro a profundidade vem da **ladder**, não de sombras (bordas metálicas).
 - No claro, sombras de baixa opacidade (≤ 0,13) em camadas (`--pv-shadow[...]`).
-- Cards elevam **só** sombra/borda — nunca `translateY` permanente; hover do
-  `pv-service-card` é o único micro-lift (−4px, easeOutQuart 360ms).
+- Cards elevam **só** sombra/borda — nunca `translateY` permanente. O card de
+  acesso (`pv-access-card`) nem sequer usa isso: a elevação é **tonal**
+  (`--pv-access-fill` → `-hover` → `-active`), a única exceção deliberada ao
+  padrão de sombra — linguagem Mercury (profundidade como cor, não como sombra).
 
 ## 7. Do's e Don'ts
 
@@ -252,8 +307,12 @@ diferente não se aplica entre origens). Regras globais de elemento vivem em
 - Não usar `#000` no canvas nem `#fff` puro em painéis do claro.
 - Não usar `transition-all` (sempre propriedades explícitas) nem `outline-none`.
 - Não usar regras globais sem camada (`@layer base` apenas).
-- Não pintar fundo de seção inteiro com lavanda; soft tints apenas.
+- Não pintar fundo de seção inteiro com lavanda; soft tints apenas (exceção:
+  os fills tonais dos cards da tela Acessos — ver §2/§4 — são componentes, não seção).
 - Não "levantar" cards no hover (border + sombra apenas).
+- **Acessos:** nunca borda/sombra de repouso no card (o fill separa), nunca duas
+  ações sólidas, nunca nome de portal em peso ≥ 600, nunca badge para o que é
+  texto quiet (origem/automação).
 - Não usar branco sobre `--pv-accent` translúcido — sempre `--pv-on-accent` sobre `--pv-accent-solid`.
 
 ## 8. Responsividade
@@ -287,5 +346,5 @@ Ao estender o sistema:
 
 ---
 
-*Versão do sistema: 1.0.0 — revisado em 2026-11-12 (reformulação visual completa).*
-*Referência de linguagem: Linear (awesome-design-md). Sem afiliação a marcas.*
+*Versão do sistema: 1.1.0 — revisado em 2026-11-13 (tela Acessos, Mercury adaptado).*
+*Referências de linguagem: Linear (awesome-design-md) + Mercury (awesome-design-md, só a tela Acessos). Sem afiliação a marcas.*

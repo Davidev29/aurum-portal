@@ -84,11 +84,11 @@ export default function SessionsPage() {
         <EmptyState
           icon={<Bookmark className="h-5 w-5" />}
           title="Nenhuma sessão aberta"
-          description="Abra um portal pela store. Popups de OAuth herdam a mesma partição e o mesmo contexto de certificado."
+          description="Abra um portal pela tela Acessos. Popups de OAuth herdam a mesma partição e o mesmo contexto de certificado."
           action={
             <Button onClick={() => router.push('/')}>
               <Monitor className="h-4 w-4" />
-              Ir para a store
+              Ir para Acessos
             </Button>
           }
         />

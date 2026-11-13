@@ -11,7 +11,6 @@ import {
   MoreVertical,
   ImagePlus,
   Landmark,
-  LayoutGrid,
   Plus,
   RefreshCw,
   Search,
@@ -21,6 +20,7 @@ import {
   Star,
   Trash2,
   Users,
+  Vault,
 } from 'lucide-react'
 import type { Service } from '@shared/types'
 import { SERVICE_CATEGORIES } from '@shared/constants'
@@ -30,7 +30,6 @@ import { cn, initials } from '@/lib/utils'
 import { AppShell } from '@/components/app-shell'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -79,7 +78,7 @@ function isGovBrDerived(service: Service): boolean {
   })
 }
 
-export default function StorePage() {
+export default function AcessosPage() {
   const router = useRouter()
   const invalidate = useInvalidate()
   const editParam = useSearchParam('serviceId')
@@ -148,7 +147,7 @@ export default function StorePage() {
   const duplicate = async (service: Service) => {
     try {
       const copy = await aurumBitPortal().services.duplicate(service.id)
-      toast.success(`Serviço duplicado como "${copy.name}".`)
+      toast.success(`Acesso duplicado como "${copy.name}".`)
       await Promise.all([invalidate.services(), invalidate.audit()])
     } catch (error) {
       toast.error(errorMessage(error))
@@ -180,7 +179,7 @@ export default function StorePage() {
     setBusy(true)
     try {
       await aurumBitPortal().services.delete(deleting.id)
-      toast.success('Serviço excluído. Credenciais e sessões associadas não foram apagadas.')
+      toast.success('Acesso excluído. Credenciais e sessões associadas não foram apagadas.')
       await Promise.all([invalidate.services(), invalidate.audit()])
       setDeleting(null)
     } catch (error) {
@@ -194,7 +193,7 @@ export default function StorePage() {
     setRestoring(true)
     try {
       await aurumBitPortal().services.restoreBuiltins()
-      toast.success('Serviços nativos restaurados.')
+      toast.success('Acessos nativos restaurados.')
       await Promise.all([invalidate.services(), invalidate.audit()])
     } catch (error) {
       toast.error(errorMessage(error))
@@ -206,10 +205,10 @@ export default function StorePage() {
   return (
     <AppShell>
       <PageHeader
-        title="Store de serviços"
-        description="Abra portais com o cliente correto, certificado explícito e sessão isolada. Adicione novos sites em segundos."
+        title="Acessos"
+        description="Abra os portais com o cliente correto, certificado explícito e sessão isolada. Adicione novos acessos em segundos."
         eyebrow="Visão geral"
-        icon={<LayoutGrid className="h-5 w-5" />}
+        icon={<Vault className="h-5 w-5" />}
         actions={
           <>
             <Button variant="secondary" onClick={() => router.push('/certificates?import=1')}>
@@ -222,7 +221,7 @@ export default function StorePage() {
             </Button>
             <Button onClick={openNew}>
               <Plus className="h-4 w-4" />
-              Novo site
+              Novo acesso
             </Button>
           </>
         }
@@ -230,9 +229,9 @@ export default function StorePage() {
 
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
         <StatCard
-          label="Serviços disponíveis"
+          label="Acessos disponíveis"
           value={services?.length ?? 0}
-          icon={<LayoutGrid className="h-5 w-5" />}
+          icon={<Vault className="h-5 w-5" />}
         />
         <StatCard
           label="Sessões abertas"
@@ -254,7 +253,10 @@ export default function StorePage() {
           variant="warning"
           className="mb-5"
           action={
-            <Link href="/certificates" className="font-semibold underline underline-offset-4">
+            <Link
+              href="/certificates"
+              className="font-semibold underline-offset-4 transition-colors hover:underline"
+            >
               Revisar certificados
             </Link>
           }
@@ -287,8 +289,10 @@ export default function StorePage() {
                   {initials(session.clientName)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">{session.clientName}</div>
-                  <div className="truncate text-xs text-[var(--pv-muted)]">
+                  <div className="truncate text-sm font-semibold" title={session.clientName}>
+                    {session.clientName}
+                  </div>
+                  <div className="truncate text-xs text-[var(--pv-muted)]" title={session.serviceName}>
                     {session.serviceName}
                   </div>
                 </div>
@@ -308,9 +312,9 @@ export default function StorePage() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar serviço, categoria ou URL"
+            placeholder="Buscar acesso, categoria ou URL"
             className="pl-10"
-            aria-label="Buscar serviços"
+            aria-label="Buscar acessos"
           />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -337,18 +341,18 @@ export default function StorePage() {
         <SkeletonGrid count={6} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          icon={<LayoutGrid className="h-6 w-6" />}
-          title="Nenhum serviço encontrado"
+          icon={<Vault className="h-6 w-6" />}
+          title="Nenhum acesso encontrado"
           description={
             services && services.length === 0
-              ? 'Adicione um site ou restaure os serviços nativos do catálogo oficial.'
+              ? 'Adicione um acesso ou restaure os acessos nativos do catálogo oficial.'
               : 'Ajuste a busca, a categoria ou os favoritos.'
           }
           action={
             <>
               <Button onClick={openNew}>
                 <Plus className="h-4 w-4" />
-                Adicionar site
+                Adicionar acesso
               </Button>
               <Button variant="secondary" onClick={() => void restoreBuiltins()}>
                 <RefreshCw className="h-4 w-4" />
@@ -358,9 +362,19 @@ export default function StorePage() {
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 pv-stagger">
-          {filtered.map((service) => (
-            <ServiceCard
+        <>
+          <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="pv-eyebrow">Seus acessos</h2>
+            <span className="text-[11px] font-medium tabular-nums text-[var(--pv-faint)]">
+              {filtered.length === (services?.length ?? 0)
+                ? `${filtered.length} no catálogo`
+                : `${filtered.length} de ${services?.length ?? 0}`}
+            </span>
+          </div>
+          <div className="@container">
+            <div className="grid gap-5 grid-cols-1 @min-[600px]:grid-cols-2 @min-[1080px]:grid-cols-3 pv-stagger">
+            {filtered.map((service) => (
+              <AccessCard
               key={service.id}
               service={service}
               onOpen={() => setLaunchService(service)}
@@ -374,9 +388,11 @@ export default function StorePage() {
               onDuplicate={() => void duplicate(service)}
               onDelete={() => setDeleting(service)}
               onToggleEnabled={(enabled) => void update(service, { enabled })}
-            />
-          ))}
-        </div>
+              />
+            ))}
+            </div>
+          </div>
+        </>
       )}
 
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -424,15 +440,15 @@ export default function StorePage() {
         onOpenChange={(open) => {
           if (!open) setDeleting(null)
         }}
-        title="Excluir serviço?"
+        title="Excluir acesso?"
         description={
           <>
-            O serviço <strong>{deleting?.name}</strong> será removido da store. Credenciais e
-            eventos de auditoria já registrados são preservados; sessões abertas continuam até serem
-            fechadas.
+            O acesso <strong>{deleting?.name}</strong> será removido dos seus acessos. Credenciais
+            e eventos de auditoria já registrados são preservados; sessões abertas continuam até
+            serem fechadas.
           </>
         }
-        confirmLabel="Excluir serviço"
+        confirmLabel="Excluir acesso"
         busy={busy}
         onConfirm={() => void remove()}
       />
@@ -468,7 +484,7 @@ function FilterChip({
   )
 }
 
-function ServiceCard({
+function AccessCard({
   service,
   onOpen,
   onEdit,
@@ -505,20 +521,20 @@ function ServiceCard({
   }
 
   return (
-    <Card
+    <div
       className={cn(
-        'pv-service-card group relative flex flex-col overflow-hidden',
+        'pv-access-card group relative flex min-h-[236px] flex-col overflow-hidden rounded-[var(--pv-radius)]',
         !service.enabled && 'opacity-60 saturate-50',
       )}
     >
-      {/* Cabeçalho: logomarca + nome + favorito */}
-      <div className="flex items-start gap-3.5 px-4 pb-3 pt-4">
+      {/* Cabeçalho: logomarca em destaque + nome */}
+      <div className="flex items-start gap-4 px-5 pb-3 pt-5">
         <div
           className={cn(
-            'pv-service-logo flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-1',
+            'pv-access-logo flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-[18px]',
             logoSrc
-              ? 'bg-white p-1.5 shadow-[var(--pv-shadow-sm)] ring-[var(--pv-border-subtle)]'
-              : 'bg-gradient-to-br from-brand-600 via-brand-700 to-brand-800 text-sm font-bold tracking-wide text-brand-50 ring-brand-800/30 shadow-md',
+              ? 'bg-white p-2 shadow-[var(--pv-shadow-sm)] ring-1 ring-black/5 dark:ring-white/10'
+              : 'bg-gradient-to-br from-brand-600 via-brand-700 to-brand-800 text-base font-bold tracking-wide text-brand-50 ring-1 ring-brand-800/30 shadow-md',
           )}
         >
           {logoSrc ? (
@@ -526,124 +542,137 @@ function ServiceCard({
               src={logoSrc}
               alt=""
               className="h-full w-full object-contain"
-              loading="lazy"
               draggable={false}
             />
           ) : (
             initials(service.name)
           )}
         </div>
-        <div className="min-w-0 flex-1 pt-0.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <h3
-              className="min-w-0 truncate text-[15px] font-semibold leading-snug tracking-tight"
-              title={service.name}
-            >
-              {service.name}
-            </h3>
-            {service.openSessions > 0 ? (
-              <span
-                className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-full border border-[var(--pv-success-border)] bg-[var(--pv-success-soft)] px-2 text-[10px] font-bold leading-none text-[var(--pv-success)]"
-                title={`${service.openSessions} sessão(ões) aberta(s)`}
-              >
-                <span className="pv-live-dot h-1.5 w-1.5 rounded-full bg-[var(--pv-success)]" />
-                {service.openSessions}
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-1 truncate text-[11px] font-medium leading-none text-[var(--pv-faint)]">
+        <div className="min-w-0 flex-1 pt-0.5 pr-8">
+          <h3
+            className="min-w-0 text-[16px] font-medium leading-snug tracking-[0.01em] text-[var(--pv-access-ink)] line-clamp-2"
+            title={service.name}
+          >
+            {service.name}
+          </h3>
+          <p className="mt-1.5 truncate text-[10px] font-medium uppercase leading-none tracking-[0.14em] text-[var(--pv-access-ink-2)]">
             {service.category}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleFavorite}
-          aria-label={service.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-          aria-pressed={service.favorite}
-          className="pv-icon-btn -mr-1.5 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--pv-faint)] hover:bg-[var(--pv-warning-soft)] hover:text-[var(--pv-warning)]"
-        >
-          <Star
-            key={String(service.favorite)}
-            className={cn(
-              'h-5 w-5 transition-colors duration-200',
-              service.favorite && 'fill-amber-400 text-amber-500',
-              starPop && service.favorite && 'pv-star-pop',
-            )}
-            aria-hidden="true"
-          />
-        </button>
       </div>
 
-      {/* Metadados: método de autenticação e identidade */}
-      <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3">
+      {/* Favorito — estrela flutuante no canto superior direito */}
+      <button
+        type="button"
+        onClick={handleFavorite}
+        aria-label={service.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+        aria-pressed={service.favorite}
+        className="absolute right-2.5 top-2.5 flex h-10 w-10 items-center justify-center rounded-full text-[var(--pv-access-ink-2)] transition-colors hover:bg-black/5 hover:text-[var(--pv-warning)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pv-accent-solid)] dark:hover:bg-white/5"
+      >
+        <Star
+          key={String(service.favorite)}
+          className={cn(
+            'h-5 w-5 transition-colors duration-200',
+            service.favorite && 'fill-amber-400 text-amber-500',
+            starPop && service.favorite && 'pv-star-pop',
+          )}
+          aria-hidden="true"
+        />
+      </button>
+
+      {/* Metadados — linha 1: badges (sessões, auth, identidade, estados) */}
+      <div className="flex min-h-[26px] flex-wrap items-center gap-1.5 px-5">
+        {service.openSessions > 0 ? (
+          <span
+            className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-[var(--pv-success-border)] bg-[var(--pv-success-soft)] px-2.5 text-[10px] font-bold leading-none text-[var(--pv-success)]"
+            title={`${service.openSessions} sessão(ões) aberta(s) neste acesso`}
+          >
+            <span className="pv-live-dot h-1.5 w-1.5 rounded-full bg-[var(--pv-success)]" />
+            {service.openSessions} sess{service.openSessions === 1 ? 'ão' : 'ões'}
+          </span>
+        ) : null}
         <AuthMethodBadges methods={service.authMethods} />
         {govBr ? (
           <span
             className="pv-gov-chip"
-            title="Serviço derivado do ecossistema GOV.BR — autentica pelo login único"
+            title="Acesso derivado do ecossistema GOV.BR — autentica pelo login único"
           >
             <Landmark className="h-3 w-3" strokeWidth={2.5} aria-hidden="true" />
             gov.br
           </span>
         ) : null}
         {!service.enabled ? <Badge variant="danger">Desabilitado</Badge> : null}
-        {service.isBuiltin ? <Badge variant="outline">Nativo</Badge> : null}
-        <Badge variant={service.recipe ? 'secondary' : 'outline'}>
-          {service.recipe ? 'Automação ativa' : 'Sem automação'}
-        </Badge>
         {service.recipe?.status === 'broken' ? (
           <Badge variant="warning">Automação com falha</Badge>
         ) : null}
-        <div className="ml-auto inline-flex items-center gap-1.5">
+      </div>
+      {/* Metadados — linha 2: origem/automação (texto quiet) + toggle à direita */}
+      <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-1.5">
+        <span className="min-w-0 truncate text-[11px] font-medium leading-none text-[var(--pv-access-ink-2)]">
+          {service.isBuiltin ? 'Nativo' : 'Personalizado'}
+          {' · '}
+          {service.recipe
+            ? service.recipe.status === 'broken'
+              ? 'automação com falha'
+              : 'automação ativa'
+            : 'sem automação'}
+        </span>
+        <div className="inline-flex shrink-0 items-center gap-1.5">
           <Switch
             id={`service-enabled-${service.id}`}
             checked={service.enabled}
             onCheckedChange={(checked) => onToggleEnabled(checked === true)}
-            aria-label={`${service.enabled ? 'Desativar' : 'Ativar'} serviço ${service.name}`}
+            aria-label={`${service.enabled ? 'Desativar' : 'Ativar'} acesso ${service.name}`}
           />
           <label
             htmlFor={`service-enabled-${service.id}`}
-            className="cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wide text-[var(--pv-faint)]"
+            className="cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wide text-[var(--pv-access-ink-2)]"
           >
             {service.enabled ? 'Ativo' : 'Inativo'}
           </label>
         </div>
       </div>
 
-      {/* Rodapé de ações */}
-      <div className="mt-auto flex items-center gap-2 border-t border-[var(--pv-border-subtle)] bg-[color-mix(in_srgb,var(--pv-panel-2)_45%,transparent)] px-4 py-2.5">
+      {/* Rodapé de ações: uma sólida (índigo), demais translúcidas */}
+      <div
+        className="mt-auto flex items-center gap-2 border-t px-4 py-3"
+        style={{
+          borderColor: 'var(--pv-access-divider)',
+          background: 'color-mix(in srgb, var(--pv-access-ink) 4%, transparent)',
+        }}
+      >
         <Button
           onClick={onOpen}
           disabled={!service.enabled}
-          className="h-10 flex-1 rounded-xl text-[13px]"
+          className="h-10 flex-1 rounded-[32px] text-[13px] font-medium"
         >
           <Sparkles className="h-4 w-4" />
           Abrir portal
         </Button>
         <Button
-          variant="secondary"
+          variant="soft"
           size="icon"
           onClick={onEdit}
-          title="Editar serviço"
-          aria-label="Editar serviço"
-          className="h-10 w-10 rounded-xl"
+          title="Editar acesso"
+          aria-label="Editar acesso"
+          className="h-10 w-10 rounded-full"
         >
           <Settings2 className="h-4 w-4" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant="secondary"
+              variant="soft"
               size="icon"
               title="Mais ações"
               aria-label="Mais ações"
-              className="h-10 w-10 rounded-xl"
+              className="h-10 w-10 rounded-full"
             >
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent sideOffset={8}>
-            <DropdownMenuLabel>Ações do serviço</DropdownMenuLabel>
+            <DropdownMenuLabel>Ações do acesso</DropdownMenuLabel>
             <DropdownMenuItem onSelect={onFetchLogo}>
               <Globe2 className="h-4 w-4 text-[var(--pv-muted)]" aria-hidden="true" />
               Carregar favicon do domínio
@@ -654,21 +683,21 @@ function ServiceCard({
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onDuplicate}>
               <Copy className="h-4 w-4 text-[var(--pv-muted)]" aria-hidden="true" />
-              Duplicar serviço
+              Duplicar acesso
             </DropdownMenuItem>
             {!service.isBuiltin ? (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="danger" onSelect={onDelete}>
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  Excluir serviço
+                  Excluir acesso
                 </DropdownMenuItem>
               </>
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </Card>
+    </div>
   )
 }
 

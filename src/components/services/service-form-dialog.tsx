@@ -211,7 +211,7 @@ export function ServiceFormDialog({
       }
       if (service) {
         await aurumBitPortal().services.update(service.id, input)
-        toast.success('Serviço atualizado.')
+        toast.success('Acesso atualizado.')
       } else {
         const created = await aurumBitPortal().services.create(input)
         toast.success('Site adicionado. A automação de login foi configurada automaticamente.')
@@ -299,10 +299,10 @@ export function ServiceFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{service ? 'Editar serviço' : 'Novo serviço'}</DialogTitle>
+          <DialogTitle>{service ? 'Editar acesso' : 'Novo acesso'}</DialogTitle>
           <DialogDescription>
             {service
-              ? 'Ajuste os dados do serviço. Opções técnicas ficam em “Opções avançadas”.'
+              ? 'Ajuste os dados do acesso. Opções técnicas ficam em “Opções avançadas”.'
               : 'Responda duas perguntas e escolha como você entra. A automação do login é configurada sozinha — nada técnico para preencher.'}
           </DialogDescription>
         </DialogHeader>
@@ -478,7 +478,7 @@ export function ServiceFormDialog({
                       checked={enabled}
                       onCheckedChange={(checked) => setEnabled(checked === true)}
                     />
-                    Serviço habilitado
+                    Acesso habilitado
                   </label>
                   <label className="flex flex-1 cursor-pointer items-center gap-2.5 rounded-xl border border-[var(--pv-border)] p-3 transition-colors hover:border-brand-300">
                     <Checkbox
@@ -491,7 +491,7 @@ export function ServiceFormDialog({
                 {service ? (
                   <div className="grid gap-2 rounded-xl border border-dashed border-[var(--pv-border)] p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--pv-muted)]">
-                      Automação deste serviço
+                      Automação deste acesso
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <Button

@@ -12,7 +12,7 @@ import {
   FilePenLine,
   ScrollText,
   SlidersHorizontal,
-  Store,
+  Vault,
 } from 'lucide-react'
 import { APP_DISPLAY_NAME, APP_LOGO_URL } from '@shared/constants'
 import { cn } from '@/lib/utils'
@@ -25,7 +25,7 @@ const navigation = [
   {
     section: 'Operação',
     items: [
-      { href: '/', label: 'Store', icon: Store },
+      { href: '/', label: 'Acessos', icon: Vault },
       { href: '/clients', label: 'Clientes', icon: Building2 },
       { href: '/obrigacoes', label: 'Obrigações', icon: ClipboardCheck },
       { href: '/certificates', label: 'Certificados', icon: FileBadge },
@@ -148,7 +148,7 @@ export function AppShell({
       <main
         id="app-content"
         tabIndex={-1}
-        className="flex min-w-0 flex-1 flex-col overflow-hidden focus:outline-none"
+        className="flex min-w-0 flex-1 flex-col overflow-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pv-accent-solid)]"
       >
         <div className="relative flex h-16 shrink-0 items-center justify-between gap-4 border-b border-[var(--pv-border)] bg-[var(--pv-panel)]/85 px-6 backdrop-blur supports-[backdrop-filter]:bg-[var(--pv-panel)]/80">
           <nav

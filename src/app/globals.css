@@ -77,6 +77,15 @@
   /* Texto sobre --pv-accent-solid (lavanda) — sempre branco */
   --pv-on-accent: #ffffff;
 
+  /* Acessos (tela inicial) — linguagem tonal Mercury adaptada: cartão lavanda
+   * pálida no claro, noite violeta no escuro; separação por fill, sem sombra. */
+  --pv-access-fill: #edecfb;
+  --pv-access-fill-hover: #e2e1f8;
+  --pv-access-fill-active: #d7d6ef;
+  --pv-access-ink: #28253b;
+  --pv-access-ink-2: #554e7b;
+  --pv-access-divider: rgba(40, 37, 59, 0.08);
+
   --pv-success: #17753c;
   --pv-success-solid: #1f7a3d;
   --pv-success-soft: #edf7ef;
@@ -141,6 +150,15 @@
   --pv-accent-soft: rgba(133, 141, 255, 0.13);
   --pv-accent-soft-border: rgba(140, 149, 255, 0.32);
   --pv-on-accent: #ffffff;
+
+  /* Acessos (tela inicial) — mundo noturno Mercury: night-raised sobre o
+   * canvas tinta; texto on-dark + fog para secundários. */
+  --pv-access-fill: #1e1e2a;
+  --pv-access-fill-hover: #242432;
+  --pv-access-fill-active: #1a1a26;
+  --pv-access-ink: #ededf3;
+  --pv-access-ink-2: #c3c3cc;
+  --pv-access-divider: rgba(237, 237, 243, 0.08);
 
   --pv-success: #3dd68c;
   --pv-success-solid: #1f7a3d;
@@ -887,36 +905,34 @@ body::before {
   scale: 0.99;
 }
 
-/* Store — card de serviço: elevação táctil suave ao passar o mouse.
- * Curva easeOutQuart: começa devagar, assenta sem "snapping" — na ida e na
- * volta. Sombra em camadas de baixa opacidade (nunca "pesada"). */
-.pv-service-card {
+/* Acessos — card de acesso: superfície tonal Mercury (sem borda/sombra de
+ * repouso). Hover levanta UM degrau tonal; clique assenta no fill ativo.
+ * Profundidade é cor, não sombra. */
+.pv-access-card {
+  background: var(--pv-access-fill);
+  color: var(--pv-access-ink);
+  border: 1px solid transparent;
   transition:
-    transform 360ms cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 360ms cubic-bezier(0.25, 1, 0.5, 1),
+    background-color 320ms cubic-bezier(0.25, 1, 0.5, 1),
     border-color var(--pv-dur-base) ease;
-  will-change: transform;
 }
 
-.pv-service-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--pv-border-strong);
-  box-shadow: var(--pv-shadow-lg);
+.pv-access-card:hover {
+  background: var(--pv-access-fill-hover);
 }
 
-.pv-service-card:active {
-  transform: translateY(-1px) scale(0.985);
+.pv-access-card:active {
+  background: var(--pv-access-fill-active);
   transition-duration: 180ms;
-  box-shadow: var(--pv-shadow-md);
 }
 
 /* Tile do logo: leve "respiração" no hover do card (mola suave) */
-.pv-service-logo {
+.pv-access-logo {
   transition: transform var(--pv-dur-slow) var(--pv-ease-spring-soft);
 }
 
-.pv-service-card:hover .pv-service-logo {
-  transform: scale(1.06);
+.pv-access-card:hover .pv-access-logo {
+  transform: scale(1.05);
 }
 
 /* Ponto "ao vivo" (sessões abertas) — pulso suave */
