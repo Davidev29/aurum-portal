@@ -32,7 +32,10 @@ que faltam; empurrar para o GitHub com relatório.”
 - **Fase 1 (criar→gravar→salvar), Fase 3 (reRecord, verificação,
   autopilot e2e), Fase 4 (corte de pierce: — Light DOM nos fluxos de
   login), Fase 5 (docs/SECURITY/RELEASE_CHECKLIST/OWASP)** — ✅
-- **Fase 2 (readiness.ts + runner/agent + testes)** — ✅ entregue nesta data
+- **Fase 2 (readiness.ts + runner/agent + testes)** — ✅ concluída em 2026-11-13
+  (587/587 testes verdes; `readiness.ts` 98% linhas / 91% branches;
+  decisão registrada: sonda não reconhecida (fake legado) = fail-open Fase 1,
+  documento morto = `ReadinessProbeError` = PAUSE fail-closed)
 
 ## Documentos de referência
 

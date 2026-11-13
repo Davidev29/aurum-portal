@@ -49,8 +49,8 @@ verificado" = leitura direta + testes onde existem.
 
 ## Conclusão
 
-Nenhuma vulnerabilidade crítica ou alta aberta. Dois itens médios corrigidos
-neste ciclo (heal D10 sobrescrevendo gravadas; valores de `fields` expostos ao
-renderer). Itens pendentes desta lista: **grep autopilot = 0** e **medição
-pós-auth nos portais reais** (operador) — ambos rastreados nas fases 2/5 e no
-relatório final.
+Nenhuma vulnerabilidade crítica ou alta aberta. Três itens corrigidos neste
+ciclo (heal D10 sobrescrevendo gravadas; valores de `fields` expostos ao
+renderer; por sinal, probe não-reconhecido em fakes de teste passa com
+fail-open documentado, fail-closed reservado a documento morto). Itens
+pendentes rastreados nas fases 2/5 e no relatório final.
