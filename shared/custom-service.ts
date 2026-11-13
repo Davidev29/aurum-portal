@@ -96,12 +96,18 @@ export function parentDomainsOf(host: string): string[] {
 }
 
 /** Allowlist derivada do endereço: o próprio host, o domínio pai e — para
- * sites do governo — os domínios de identidade gov.br. */
+ * sites do governo — os domínios de identidade gov.br. Hosts por IP
+ * (intranets/portais internos) não têm domínio pai: ficam só o próprio IP. */
 export function deriveAllowedDomains(baseUrl: string): string[] {
   const parsed = parseHttpUrl(baseUrl)
   if (!parsed) return []
   const host = normalizeHostname(parsed.hostname)
-  const domains = new Set<string>([host, ...parentDomainsOf(host)])
+  const isIpHost =
+    /^(\d{1,3}\.){3}\d{1,3}$/.test(host) || host.includes(':') || host.startsWith('[')
+  const domains = new Set<string>([host])
+  if (!isIpHost) {
+    for (const parent of parentDomainsOf(host)) domains.add(parent)
+  }
   if (isGovernmentHost(host)) {
     for (const domain of GOVERNMENT_SSO_DOMAINS) domains.add(domain)
   }

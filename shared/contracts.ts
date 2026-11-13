@@ -237,7 +237,14 @@ const domainSchema = z
   .toLowerCase()
   .min(3)
   .max(253)
-  .regex(/^(?:\*\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/, 'Dominio invalido')
+  .refine((value) => {
+    const withoutWildcard = value.startsWith('*.') ? value.slice(2) : value
+    // IP literal (intranets e portais internos por IP) — curinga IPv4 não existe.
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(withoutWildcard)) {
+      return withoutWildcard.split('.').every((label) => Number(label) <= 255)
+    }
+    return /^(?:\*\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value)
+  }, 'Dominio invalido')
 
 const httpsUrlSchema = z
   .string()
@@ -559,6 +566,8 @@ export const recipeReRecordSchema = z.object({
   authMethod: authMethodSchema,
   /** Opcional (C2) — null ⇒ fingerprint não avaliado (no-credential-bound). */
   credentialId: idSchema.nullish(),
+  /** Obrigatório para certificado (A1 válido e vinculado ao cliente). */
+  certificateId: idSchema.nullish(),
 })
 
 export const wizardStartRecordSchema = z.object({
@@ -567,6 +576,8 @@ export const wizardStartRecordSchema = z.object({
   authMethod: authMethodSchema,
   /** Opcional (C2). Ausente ⇒ fingerprint NÃO avaliado; warning no-credential-bound. */
   credentialId: idSchema.nullish(),
+  /** Obrigatório para certificado (A1 válido e vinculado ao cliente). */
+  certificateId: idSchema.nullish(),
 })
 
 export const wizardIdSchema = z.object({ wizardId: idSchema })
