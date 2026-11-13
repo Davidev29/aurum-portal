@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Copy,
   FileSignature,
+  FileText,
   FolderOpen,
   GripHorizontal,
   Loader2,
@@ -177,7 +178,7 @@ export default function AssinaturasPage() {
     w: number
     h: number
   } | null>(null)
-  const [zoomMode, setZoomMode] = React.useState<'width' | 'page' | 'custom'>('width')
+  const [zoomMode, setZoomMode] = React.useState<'width' | 'page' | 'custom'>('page')
   const [zoom, setZoom] = React.useState(1)
   // Texto exibido no controle de zoom, dependendo do modo ativo.
   const zoomDisplay = React.useMemo(() => {
@@ -679,8 +680,8 @@ export default function AssinaturasPage() {
   // Renders são SERIALIZADOS: o anterior é cancelado e aguardado antes de
   // tocar no canvas (o pdf.js proíbe renders sobrepostos no mesmo canvas e
   // redimensionar no meio corrompe a imagem).
-  // - Modo 'page': ajusta a largura E altura (página inteira visível).
-  // - Modo 'width' (default): ajusta à LARGURA — texto fica grande e legível.
+  // - Modo 'page' (default): ajusta a largura E altura (página inteira visível, sem corte).
+  // - Modo 'width': ajusta à LARGURA — texto fica grande e legível.
   // - Modo 'custom': escala livre via zoom.
   React.useEffect(() => {
     if (!preview || !previewMatchesPicked || !docToken || !canvasRef.current) return
@@ -789,7 +790,7 @@ export default function AssinaturasPage() {
       setDocToken(null)
       setCurrentPage(1)
       setZoom(1)
-      setZoomMode('width')
+      setZoomMode('page')
       setStampPt(null)
       setResult(null)
     } catch (error) {
@@ -1551,19 +1552,21 @@ export default function AssinaturasPage() {
 
       {/* Step 1: Documento (PDF) */}
       {step === 1 ? (
-        <Card className="flex min-h-0 flex-1 flex-col justify-center p-6">
-          <div className="mb-4 flex items-center gap-2">
+        <Card className="flex min-h-0 flex-1 flex-col p-6">
+          <div className="mb-3 flex shrink-0 items-center gap-2">
             <Upload className="h-5 w-5 text-[var(--pv-accent)]" />
             <h2 className="text-base font-semibold">Documento PDF para assinatura</h2>
           </div>
 
           {!picked ? (
-            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[var(--pv-border)] p-10 text-center">
-              <Upload className="h-8 w-8 text-[var(--pv-muted)]" />
-              <p className="text-sm text-[var(--pv-muted)]">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto rounded-xl border border-dashed border-[var(--pv-border)] px-6 py-4 pv-scroll">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[var(--pv-accent-soft-border)] bg-[var(--pv-accent-soft)]">
+                <Upload className="h-8 w-8 text-[var(--pv-accent)]" aria-hidden="true" />
+              </span>
+              <p className="max-w-md shrink-0 text-sm leading-relaxed text-[var(--pv-muted)]">
                 Escolha um arquivo PDF (até 50 MB). O original não será alterado.
               </p>
-              <Button onClick={() => void onPickFile()} disabled={loadingPreview}>
+              <Button onClick={() => void onPickFile()} disabled={loadingPreview} className="shrink-0">
                 {loadingPreview ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -1573,13 +1576,21 @@ export default function AssinaturasPage() {
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col gap-3 rounded-lg border border-[var(--pv-border)] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">{picked.fileName}</div>
-                  <div className="text-xs text-[var(--pv-muted)]">
-                    {formatBytes(picked.sizeBytes)} • {picked.pageCount} pagina(s)
-                    {picked.expiresAt ? ` • expira ${formatDateTime(picked.expiresAt)}` : ''}
+            <div className="flex min-h-0 flex-1 flex-col justify-between gap-2 overflow-y-auto pv-scroll rounded-xl border border-[var(--pv-border)] p-3 sm:p-4">
+              {/* Identidade do documento — bloco inteiro */}
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--pv-accent-soft-border)] bg-[var(--pv-accent-soft)] text-[var(--pv-accent)] sm:h-12 sm:w-12">
+                  <FileText className="h-5 w-5 sm:h-7 sm:w-7" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1 basis-40">
+                  <div
+                    className="truncate text-base font-semibold leading-snug sm:text-lg"
+                    title={picked.fileName}
+                  >
+                    {picked.fileName}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-[var(--pv-muted)]">
+                    PDF · nada será sobrescrito
                   </div>
                 </div>
                 <Button
@@ -1596,20 +1607,55 @@ export default function AssinaturasPage() {
                   Trocar PDF
                 </Button>
               </div>
-              {!previewMatchesPicked && !loadingPreview ? (
-                <Alert variant="warning" title="Prévia indisponível">
-                  Não foi possível carregar a pré-visualização. Escolha o PDF novamente antes de
-                  continuar.
-                </Alert>
+
+              {/* Resumo do documento em tiles grandes */}
+              <dl className="grid grid-cols-3 gap-2">
+                <div className="rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)]/50 px-3 py-1.5">
+                  <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--pv-faint)]">Páginas</dt>
+                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">{picked.pageCount}</dd>
+                </div>
+                <div className="rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)]/50 px-3 py-1.5">
+                  <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--pv-faint)]">Tamanho</dt>
+                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">{formatBytes(picked.sizeBytes)}</dd>
+                </div>
+                <div className="rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)]/50 px-3 py-1.5">
+                  <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--pv-faint)]">Sessão</dt>
+                  <dd className="mt-0.5 whitespace-nowrap text-[11px] font-semibold leading-6">
+                    {picked.expiresAt ? `até ${formatDate(picked.expiresAt)}` : 'Sem expiração'}
+                  </dd>
+                </div>
+              </dl>
+
+              {/* Status da prévia — faixa compacta no rodapé do bloco */}
+              {loadingPreview ? (
+                <div
+                  className="flex shrink-0 items-center gap-2 text-xs font-medium text-[var(--pv-muted)]"
+                  role="status"
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  Carregando prévia do documento…
+                </div>
+              ) : !previewMatchesPicked ? (
+                <div
+                  className="flex shrink-0 items-center gap-2 text-xs font-medium text-[var(--pv-warning)]"
+                  role="alert"
+                >
+                  <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Prévia indisponível — escolha o PDF novamente.
+                </div>
               ) : (
-                <p className="text-[11px] text-[var(--pv-muted)]">
-                  A previa e a posicao do carimbo serao configuradas na etapa seguinte.
-                </p>
+                <div
+                  className="flex shrink-0 items-center gap-2 text-xs font-medium text-[var(--pv-success)]"
+                  role="status"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Prévia carregada — documento verificado.
+                </div>
               )}
             </div>
           )}
 
-          <div className="mt-6 flex justify-end">
+          <div className="mt-4 flex shrink-0 justify-end border-t border-[var(--pv-border)] pt-4">
             <Button
               disabled={!canAdvanceFromDoc}
               onClick={() => canAdvanceFromDoc && setStep(2)}
@@ -1624,7 +1670,7 @@ export default function AssinaturasPage() {
 
       {/* Step 2: Certificados contidos na aplicação (sem sair da tela) */}
       {step === 2 ? (
-        <Card className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+        <Card className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pv-scroll">
           <div className="mb-2 flex shrink-0 flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-[var(--pv-success)]" />
@@ -1721,7 +1767,7 @@ export default function AssinaturasPage() {
               }
             />
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden gap-3">
+            <div className="flex min-h-[240px] flex-1 flex-col overflow-hidden gap-3">
               <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)] p-3">
                 <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
                   <Search
@@ -1811,7 +1857,7 @@ export default function AssinaturasPage() {
                 />
               ) : (
                 <>
-                  <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel)] pv-scroll">
+                  <div className="min-h-[120px] flex-1 overflow-auto rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel)] pv-scroll">
                     <Table>
                       <TableHeader className="sticky top-0 z-10">
                         <TableRow>
@@ -1918,7 +1964,7 @@ export default function AssinaturasPage() {
 
       {/* Step 3: Onde assinar (posicao do carimbo) */}
       {step === 3 ? (
-        <Card className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+        <Card className="flex min-h-0 flex-1 flex-col overflow-y-auto pv-scroll p-0">
           {/* Cabeçalho da etapa */}
           <div className="px-6 py-5 border-b border-[var(--pv-border)] bg-[var(--pv-panel-2)]/50 shrink-0 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1942,9 +1988,9 @@ export default function AssinaturasPage() {
           </div>
 
           {!picked ? (
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[var(--pv-border)] p-12 text-center">
-              <p className="text-sm text-[var(--pv-muted)]">Nenhum PDF selecionado.</p>
-              <Button onClick={() => setStep(1)}>Voltar ao documento</Button>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto rounded-xl border border-dashed border-[var(--pv-border)] p-6 pv-scroll">
+              <p className="shrink-0 text-sm text-[var(--pv-muted)]">Nenhum PDF selecionado.</p>
+              <Button className="shrink-0" onClick={() => setStep(1)}>Voltar ao documento</Button>
             </div>
           ) : (
             <>
@@ -1990,7 +2036,7 @@ export default function AssinaturasPage() {
                       onPointerMove={handlePanPointerMove}
                       onPointerUp={(event) => handlePanPointerEnd(event)}
                       onPointerCancel={(event) => handlePanPointerEnd(event, true)}
-                      className="min-h-0 flex-1 cursor-grab touch-none overflow-auto rounded-b-xl border-t-0 border-[var(--pv-border)] bg-[var(--pv-bg)]"
+                      className="min-h-[220px] flex-1 cursor-grab touch-none overflow-auto rounded-b-xl border-t-0 border-[var(--pv-border)] bg-[var(--pv-bg)]"
                     >
                       <div className="grid min-h-full min-w-full place-items-center [place-items:safe_center] p-4">
                         <div
