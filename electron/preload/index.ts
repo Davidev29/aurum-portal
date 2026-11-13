@@ -34,6 +34,7 @@ const events: AurumBitPortalEvents = {
   onUpdateStatus: (callback) => subscribe('app:updateStatus', callback),
   onObligationsChanged: (callback) => subscribe('obligations:changed', callback),
   onNotificationsChanged: (callback) => subscribe('notifications:changed', callback),
+  onWizardProgress: (callback) => subscribe('wizard:progress', callback),
 }
 
 const api: AurumBitPortalApi = {
@@ -114,6 +115,15 @@ const api: AurumBitPortalApi = {
     save: (input) => call('recipes:save', input),
     test: (serviceId) => call('recipes:test', { serviceId }),
     reset: (serviceId) => call('recipes:reset', { serviceId }),
+    reRecord: (input) => call('recipes:reRecord', input),
+  },
+  wizard: {
+    startRecord: (input) => call('wizard:startRecord', input),
+    state: (wizardId) => call('wizard:state', { wizardId }),
+    finish: (wizardId) => call('wizard:finish', { wizardId }),
+    cancel: (wizardId) => call('wizard:cancel', { wizardId }),
+    save: (input) => call('wizard:save', input),
+    discard: (wizardId) => call('wizard:discard', { wizardId }),
   },
   pdf: {
     pickFile: () => call('pdf:pickFile'),

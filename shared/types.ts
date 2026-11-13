@@ -207,6 +207,49 @@ export interface PortalSession {
   lastError: string | null
 }
 
+export type WizardWarningCode =
+  | 'credential-mismatch'
+  | 'no-credential-bound'
+  | 'value-not-recorded'
+  | 'otp-not-recorded'
+  | 'low-confidence'
+  | 'seed-lost'
+  | 'step-cap-reached'
+  | 'recording-max-duration'
+
+/** Aviso da revisão da gravação — metadados apenas, nunca valores digitados. */
+export interface WizardWarning {
+  code: WizardWarningCode
+  detail: string
+}
+
+export type WizardStatus = 'recording' | 'finishing' | 'review' | 'saved' | 'error'
+
+/** Estado do wizard de gravação (poll via `wizard:state`). */
+export interface WizardState {
+  wizardId: string
+  status: WizardStatus
+  stepCount: number
+  screenCount: number
+  /** Eventos perdidos por navegação (lacuna de seq). */
+  gaps: number
+  warnings: WizardWarning[]
+  /** true quando a sonda leve detectou área logada — banner "Parece que você entrou". */
+  loggedInHint: boolean
+  /** true quando faltam ≤5 min para o teto de 15 min (aviso prévio). */
+  durationWarning: boolean
+  /** Só em 'review'/'saved': definição compilada, para a revisão. */
+  definition?: RecipeDefinition
+}
+
+/** Entrada do `wizard:save` (e do botão "Salvar robô"). */
+export interface WizardSaveInput {
+  wizardId: string
+  autoSubmit: boolean
+  /** Etapas removidas pelo usuário na revisão (índices 0-based, N3). */
+  removedStepIndexes?: number[]
+}
+
 export interface SessionDetails extends PortalSession {
   allowedDomains: string[]
   canProvideCredentials: boolean
@@ -216,6 +259,8 @@ export interface SessionDetails extends PortalSession {
   portalVisible: boolean
   /** true quando a sessão exige interação humana para concluir o login. */
   requiresHumanAction: boolean
+  /** true quando a sessão nasceu em modo Gravação Assistida. */
+  isRecording: boolean
 }
 
 export interface WindowsCertificate {

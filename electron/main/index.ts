@@ -164,7 +164,23 @@ if (!singleInstance) {
     if (!mainWindow && app.isReady()) void createMainWindow()
   })
 
-  app.on('before-quit', () => {
+  app.on('before-quit', (event) => {
+    // C4 — Gravação Assistida: sair com gravação ativa pede confirmação.
+    if (!quitting && manager?.hasActiveRecorder()) {
+      const choice = dialog.showMessageBoxSync({
+        type: 'warning',
+        title: 'Gravação em andamento',
+        message: 'Gravação em andamento será perdida. Sair mesmo assim?',
+        buttons: ['Sair mesmo assim', 'Continuar gravando'],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      })
+      if (choice !== 0) {
+        event.preventDefault()
+        return
+      }
+    }
     quitting = true
     stopObligationReminders?.()
     stopObligationReminders = null
@@ -257,6 +273,7 @@ if (!singleInstance) {
         onSessionError: (event) => broadcast(IPC.events.sessionError, event),
         onDownloadProgress: (progress) => broadcast(IPC.events.downloadProgress, progress),
         onImportProgress: (progress) => broadcast(IPC.events.importProgress, progress),
+        onWizardProgress: (progress) => broadcast(IPC.events.wizardProgress, progress),
       })
 
       certificateTester = createCertificateTester({ db, registry })
@@ -290,6 +307,27 @@ if (!singleInstance) {
         databasePath,
         isShuttingDown: () => quitting,
       })
+
+      // C4 — avisa sobre gravação interrompida por crash/kill (nada foi salvo).
+      const interrupted = manager?.interruptedRecordingIds() ?? []
+      if (interrupted.length > 0) {
+        dialog.showMessageBoxSync({
+          type: 'info',
+          title: 'Gravação interrompida',
+          message:
+            'A última gravação foi interrompida antes de ser concluída. O que foi capturado não foi salvo.',
+          buttons: ['Entendi'],
+          noLink: true,
+        })
+        for (const wizardId of interrupted) {
+          appendAuditEvent(db, {
+            type: 'recipe.record_interrupted',
+            entity: 'recipe',
+            entityId: wizardId,
+            metadata: {},
+          })
+        }
+      }
       stopObligationReminders = startObligationReminderScheduler({ db, broadcast })
 
       electronSession.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>

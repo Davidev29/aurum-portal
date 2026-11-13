@@ -15,13 +15,13 @@ import type { ImportProgressEvent } from '../../../shared/types'
 import type { AuthMethod, SessionStatus } from '../../../shared/constants'
 import type {
   PortalSession,
+  RecipeSummary,
   RecipeTestResult,
   SessionDetails,
   SessionOpenRequest,
   SessionOpenResult,
 } from '../../../shared/types'
 import type { AppSettings } from '../../../shared/types'
-import type { RecipeDefinition } from '../../../shared/recipe'
 import type { AppDatabase } from '../db/database'
 import type { VaultService } from '../vault/service'
 import type { CertificateService } from '../certificates/service'
@@ -40,7 +40,7 @@ import {
 import { getClient } from '../db/repositories/clients'
 import { getServiceRow } from '../db/repositories/services'
 import { getRecipeByService, recordRecipeOutcome } from '../db/repositories/recipes'
-import { appendAuditEvent } from '../db/repositories/audit'
+import { appendAuditEvent, allAuditEvents } from '../db/repositories/audit'
 import { closeSessionRow, createSessionRow, updateSessionRow } from '../db/repositories/sessions'
 import { AppError } from '../errors'
 import { logger } from '../logger'
@@ -56,8 +56,25 @@ import { SESSION_CHROME_FOOTER_HEIGHT, SESSION_CHROME_HEIGHT } from '../../../sh
 import { buildPartition, sessionReuseKey } from './partition'
 import type { SessionContext, SessionContextRegistry } from './context-registry'
 import { shouldFallbackToAgent } from '../recipes/fallback'
-import { checkPostLogin, runRecipe, type RecipeTarget } from '../recipes/runner'
+import { checkPostLogin, runRecipe, safeExecute, type RecipeTarget } from '../recipes/runner'
 import { runAgenticLogin, agentValues } from '../recipes/agent'
+import {
+  buildDrainScript,
+  buildRecorderScript,
+  buildTeardownScript,
+  compileRecording,
+  type CompileCredential,
+  type RecordedDrain,
+  type RecordedEvent,
+} from '../recipes/recorder'
+import { constantTimeEqualHex } from '../vault/crypto'
+import { saveRecipe } from '../db/repositories/recipes'
+import {
+  RECORDING_MAX_DURATION_MS,
+  RECORDING_WARNING_DURATION_MS,
+} from '../../../shared/constants'
+import type { WizardState, WizardStatus, WizardWarning } from '../../../shared/types'
+import { recipeDefinitionSchema, type RecipeDefinition } from '../../../shared/recipe'
 import { stepCarriesCredentials } from '../../../shared/custom-service'
 import { recipeValues } from '../recipes/core'
 import type { TrustedContentsRegistry } from '../ipc/trusted'
@@ -132,6 +149,51 @@ interface ManagedSession {
   /** Timer de seguranca: enquanto !authenticated apos BOOT_AUTH_TIMEOUT_MS,
    * o portal continua escondido e a sessao vira 'manual' com instrucao. */
   bootSafetyTimer: NodeJS.Timeout | null
+  /** Gravação Assistida (Fase 1). Só preenchido em sessões de gravação. */
+  recording: RecordingState | null
+}
+
+/** Estado main-side da gravação ativa (por sessão). */
+interface RecordingState {
+  wizardId: string
+  token: string
+  serviceId: string
+  clientId: string
+  credentialId: string | null
+  authMethod: AuthMethod
+  /** Tela atual (T<n>) — incrementada a cada did-finish-load. */
+  screen: number
+  events: RecordedEvent[]
+  secrets: Array<string | null>
+  navigations: Array<{ at: number; toUrl: string }>
+  gaps: number
+  lastSeq: number
+  stepCapReached: boolean
+  durationWarning: boolean
+  loggedInHint: boolean
+  drainTimer: NodeJS.Timeout | null
+  drainFailures: number
+  probeTimer: NodeJS.Timeout | null
+  warningTimer: NodeJS.Timeout | null
+  maxDurationTimer: NodeJS.Timeout | null
+  lastProgressEmit: number
+}
+
+/** Processo de gravação além do ciclo de vida da sessão (compila e salva). */
+interface WizardRecord {
+  wizardId: string
+  status: WizardStatus
+  sessionId: string | null
+  serviceId: string
+  clientId: string
+  authMethod: AuthMethod
+  fingerprintTargetId: string | null
+  autoSubmitDefault: boolean
+  warnings: WizardWarning[]
+  compiledSteps: number
+  compiledRecordedScreens: number
+  compiled: ReturnType<typeof compileRecording>['definition'] | null
+  startedAt: number
 }
 
 export interface SessionManagerDeps {
@@ -158,12 +220,20 @@ export interface SessionManagerDeps {
     savePath: string | null
   }) => void
   onImportProgress: (progress: ImportProgressEvent) => void
+  /** Gravação Assistida (Fase 1): broadcast leve de progresso (throttled 1/s). */
+  onWizardProgress?: (progress: {
+    wizardId: string
+    stepCount: number
+    screen: number
+    gaps: number
+  }) => void
 }
 
 export class SessionManager {
   private readonly sessions = new Map<string, ManagedSession>()
   private readonly partitionUsage = new Map<string, number>()
   private readonly configuredPartitions = new Set<string>()
+  private readonly wizards = new Map<string, WizardRecord>()
   private quitting = false
 
   constructor(private readonly deps: SessionManagerDeps) {}
@@ -446,6 +516,7 @@ export class SessionManager {
       portalHidden: request.authMethod === 'certificate' || interactiveRecipe,
       requiresHumanAction: false,
       bootSafetyTimer: null,
+      recording: null,
     }
     this.sessions.set(id, record)
     this.armBootSafetyTimer(record)
@@ -488,7 +559,11 @@ export class SessionManager {
       // defesa para cargas em branco futuras).
       const currentUrl = record.view.webContents.getURL()
       const isBlankDocument = !currentUrl || currentUrl === 'about:blank'
-      if (!record.recipeAttempted && !isBlankDocument) {
+      if (record.recording) {
+        // Sessão de gravação: arma/re-arma o recorder (cada documento novo
+        // vira uma tela T<n>). NUNCA roda startRecipe — o portal é do usuário.
+        void this.armRecorder(record)
+      } else if (!record.recipeAttempted && !isBlankDocument) {
         record.recipeAttempted = true
         void this.startRecipe(record)
       }
@@ -496,6 +571,9 @@ export class SessionManager {
     })
     view.webContents.on('did-navigate', (_event, url) => {
       record.currentUrl = url
+      if (record.recording) {
+        record.recording.navigations.push({ at: Date.now(), toUrl: url })
+      }
       // Detecção de autenticação por URL definitiva: quando o portal nos força
       // de volta ao HOST definitivo com um path não-inicial e não-login, o
       // fluxo certificado está concluído. Independe do `load` da página, que
@@ -525,6 +603,9 @@ export class SessionManager {
     })
     view.webContents.on('did-navigate-in-page', (_event, url) => {
       record.currentUrl = url
+      if (record.recording) {
+        record.recording.navigations.push({ at: Date.now(), toUrl: url })
+      }
       this.emit()
     })
     view.webContents.on('page-title-updated', (_event, title) => {
@@ -1352,6 +1433,7 @@ export class SessionManager {
       zoomFactor: record.view.webContents.getZoomFactor(),
       portalVisible: !record.portalHidden,
       requiresHumanAction: record.requiresHumanAction,
+      isRecording: record.recording !== null,
     }
   }
 
@@ -1497,6 +1579,22 @@ export class SessionManager {
     record.closed = true
     this.stopWatcher(record)
     this.clearBootSafetyTimer(record)
+    // Gravação ativa encerrada por fora (janela X com confirmação, kill do
+    // render, quit): descarta o wizard — nada fica meio-salvo.
+    const rec = record.recording
+    if (rec) {
+      const wizard = this.wizards.get(rec.wizardId)
+      if (wizard && wizard.status === 'recording') {
+        this.wizards.delete(rec.wizardId)
+        this.record(
+          'recipe.record_discarded',
+          rec.wizardId,
+          { serviceId: wizard.serviceId, reason: reason || 'session-closed' },
+          'recipe',
+        )
+      }
+    }
+    this.clearRecordingTimers(record)
     for (const popup of record.popups) {
       if (!popup.isDestroyed()) popup.close()
     }
@@ -1526,6 +1624,621 @@ export class SessionManager {
       }
     }
     this.emit()
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gravação Assistida (Fase 1)
+  // ---------------------------------------------------------------------------
+
+  hasActiveRecorder(): boolean {
+    for (const wizard of this.wizards.values()) {
+      if (wizard.status === 'recording') return true
+    }
+    return false
+  }
+
+  /** IDs de gravações mortas por crash/kill (sem finished/discarded/recorded/interrupted). */
+  interruptedRecordingIds(): string[] {
+    try {
+      const events = allAuditEvents(this.deps.db, {})
+      const state = new Map<string, 'open' | 'closed'>()
+      for (const event of events) {
+        const id = event.entityId ?? ''
+        if (!id) continue
+        switch (event.type) {
+          case 'recipe.record_started':
+            state.set(id, 'open')
+            break
+          case 'recipe.record_finished':
+          case 'recipe.record_discarded':
+          case 'recipe.recorded':
+          case 'recipe.record_interrupted':
+            state.set(id, 'closed')
+            break
+          default:
+            break
+        }
+      }
+      return [...state.entries()].filter(([, value]) => value === 'open').map(([id]) => id)
+    } catch {
+      return []
+    }
+  }
+
+  async openRecorder(input: {
+    serviceId: string
+    clientId: string
+    authMethod: AuthMethod
+    credentialId?: string | null
+  }): Promise<{ sessionId: string; wizardId: string }> {
+    const settings = this.deps.getSettings()
+    if (this.sessions.size >= settings.sessionLimit) {
+      throw new AppError(
+        'SESSION_LIMIT',
+        `Limite de ${settings.sessionLimit} sessoes simultaneas atingido`,
+      )
+    }
+    const service = getServiceRow(this.deps.db, input.serviceId)
+    if (!service.enabled) {
+      throw new AppError('FORBIDDEN', 'Este servico esta desabilitado')
+    }
+    if (!service.authMethods.includes(input.authMethod)) {
+      throw new AppError('VALIDATION', 'Metodo de autenticacao nao aceito pelo servico')
+    }
+    const client = getClient(this.deps.db, input.clientId)
+    if (!client) throw new AppError('NOT_FOUND', 'Cliente nao encontrado')
+    if (client.status === 'archived') {
+      throw new AppError('FORBIDDEN', 'Cliente arquivado nao pode abrir sessoes')
+    }
+
+    let credentialId: string | null = null
+    if (input.authMethod === 'password' && input.credentialId) {
+      const credential = getCredentialRow(this.deps.db, input.credentialId)
+      if (!credential || credential.clientId !== client.id || credential.serviceId !== service.id) {
+        throw new AppError('FORBIDDEN', 'Credencial nao pertence ao cliente/servico selecionado')
+      }
+      credentialId = credential.id
+    }
+
+    const previousRecipe = getRecipeByService(this.deps.db, service.id)?.definition ?? null
+    const autoSubmitDefault = previousRecipe?.autoSubmit ?? input.authMethod === 'password'
+
+    const wizardId = randomUUID()
+    const token = randomUUID()
+    const id = randomUUID()
+    const openedAt = new Date().toISOString()
+    const partition = buildPartition({
+      clientId: client.id,
+      certificateId: null,
+      authMethod: input.authMethod,
+    })
+    const remoteSession = this.preparePartition(partition)
+    const context: SessionContext = {
+      sessionId: id,
+      clientId: client.id,
+      clientName: client.name,
+      clientDocument: client.document,
+      serviceId: service.id,
+      serviceName: service.name,
+      serviceSlug: service.slug,
+      authMethod: input.authMethod,
+      certificateId: null,
+      certificateLabel: null,
+      certificateHolderName: null,
+      certificateValidTo: null,
+      certificateThumbprintSha256: null,
+      certificateThumbprintSha1: null,
+      certificateSerialHex: null,
+      certificateIssuerDn: null,
+      certificateSubjectDn: null,
+      allowedDomains: service.allowedDomains,
+      partition,
+    }
+    this.deps.registry.set(remoteSession, context)
+    this.partitionUsage.set(partition, (this.partitionUsage.get(partition) ?? 0) + 1)
+
+    createSessionRow(this.deps.db, {
+      id,
+      clientId: client.id,
+      certificateId: null,
+      serviceId: service.id,
+      credentialId,
+      authMethod: input.authMethod,
+      partition,
+      openedAt,
+    })
+
+    const win = new BrowserWindow({
+      width: 1240,
+      height: 840,
+      minWidth: 860,
+      minHeight: 560,
+      show: false,
+      title: `Gravação assistida — ${service.name}`,
+      backgroundColor: '#1b1a17',
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: this.deps.preloadPath,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        nodeIntegrationInSubFrames: false,
+        webSecurity: true,
+        spellcheck: false,
+        devTools: true,
+      },
+    })
+    win.setMenu(null)
+    this.deps.trusted.add(win.webContents)
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    win.webContents.on('will-navigate', (event, url) => {
+      if (!url.startsWith(this.deps.buildAppUrl('/'))) event.preventDefault()
+    })
+
+    const view = new WebContentsView({
+      webPreferences: {
+        partition,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        nodeIntegrationInSubFrames: false,
+        webSecurity: true,
+        allowRunningInsecureContent: false,
+        plugins: true,
+        spellcheck: false,
+        devTools: true,
+        backgroundThrottling: false,
+      },
+    })
+    win.contentView.addChildView(view)
+    view.webContents.setUserAgent(CHROME_UA)
+    view.webContents.setWindowOpenHandler(({ url }) =>
+      this.handleWindowOpen(url, partition, context),
+    )
+
+    const record: ManagedSession = {
+      id,
+      reuseKey: `recording:${wizardId}`,
+      clientId: client.id,
+      clientName: client.name,
+      clientDocument: client.document,
+      serviceId: service.id,
+      serviceName: service.name,
+      serviceSlug: service.slug,
+      authMethod: input.authMethod,
+      certificateId: null,
+      certificateLabel: null,
+      certificateHolderName: null,
+      certificateValidTo: null,
+      certificateThumbprintSha256: null,
+      certificateThumbprintSha1: null,
+      certificateSerialHex: null,
+      certificateIssuerDn: null,
+      certificateSubjectDn: null,
+      credentialId,
+      partition,
+      allowedDomains: service.allowedDomains,
+      baseUrl: service.baseUrl,
+      win,
+      view,
+      status: 'opening',
+      statusMessage: 'Abrindo portal para gravação…',
+      lastError: null,
+      recipeRunning: false,
+      recipeAttempted: false,
+      watcher: null,
+      watcherBusy: false,
+      watcherStartedAt: 0,
+      popups: new Set(),
+      openedAt,
+      currentUrl: service.baseUrl,
+      title: `Gravação assistida — ${service.name}`,
+      loading: true,
+      closed: false,
+      portalHidden: false,
+      requiresHumanAction: false,
+      bootSafetyTimer: null,
+      recording: {
+        wizardId,
+        token,
+        serviceId: service.id,
+        clientId: client.id,
+        credentialId,
+        authMethod: input.authMethod,
+        screen: 0,
+        events: [],
+        secrets: [],
+        navigations: [],
+        gaps: 0,
+        lastSeq: 0,
+        stepCapReached: false,
+        durationWarning: false,
+        loggedInHint: false,
+        drainTimer: null,
+        drainFailures: 0,
+        probeTimer: null,
+        warningTimer: null,
+        maxDurationTimer: null,
+        lastProgressEmit: 0,
+      },
+    }
+    this.sessions.set(id, record)
+    this.configureRemoteContents(view.webContents, record)
+    this.layout(record)
+    win.on('resize', () => this.layout(record))
+    win.once('ready-to-show', () => {
+      if (!record.closed) {
+        win.show()
+        win.focus()
+      }
+    })
+    // C4 — fechar a janela do portal com gravação ativa pede confirmação.
+    win.on('close', (event) => {
+      if (!record.recording) return
+      const choice = dialog.showMessageBoxSync(win, {
+        type: 'warning',
+        title: 'Gravação em andamento',
+        message: 'Gravação em andamento será perdida. Sair mesmo assim?',
+        buttons: ['Sair mesmo assim', 'Continuar gravando'],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      })
+      if (choice !== 0) event.preventDefault()
+    })
+    win.on('closed', () => this.dispose(record, 'Janela fechada pelo usuario'))
+
+    void win.loadURL(this.deps.buildAppUrl(`/session/?sessionId=${encodeURIComponent(id)}`))
+    view.webContents.loadURL(service.baseUrl).catch((error: unknown) => {
+      if (record.closed) return
+      record.status = 'error'
+      record.lastError = error instanceof Error ? error.message : 'Falha ao abrir o portal'
+      record.statusMessage = 'Falha ao abrir o portal'
+      this.emit()
+    })
+
+    // did-navigate / did-navigate-in-page / did-finish-load já registram a
+    // sessão; o branch de gravação entra neles.
+    const rec = record.recording
+    if (!rec) throw new AppError('INTERNAL', 'Estado de gravação inválido')
+    rec.warningTimer = setTimeout(() => {
+      if (record.recording) {
+        record.recording.durationWarning = true
+        record.statusMessage = 'A gravação será encerrada em 5 min.'
+        this.emit()
+      }
+    }, RECORDING_WARNING_DURATION_MS)
+    rec.maxDurationTimer = setTimeout(() => {
+      void this.finishRecorder(wizardId, {
+        partial: true,
+        reason: 'Limite de 15 minutos atingido',
+      })
+    }, RECORDING_MAX_DURATION_MS)
+    rec.probeTimer = setInterval(() => {
+      void this.probeRecorder(record)
+    }, 2_000)
+
+    this.wizards.set(wizardId, {
+      wizardId,
+      status: 'recording',
+      sessionId: id,
+      serviceId: service.id,
+      clientId: client.id,
+      authMethod: input.authMethod,
+      fingerprintTargetId: credentialId,
+      autoSubmitDefault,
+      warnings: [],
+      compiledSteps: 0,
+      compiledRecordedScreens: 0,
+      compiled: null,
+      startedAt: Date.now(),
+    })
+    this.record('recipe.record_started', wizardId, {
+      serviceId: service.id,
+      clientId: client.id,
+      authMethod: input.authMethod,
+    }, 'recipe')
+    this.emitWizardProgress(id, wizardId, true)
+    return { sessionId: id, wizardId }
+  }
+
+  private clearRecordingTimers(record: ManagedSession): void {
+    const rec = record.recording
+    if (!rec) return
+    if (rec.drainTimer) clearInterval(rec.drainTimer)
+    if (rec.probeTimer) clearInterval(rec.probeTimer)
+    if (rec.warningTimer) clearTimeout(rec.warningTimer)
+    if (rec.maxDurationTimer) clearTimeout(rec.maxDurationTimer)
+    rec.drainTimer = null
+    rec.probeTimer = null
+    rec.warningTimer = null
+    rec.maxDurationTimer = null
+    record.recording = null
+  }
+
+  private async armRecorder(record: ManagedSession): Promise<void> {
+    const rec = record.recording
+    if (!rec || record.closed) return
+    const url = record.view.webContents.getURL()
+    if (!url || url === 'about:blank') return
+    rec.screen = Math.max(1, rec.screen + 1)
+    const screen = `T${rec.screen}`
+    const target = this.targetForRecorder(record)
+    try {
+      const armed = await safeExecute(target, buildRecorderScript({ token: rec.token, screen }), 5_000)
+      if (!armed) return
+    } catch {
+      return
+    }
+    if (!rec.drainTimer) {
+      rec.drainTimer = setInterval(() => {
+        void this.drainRecorder(record)
+      }, 250)
+    }
+  }
+
+  private async drainRecorder(record: ManagedSession): Promise<void> {
+    if (record.closed) return
+    const rec = record.recording
+    if (!rec) return
+    const wizard = this.wizards.get(rec.wizardId)
+    if (!wizard) return
+    const target = this.targetForRecorder(record)
+    const raw = await safeExecute<RecordedDrain>(target, buildDrainScript(rec.token), 5_000)
+    if (!raw || !raw.ok) {
+      rec.drainFailures += 1
+      if (rec.drainFailures >= 5 && record.statusMessage !== 'drain-stuck') {
+        record.statusMessage = 'Não estou conseguindo falar com a página — conclua ou cancele a gravação.'
+        this.emit()
+      }
+      return
+    }
+    rec.drainFailures = 0
+    let gaps = 0
+    for (const event of raw.events) {
+      if (rec.lastSeq > 0 && event.seq > rec.lastSeq + 1) gaps += event.seq - rec.lastSeq - 1
+      rec.lastSeq = Math.max(rec.lastSeq, event.seq)
+    }
+    rec.gaps += gaps
+    rec.events.push(...raw.events)
+    rec.secrets.push(...raw.secrets)
+
+    if (!rec.stepCapReached && rec.events.length >= 60) {
+      rec.stepCapReached = true
+      wizard.warnings.push({
+        code: 'step-cap-reached',
+        detail:
+          'A gravação excedeu 60 etapas — estas são etapas parciais: remova as que não pertencem ao fluxo antes de testar.',
+      })
+      void this.finishRecorder(rec.wizardId, { partial: true })
+      return
+    }
+    this.emitWizardProgress(record.id, rec.wizardId, false)
+  }
+
+  private async probeRecorder(record: ManagedSession): Promise<void> {
+    const rec = record.recording
+    if (!rec || record.closed || rec.loggedInHint) return
+    const row = getRecipeByService(this.deps.db, record.serviceId)
+    const definition = row?.definition
+    if (!definition) return
+    const target = this.targetForRecorder(record)
+    try {
+      const matched = await checkPostLogin(definition, target, 1_200)
+      if (matched) {
+        rec.loggedInHint = true
+        record.statusMessage = 'Parece que você entrou ✓ — conclua a gravação no assistente.'
+        this.emit()
+      }
+    } catch {
+      // Sonda nunca age: no máximo sinaliza o banner.
+    }
+  }
+
+  private emitWizardProgress(sessionId: string, wizardId: string, immediate: boolean): void {
+    const cb = this.deps.onWizardProgress
+    if (!cb) return
+    const record = sessionId ? this.sessions.get(sessionId) : null
+    const rec = record?.recording ?? null
+    const wizard = this.wizards.get(wizardId)
+    const now = Date.now()
+    if (!immediate && rec && now - rec.lastProgressEmit < 1_000) return
+    if (rec) rec.lastProgressEmit = now
+    cb({
+      wizardId,
+      stepCount: rec?.events.length ?? wizard?.compiledSteps ?? 0,
+      screen: rec?.screen ?? wizard?.compiledRecordedScreens ?? 0,
+      gaps: rec?.gaps ?? 0,
+    })
+  }
+
+  getWizardState(wizardId: string): WizardState {
+    const wizard = this.wizards.get(wizardId)
+    if (!wizard) throw new AppError('NOT_FOUND', 'Gravação não encontrada ou já finalizada')
+    const record = wizard.sessionId ? (this.sessions.get(wizard.sessionId) ?? null) : null
+    const rec = record?.recording ?? null
+    return {
+      wizardId,
+      status: wizard.status,
+      stepCount: wizard.compiled ? wizard.compiledSteps : (rec?.events.length ?? 0),
+      screenCount: wizard.compiled
+        ? wizard.compiledRecordedScreens
+        : rec
+          ? Math.max(rec.screen, 1)
+          : 0,
+      gaps: rec?.gaps ?? 0,
+      warnings: [...wizard.warnings],
+      loggedInHint: rec?.loggedInHint ?? false,
+      durationWarning: rec?.durationWarning ?? false,
+      definition: wizard.compiled ?? undefined,
+    }
+  }
+
+  async finishRecorder(
+    wizardId: string,
+    opts: { partial?: boolean; reason?: string } = {},
+  ): Promise<WizardState> {
+    const wizard = this.wizards.get(wizardId)
+    if (!wizard) throw new AppError('NOT_FOUND', 'Gravação não encontrada')
+    if (wizard.status !== 'recording') return this.getWizardState(wizardId)
+    wizard.status = 'finishing'
+
+    const record = wizard.sessionId ? (this.sessions.get(wizard.sessionId) ?? null) : null
+    const rec = record?.recording ?? null
+
+    // Última drenagem + teardown dos listeners na página.
+    if (record && rec) {
+      try {
+        const target = this.targetForRecorder(record)
+        const raw = await safeExecute<RecordedDrain>(target, buildDrainScript(rec.token), 5_000)
+        if (raw?.ok) {
+          rec.events.push(...raw.events)
+          rec.secrets.push(...raw.secrets)
+          let gaps = 0
+          for (const event of raw.events) {
+            if (rec.lastSeq > 0 && event.seq > rec.lastSeq + 1) gaps += event.seq - rec.lastSeq - 1
+            rec.lastSeq = Math.max(rec.lastSeq, event.seq)
+          }
+          rec.gaps += gaps
+        }
+      } catch {
+        // Página morta — eventos já drenados permanecem.
+      }
+      try {
+        const target = this.targetForRecorder(record)
+        await safeExecute(target, buildTeardownScript(rec.token), 3_000)
+      } catch {
+        // Página já destruída — listeners morreram com ela.
+      }
+    }
+
+    const previousRecipe = getRecipeByService(this.deps.db, wizard.serviceId)?.definition ?? null
+    const client = getClient(this.deps.db, wizard.clientId)
+    const service = getServiceRow(this.deps.db, wizard.serviceId)
+    const credentials: CompileCredential[] = []
+    if (wizard.fingerprintTargetId) {
+      const row = getCredentialRow(this.deps.db, wizard.fingerprintTargetId)
+      if (row) {
+        credentials.push({
+          id: row.id,
+          passwordFingerprint: row.passwordFingerprint,
+          username: row.username,
+        })
+      }
+    }
+
+    const compiled = compileRecording(rec?.events ?? [], rec?.secrets ?? [], {
+      service: service.slug,
+      auth: wizard.authMethod,
+      autoSubmit: wizard.autoSubmitDefault,
+      clientDocument: client?.document ?? null,
+      clientName: client?.name ?? null,
+      fingerprintTargetId: wizard.fingerprintTargetId,
+      credentials,
+      navigations: rec?.navigations ?? [],
+      previousRecipe,
+      vault: {
+        fingerprintPassword: (value: string) => this.deps.vault.fingerprintPassword(value),
+        constantTimeEqualHex,
+      },
+    })
+    wizard.warnings = [...wizard.warnings, ...compiled.warnings]
+    wizard.compiled = compiled.definition
+    wizard.compiledSteps = compiled.definition.steps.length
+    wizard.compiledRecordedScreens = compiled.definition.recordedScreens ?? 0
+    wizard.status = 'review'
+
+    // Sever segredos da memória o quanto antes.
+    if (rec) {
+      rec.events = []
+      rec.secrets = []
+    }
+
+    if (record) {
+      this.dispose(record, opts.reason ?? (opts.partial ? 'Gravação finalizada (limite)' : 'Gravação concluída'))
+    }
+    this.record(
+      'recipe.record_finished',
+      wizardId,
+      {
+        serviceId: wizard.serviceId,
+        stepCount: wizard.compiledSteps,
+        screens: wizard.compiledRecordedScreens,
+        gaps: rec?.gaps ?? 0,
+        warnings: wizard.warnings.map((warning) => warning.code),
+      },
+      'recipe',
+    )
+    this.emitWizardProgress(wizard.sessionId ?? '', wizardId, true)
+    return this.getWizardState(wizardId)
+  }
+
+  saveRecordedRecipe(
+    wizardId: string,
+    input: { autoSubmit: boolean; removedStepIndexes?: number[] },
+  ): RecipeSummary {
+    const wizard = this.wizards.get(wizardId)
+    if (!wizard) throw new AppError('NOT_FOUND', 'Gravação não encontrada')
+    if (!wizard.compiled) throw new AppError('VALIDATION', 'A gravação ainda não está pronta para salvar')
+    let definition = wizard.compiled
+    if (input.removedStepIndexes && input.removedStepIndexes.length > 0) {
+      const drop = new Set(input.removedStepIndexes)
+      definition = {
+        ...definition,
+        steps: definition.steps.filter((_, index) => !drop.has(index)),
+      }
+    }
+    if (definition.steps.length > 60) {
+      throw new AppError('VALIDATION', 'Remova etapas até no máximo 60 antes de salvar')
+    }
+    const parsed: RecipeDefinition = recipeDefinitionSchema.parse({
+      ...definition,
+      autoSubmit: input.autoSubmit,
+    })
+    const summary = saveRecipe(this.deps.db, wizard.serviceId, parsed)
+    wizard.status = 'saved'
+    this.record(
+      'recipe.recorded',
+      wizardId,
+      {
+        serviceId: wizard.serviceId,
+        version: summary.version,
+        screens: parsed.recordedScreens ?? 0,
+        warnings: wizard.warnings.map((warning) => warning.code),
+      },
+      'recipe',
+    )
+    this.wizards.delete(wizardId)
+    return summary
+  }
+
+  cancelRecorder(wizardId: string): void {
+    const wizard = this.wizards.get(wizardId)
+    if (!wizard) return
+    const record = wizard.sessionId ? (this.sessions.get(wizard.sessionId) ?? null) : null
+    if (record) {
+      this.dispose(record, 'Gravação descartada')
+    }
+    this.record(
+      'recipe.record_discarded',
+      wizardId,
+      { serviceId: wizard.serviceId, reason: 'cancel' },
+      'recipe',
+    )
+    this.wizards.delete(wizardId)
+    this.emitWizardProgress(wizard.sessionId ?? '', wizardId, true)
+  }
+
+  discardRecorded(wizardId: string): void {
+    const wizard = this.wizards.get(wizardId)
+    if (!wizard) return
+    this.record(
+      'recipe.record_discarded',
+      wizardId,
+      { serviceId: wizard.serviceId, reason: 'discard' },
+      'recipe',
+    )
+    this.wizards.delete(wizardId)
   }
 
   private requireSession(id: string): ManagedSession {
@@ -1578,11 +2291,16 @@ export class SessionManager {
     this.deps.onSessionsChanged(this.list())
   }
 
-  private record(type: string, entityId: string | null, metadata: Record<string, unknown>): void {
+  private record(
+    type: string,
+    entityId: string | null,
+    metadata: Record<string, unknown>,
+    entity = 'session',
+  ): void {
     try {
       appendAuditEvent(this.deps.db, {
         type,
-        entity: 'session',
+        entity,
         entityId,
         metadata,
       })

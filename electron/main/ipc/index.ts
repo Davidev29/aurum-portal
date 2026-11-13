@@ -60,6 +60,7 @@ import {
   pdfSignSchema,
   pdfTestTsaSchema,
   recipeSaveSchema,
+  recipeReRecordSchema,
   reportSavePdfSchema,
   serviceFilterSchema,
   serviceInputSchema,
@@ -70,6 +71,9 @@ import {
   sessionOpenSchema,
   sessionZoomSchema,
   settingsUpdateSchema,
+  wizardIdSchema,
+  wizardSaveSchema,
+  wizardStartRecordSchema,
 } from '../../../shared/contracts'
 import type {
   AppInfo,
@@ -997,6 +1001,55 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
         testedAt,
       } satisfies RecipeTestResult
     }
+  })
+
+  // ---------------------------------------------------------------------------
+  // Gravação Assistida (Fase 1) — wizard de gravação + reRecord
+  // ---------------------------------------------------------------------------
+  handle(IPC.wizard.startRecord, wizardStartRecordSchema, async (input) => {
+    return sessions.openRecorder({
+      serviceId: input.serviceId,
+      clientId: input.clientId,
+      authMethod: input.authMethod,
+      credentialId: input.credentialId ?? null,
+    })
+  })
+  handle(IPC.wizard.state, wizardIdSchema, ({ wizardId }) => sessions.getWizardState(wizardId))
+  handle(IPC.wizard.finish, wizardIdSchema, async ({ wizardId }) =>
+    sessions.finishRecorder(wizardId, { reason: 'Gravação concluída pelo assistente' }),
+  )
+  handle(IPC.wizard.cancel, wizardIdSchema, ({ wizardId }) => {
+    sessions.cancelRecorder(wizardId)
+    return undefined
+  })
+  handle(IPC.wizard.save, wizardSaveSchema, ({ wizardId, autoSubmit, removedStepIndexes }) => {
+    const recipe = sessions.saveRecordedRecipe(wizardId, { autoSubmit, removedStepIndexes })
+    audit('recipe.updated', 'recipe', recipe.id, {
+      serviceId: recipe.serviceId,
+      version: recipe.version,
+      origin: 'recorded',
+    })
+    broadcast(IPC.events.servicesChanged, null)
+    return recipe
+  })
+  handle(IPC.wizard.discard, wizardIdSchema, ({ wizardId }) => {
+    sessions.discardRecorded(wizardId)
+    return undefined
+  })
+  handle(IPC.recipes.reRecord, recipeReRecordSchema, async (input) => {
+    const service = getServiceRow(db, input.serviceId)
+    if (service.isBuiltin) {
+      throw new AppError(
+        'FORBIDDEN',
+        'Serviços nativos mantêm a automação de fábrica (use "Regenerar automação").',
+      )
+    }
+    return sessions.openRecorder({
+      serviceId: input.serviceId,
+      clientId: input.clientId,
+      authMethod: input.authMethod,
+      credentialId: input.credentialId ?? null,
+    })
   })
 
   // ---------------------------------------------------------------------------

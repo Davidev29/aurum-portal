@@ -49,6 +49,7 @@ import type {
   SessionErrorEvent,
   SessionOpenRequest,
   SessionOpenResult,
+  WizardState,
   SetLinkResult,
   UpdateCheckResult,
   WindowsCertificate,
@@ -136,6 +137,16 @@ export const IPC = {
     save: 'recipes:save',
     test: 'recipes:test',
     reset: 'recipes:reset',
+    reRecord: 'recipes:reRecord',
+  },
+  wizard: {
+    startRecord: 'wizard:startRecord',
+    state: 'wizard:state',
+    finish: 'wizard:finish',
+    cancel: 'wizard:cancel',
+    save: 'wizard:save',
+    discard: 'wizard:discard',
+    /** Marca a gravação como teto de 15 min? Não exposto — interno. */
   },
   pdf: {
     pickFile: 'pdf:pickFile',
@@ -210,6 +221,7 @@ export const IPC = {
     updateStatus: 'app:updateStatus',
     obligationsChanged: 'obligations:changed',
     notificationsChanged: 'notifications:changed',
+    wizardProgress: 'wizard:progress',
   },
 } as const
 
@@ -536,6 +548,31 @@ export const recipeTestSchema = z.object({ serviceId: idSchema })
 
 export const recipeIdSchema = z.object({ serviceId: idSchema })
 
+export const recipeReRecordSchema = z.object({
+  serviceId: idSchema,
+  clientId: idSchema,
+  authMethod: authMethodSchema,
+  /** Opcional (C2) — null ⇒ fingerprint não avaliado (no-credential-bound). */
+  credentialId: idSchema.nullish(),
+})
+
+export const wizardStartRecordSchema = z.object({
+  serviceId: idSchema,
+  clientId: idSchema,
+  authMethod: authMethodSchema,
+  /** Opcional (C2). Ausente ⇒ fingerprint NÃO avaliado; warning no-credential-bound. */
+  credentialId: idSchema.nullish(),
+})
+
+export const wizardIdSchema = z.object({ wizardId: idSchema })
+
+export const wizardSaveSchema = z.object({
+  wizardId: idSchema,
+  autoSubmit: z.boolean(),
+  /** N3: etapas removidas na revisão (0-based). O servidor descarta e valida ≤60. */
+  removedStepIndexes: z.array(z.number().int().min(0).max(59)).max(60).optional(),
+})
+
 export const pdfLoadPreviewSchema = z.object({ token: idSchema })
 
 export const pdfReleaseSchema = z.object({ token: idSchema })
@@ -815,6 +852,9 @@ export interface AurumBitPortalEvents {
   onUpdateStatus(callback: (result: UpdateCheckResult) => void): () => void
   onObligationsChanged(callback: () => void): () => void
   onNotificationsChanged(callback: (payload: { created: number } | null) => void): () => void
+  onWizardProgress(
+    callback: (progress: { stepCount: number; screen: number; gaps: number }) => void,
+  ): () => void
 }
 
 export interface AurumBitPortalApi {
@@ -913,6 +953,21 @@ export interface AurumBitPortalApi {
     save(input: z.input<typeof recipeSaveSchema>): Promise<RecipeSummary>
     test(serviceId: string): Promise<RecipeTestResult>
     reset(serviceId: string): Promise<RecipeSummary | null>
+    reRecord(input: z.input<typeof recipeReRecordSchema>): Promise<{
+      wizardId: string
+      sessionId: string
+    }>
+  }
+  wizard: {
+    startRecord(input: z.input<typeof wizardStartRecordSchema>): Promise<{
+      wizardId: string
+      sessionId: string
+    }>
+    state(wizardId: string): Promise<WizardState>
+    finish(wizardId: string): Promise<WizardState>
+    cancel(wizardId: string): Promise<void>
+    save(input: z.input<typeof wizardSaveSchema>): Promise<RecipeSummary>
+    discard(wizardId: string): Promise<void>
   }
   pdf: {
     pickFile(): Promise<PickedPdfFile>
