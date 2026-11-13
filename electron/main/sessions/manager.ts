@@ -149,6 +149,8 @@ interface ManagedSession {
   bootSafetyTimer: NodeJS.Timeout | null
   /** Gravação Assistida (Fase 1). Só preenchido em sessões de gravação. */
   recording: RecordingState | null
+  /** Sessão descartável sem cliente — não persiste em `sessions`/`partitionUsage`. */
+  adhoc?: boolean
 }
 
 /** Estado main-side da gravação ativa (por sessão). */
@@ -1045,11 +1047,13 @@ export class SessionManager {
 
     let username = ''
     let password = ''
+    let extraValues: Record<string, string> | undefined
     if (record.authMethod === 'password' && record.credentialId) {
       try {
         const secret = revealCredential(this.deps.db, this.deps.vault, record.credentialId)
         username = secret.username
         password = secret.password
+        extraValues = secret.extraValues
         markCredentialUsed(this.deps.db, record.credentialId)
       } catch {
         record.recipeRunning = false
@@ -1115,6 +1119,7 @@ export class SessionManager {
             password,
             document: record.clientDocument,
             clientName: record.clientName,
+            extraValues,
           }),
           target,
           allowedDomains: record.allowedDomains,
@@ -1223,24 +1228,33 @@ export class SessionManager {
   }
 
   private recipeForSession(stored: RecipeDefinition, record: ManagedSession): RecipeDefinition {
+    // Receita ensinada em dois passes (certificado + senha): cada sessão roda
+    // os passos do SEU fluxo. A ausência de passos específicos mantém o
+    // comportamento legado (filtragem por método abaixo).
+    const scopedSteps =
+      record.authMethod === 'certificate'
+        ? (stored.certificateSteps ?? stored.steps)
+        : (stored.passwordSteps ?? stored.steps)
+    const scoped: RecipeDefinition =
+      scopedSteps !== stored.steps ? { ...stored, steps: scopedSteps } : stored
     // A receita declara um método (auth). Em sessões de certificado, passos que
     // carregam credenciais nunca rodam — mesmo quando o método bate com o da
     // receita (a receita unificada de um site gov.br inclui smart fill para o
     // modo senha). A detecção de pós-login continua ativa nos dois casos.
     // autoSubmit só faz sentido com formulário de senha: no certificado, a
     // tentativa geraria falha pós-login (página sem campo de senha).
-    if (stored.auth === record.authMethod) {
-      if (record.authMethod !== 'certificate') return stored
+    if (scoped.auth === record.authMethod) {
+      if (record.authMethod !== 'certificate') return scoped
       return {
-        ...stored,
-        steps: stored.steps.filter((step) => !stepCarriesCredentials(step)),
+        ...scoped,
+        steps: scoped.steps.filter((step) => !stepCarriesCredentials(step)),
         autoSubmit: false,
       }
     }
     const steps =
       record.authMethod === 'certificate'
-        ? stored.steps.filter((step) => !stepCarriesCredentials(step))
-        : stored.steps.filter((step) => {
+        ? scoped.steps.filter((step) => !stepCarriesCredentials(step))
+        : scoped.steps.filter((step) => {
             const selectors = (step.selectors ?? []).join(' ').toLowerCase()
             if (selectors.includes('certificado')) return false
             // Em modo senha, nao disparar o clique automatico no botao
@@ -1254,12 +1268,10 @@ export class SessionManager {
             }
             return true
           })
-    // Se sobraram só passos de certificado genéricos para sessão de senha,
-    // ou nada, mantém a receita-atalho: apenas watcher de pós-login.
     return {
-      ...stored,
+      ...scoped,
       steps,
-      autoSubmit: record.authMethod === 'certificate' ? false : stored.autoSubmit,
+      autoSubmit: record.authMethod === 'certificate' ? false : scoped.autoSubmit,
     }
   }
 
@@ -1616,6 +1628,7 @@ export class SessionManager {
     } else {
       this.partitionUsage.set(record.partition, usage)
     }
+    if (record.adhoc) return
     try {
       closeSessionRow(this.deps.db, record.id, reason)
       this.record('session.closed', record.id, { reason })
@@ -1675,7 +1688,7 @@ export class SessionManager {
 
   async openRecorder(input: {
     serviceId: string
-    clientId: string
+    clientId?: string | null
     authMethod: AuthMethod
     credentialId?: string | null
     certificateId?: string | null
@@ -1694,16 +1707,35 @@ export class SessionManager {
     if (!service.authMethods.includes(input.authMethod)) {
       throw new AppError('VALIDATION', 'Metodo de autenticacao nao aceito pelo servico')
     }
-    const client = getClient(this.deps.db, input.clientId)
-    if (!client) throw new AppError('NOT_FOUND', 'Cliente nao encontrado')
-    if (client.status === 'archived') {
-      throw new AppError('FORBIDDEN', 'Cliente arquivado nao pode abrir sessoes')
+    const isClientlessPassword = !input.clientId && input.authMethod === 'password'
+    if (!input.clientId && input.authMethod === 'certificate') {
+      throw new AppError(
+        'VALIDATION',
+        'Gravação de certificado exige um certificado vinculado a um cliente',
+      )
     }
+    const client = isClientlessPassword
+      ? null
+      : (() => {
+          const found = getClient(this.deps.db, input.clientId as string)
+          if (!found) throw new AppError('NOT_FOUND', 'Cliente nao encontrado')
+          if (found.status === 'archived') {
+            throw new AppError('FORBIDDEN', 'Cliente arquivado nao pode abrir sessoes')
+          }
+          return found
+        })()
 
     let credentialId: string | null = null
     if (input.authMethod === 'password' && input.credentialId) {
+      if (!client) {
+        throw new AppError('VALIDATION', 'Vincule um cliente para usar uma credencial')
+      }
       const credential = getCredentialRow(this.deps.db, input.credentialId)
-      if (!credential || credential.clientId !== client.id || credential.serviceId !== service.id) {
+      if (
+        !credential ||
+        credential.clientId !== client.id ||
+        credential.serviceId !== service.id
+      ) {
         throw new AppError('FORBIDDEN', 'Credencial nao pertence ao cliente/servico selecionado')
       }
       credentialId = credential.id
@@ -1721,6 +1753,9 @@ export class SessionManager {
     let issuerDn: string | null = null
     let subjectDn: string | null = null
     if (input.authMethod === 'certificate') {
+      if (!client) {
+        throw new AppError('VALIDATION', 'Gravacao de certificado exige cliente/certificado')
+      }
       certificateId = input.certificateId ?? this.pickOnlyCertificate(client.id)
       let certificate = getCertificateView(this.deps.db, certificateId)
       const linked =
@@ -1781,17 +1816,22 @@ export class SessionManager {
     const token = randomUUID()
     const id = randomUUID()
     const openedAt = new Date().toISOString()
-    const partition = buildPartition({
-      clientId: client.id,
-      certificateId,
-      authMethod: input.authMethod,
-    })
+    // Partição: sem cliente, a gravação usa uma partição descartável própria —
+    // o serviço nunca fica vinculado a um cliente.
+    const isAdhoc = !client
+    const partition = isAdhoc
+      ? `recording:${wizardId}`
+      : buildPartition({
+          clientId: client.id,
+          certificateId,
+          authMethod: input.authMethod,
+        })
     const remoteSession = this.preparePartition(partition)
     const context: SessionContext = {
       sessionId: id,
-      clientId: client.id,
-      clientName: client.name,
-      clientDocument: client.document,
+      clientId: client?.id ?? '',
+      clientName: client?.name ?? 'Gravação assistida',
+      clientDocument: client?.document ?? '',
       serviceId: service.id,
       serviceName: service.name,
       serviceSlug: service.slug,
@@ -1811,16 +1851,19 @@ export class SessionManager {
     this.deps.registry.set(remoteSession, context)
     this.partitionUsage.set(partition, (this.partitionUsage.get(partition) ?? 0) + 1)
 
-    createSessionRow(this.deps.db, {
-      id,
-      clientId: client.id,
-      certificateId,
-      serviceId: service.id,
-      credentialId,
-      authMethod: input.authMethod,
-      partition,
-      openedAt,
-    })
+    // Sessão descartável (sem cliente): não persiste linha em `sessions`.
+    if (!isAdhoc) {
+      createSessionRow(this.deps.db, {
+        id,
+        clientId: client.id,
+        certificateId,
+        serviceId: service.id,
+        credentialId,
+        authMethod: input.authMethod,
+        partition,
+        openedAt,
+      })
+    }
 
     const win = new BrowserWindow({
       width: 1240,
@@ -1873,9 +1916,9 @@ export class SessionManager {
     const record: ManagedSession = {
       id,
       reuseKey: `recording:${wizardId}`,
-      clientId: client.id,
-      clientName: client.name,
-      clientDocument: client.document,
+      clientId: client?.id ?? '',
+      clientName: client?.name ?? 'Gravação assistida',
+      clientDocument: client?.document ?? '',
       serviceId: service.id,
       serviceName: service.name,
       serviceSlug: service.slug,
@@ -1891,6 +1934,7 @@ export class SessionManager {
       certificateSubjectDn: subjectDn,
       credentialId,
       partition,
+      adhoc: isAdhoc,
       allowedDomains: service.allowedDomains,
       baseUrl: service.baseUrl,
       win,
@@ -1916,7 +1960,7 @@ export class SessionManager {
         wizardId,
         token,
         serviceId: service.id,
-        clientId: client.id,
+        clientId: client?.id ?? '',
         credentialId,
         authMethod: input.authMethod,
         screen: 0,
@@ -1997,7 +2041,7 @@ export class SessionManager {
       status: 'recording',
       sessionId: id,
       serviceId: service.id,
-      clientId: client.id,
+      clientId: client?.id ?? '',
       authMethod: input.authMethod,
       fingerprintTargetId: credentialId,
       autoSubmitDefault,
@@ -2012,7 +2056,7 @@ export class SessionManager {
       wizardId,
       {
         serviceId: service.id,
-        clientId: client.id,
+        clientId: client?.id ?? '',
         authMethod: input.authMethod,
       },
       'recipe',
@@ -2197,7 +2241,7 @@ export class SessionManager {
     }
 
     const previousRecipe = getRecipeByService(this.deps.db, wizard.serviceId)?.definition ?? null
-    const client = getClient(this.deps.db, wizard.clientId)
+    const client = wizard.clientId ? getClient(this.deps.db, wizard.clientId) : null
     const service = getServiceRow(this.deps.db, wizard.serviceId)
     const credentials: CompileCredential[] = []
     if (wizard.fingerprintTargetId) {
