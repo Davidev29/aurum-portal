@@ -32,25 +32,12 @@ import {
   postLoginGeneric,
 } from '../../../shared/builtins'
 import { stripVolatileQueryParams } from '../../../shared/custom-service'
+import type { WizardWarning, WizardWarningCode } from '../../../shared/types'
+export type { WizardWarning, WizardWarningCode }
 
 // ---------------------------------------------------------------------------
 // Tipos compartilhados com o main
 // ---------------------------------------------------------------------------
-
-export type WizardWarningCode =
-  | 'credential-mismatch'
-  | 'no-credential-bound'
-  | 'value-not-recorded'
-  | 'otp-not-recorded'
-  | 'low-confidence'
-  | 'seed-lost'
-  | 'step-cap-reached'
-  | 'recording-max-duration'
-
-export interface WizardWarning {
-  code: WizardWarningCode
-  detail: string
-}
 
 export interface RecorderCandidate {
   sel: string
