@@ -261,6 +261,15 @@ export interface SessionDetails extends PortalSession {
   requiresHumanAction: boolean
   /** true quando a sessão nasceu em modo Gravação Assistida. */
   isRecording: boolean
+  /** Presente durante a gravação (para o chrome da sessão exibir a barra de controle). */
+  recording?: {
+    wizardId: string
+    stepCount: number
+    screenCount: number
+    gaps: number
+    loggedInHint: boolean
+    durationWarning: boolean
+  }
 }
 
 export interface WindowsCertificate {

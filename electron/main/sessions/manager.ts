@@ -1422,6 +1422,7 @@ export class SessionManager {
   details(id: string): SessionDetails | null {
     const record = this.sessions.get(id)
     if (!record || record.closed) return null
+    const rec = record.recording
     return {
       ...this.toView(record),
       allowedDomains: record.allowedDomains,
@@ -1430,7 +1431,17 @@ export class SessionManager {
       zoomFactor: record.view.webContents.getZoomFactor(),
       portalVisible: !record.portalHidden,
       requiresHumanAction: record.requiresHumanAction,
-      isRecording: record.recording !== null,
+      isRecording: rec !== null,
+      recording: rec
+        ? {
+            wizardId: rec.wizardId,
+            stepCount: rec.events.length,
+            screenCount: Math.max(rec.screen, 1),
+            gaps: rec.gaps,
+            loggedInHint: rec.loggedInHint,
+            durationWarning: rec.durationWarning,
+          }
+        : undefined,
     }
   }
 
@@ -1667,6 +1678,7 @@ export class SessionManager {
     clientId: string
     authMethod: AuthMethod
     credentialId?: string | null
+    certificateId?: string | null
   }): Promise<{ sessionId: string; wizardId: string }> {
     const settings = this.deps.getSettings()
     if (this.sessions.size >= settings.sessionLimit) {
@@ -1697,6 +1709,71 @@ export class SessionManager {
       credentialId = credential.id
     }
 
+    // Certificado: resolução idêntica à abertura normal — exige certificado
+    // válido/instalado e vinculado ao cliente (mTLS injeta por thumbprint).
+    let certificateId: string | null = null
+    let certificateLabel: string | null = null
+    let certificateHolderName: string | null = null
+    let certificateValidTo: string | null = null
+    let thumbprint256: string | null = null
+    let thumbprint1: string | null = null
+    let serialHex: string | null = null
+    let issuerDn: string | null = null
+    let subjectDn: string | null = null
+    if (input.authMethod === 'certificate') {
+      certificateId = input.certificateId ?? this.pickOnlyCertificate(client.id)
+      let certificate = getCertificateView(this.deps.db, certificateId)
+      const linked =
+        certificate.clientId === client.id ||
+        certificate.clients.some((item) => item.id === client.id)
+      if (!linked) {
+        throw new AppError(
+          'FORBIDDEN',
+          'O certificado nao esta vinculado a este cliente',
+          'Vincule o certificado ao cliente antes de usa-lo.',
+        )
+      }
+      if (certificate.status === 'expired') {
+        throw new AppError(
+          'CERTIFICATE_EXPIRED',
+          'Certificado vencido nao pode autenticar',
+          'Este certificado esta vencido. Importe o certificado renovado.',
+        )
+      }
+      if (certificate.status === 'missing_windows') {
+        throw new AppError(
+          'CERTIFICATE_MISSING',
+          'Certificado ausente no Windows',
+          'O certificado sumiu do repositorio do Windows. Reinstale o PFX ou importe novamente.',
+        )
+      }
+      if (certificate.status === 'chain_incomplete') {
+        throw new AppError(
+          'CERTIFICATE_INVALID',
+          'Cadeia do certificado incompleta',
+          'Instale a cadeia ICP-Brasil antes de autenticar.',
+        )
+      }
+      if (!certificate.installed) {
+        certificate = await this.deps.certificates.install(certificateId)
+      }
+      if (!certificate.installed) {
+        throw new AppError(
+          'CERTIFICATE_NOT_INSTALLED',
+          'Certificado nao instalado no Windows',
+          'Instale o certificado no Windows antes de abrir o portal.',
+        )
+      }
+      certificateLabel = certificate.label
+      certificateHolderName = certificate.holderName
+      certificateValidTo = certificate.validTo
+      thumbprint256 = certificate.thumbprintSha256
+      thumbprint1 = certificate.thumbprintSha1
+      serialHex = certificate.serialHex
+      issuerDn = certificate.issuerDn
+      subjectDn = certificate.subjectDn
+    }
+
     const previousRecipe = getRecipeByService(this.deps.db, service.id)?.definition ?? null
     const autoSubmitDefault = previousRecipe?.autoSubmit ?? input.authMethod === 'password'
 
@@ -1706,7 +1783,7 @@ export class SessionManager {
     const openedAt = new Date().toISOString()
     const partition = buildPartition({
       clientId: client.id,
-      certificateId: null,
+      certificateId,
       authMethod: input.authMethod,
     })
     const remoteSession = this.preparePartition(partition)
@@ -1719,15 +1796,15 @@ export class SessionManager {
       serviceName: service.name,
       serviceSlug: service.slug,
       authMethod: input.authMethod,
-      certificateId: null,
-      certificateLabel: null,
-      certificateHolderName: null,
-      certificateValidTo: null,
-      certificateThumbprintSha256: null,
-      certificateThumbprintSha1: null,
-      certificateSerialHex: null,
-      certificateIssuerDn: null,
-      certificateSubjectDn: null,
+      certificateId,
+      certificateLabel,
+      certificateHolderName,
+      certificateValidTo,
+      certificateThumbprintSha256: thumbprint256,
+      certificateThumbprintSha1: thumbprint1,
+      certificateSerialHex: serialHex,
+      certificateIssuerDn: issuerDn,
+      certificateSubjectDn: subjectDn,
       allowedDomains: service.allowedDomains,
       partition,
     }
@@ -1737,7 +1814,7 @@ export class SessionManager {
     createSessionRow(this.deps.db, {
       id,
       clientId: client.id,
-      certificateId: null,
+      certificateId,
       serviceId: service.id,
       credentialId,
       authMethod: input.authMethod,
@@ -1803,15 +1880,15 @@ export class SessionManager {
       serviceName: service.name,
       serviceSlug: service.slug,
       authMethod: input.authMethod,
-      certificateId: null,
-      certificateLabel: null,
-      certificateHolderName: null,
-      certificateValidTo: null,
-      certificateThumbprintSha256: null,
-      certificateThumbprintSha1: null,
-      certificateSerialHex: null,
-      certificateIssuerDn: null,
-      certificateSubjectDn: null,
+      certificateId,
+      certificateLabel,
+      certificateHolderName,
+      certificateValidTo,
+      certificateThumbprintSha256: thumbprint256,
+      certificateThumbprintSha1: thumbprint1,
+      certificateSerialHex: serialHex,
+      certificateIssuerDn: issuerDn,
+      certificateSubjectDn: subjectDn,
       credentialId,
       partition,
       allowedDomains: service.allowedDomains,
@@ -2134,21 +2211,39 @@ export class SessionManager {
       }
     }
 
-    const compiled = compileRecording(rec?.events ?? [], rec?.secrets ?? [], {
-      service: service.slug,
-      auth: wizard.authMethod,
-      autoSubmit: wizard.autoSubmitDefault,
-      clientDocument: client?.document ?? null,
-      clientName: client?.name ?? null,
-      fingerprintTargetId: wizard.fingerprintTargetId,
-      credentials,
-      navigations: rec?.navigations ?? [],
-      previousRecipe,
-      vault: {
-        fingerprintPassword: (value: string) => this.deps.vault.fingerprintPassword(value),
-        constantTimeEqualHex,
-      },
-    })
+    let compiled
+    try {
+      compiled = compileRecording(rec?.events ?? [], rec?.secrets ?? [], {
+        service: service.slug,
+        auth: wizard.authMethod,
+        autoSubmit: wizard.autoSubmitDefault,
+        clientDocument: client?.document ?? null,
+        clientName: client?.name ?? null,
+        fingerprintTargetId: wizard.fingerprintTargetId,
+        credentials,
+        navigations: rec?.navigations ?? [],
+        previousRecipe,
+        vault: {
+          fingerprintPassword: (value: string) => this.deps.vault.fingerprintPassword(value),
+          constantTimeEqualHex,
+        },
+      })
+    } catch (error) {
+      // Falha de compilação NÃO destrói a gravação: mantém a sessão aberta e
+      // devolve status 'error' — o assistente mostra o erro e o usuário pode
+      // tentar Concluir de novo ou Descartar. Segredos seguem na memória.
+      wizard.status = 'error'
+      wizard.warnings.push({
+        code: 'seed-lost',
+        detail: `Não consegui compilar a gravação (${
+          error instanceof Error ? error.message : 'erro desconhecido'
+        }). Tente concluir de novo ou descarte e regrave.`,
+      })
+      logger.warn('wizard.compile_failed', {
+        message: error instanceof Error ? error.message : String(error),
+      })
+      return this.getWizardState(wizardId)
+    }
     wizard.warnings = [...wizard.warnings, ...compiled.warnings]
     wizard.compiled = compiled.definition
     wizard.compiledSteps = compiled.definition.steps.length

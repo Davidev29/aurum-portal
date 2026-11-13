@@ -49,6 +49,22 @@ function isFormControlElement(element: React.ReactElement): element is AnyElemen
   return displayName === 'Input' || displayName === 'Textarea' || displayName === 'Select'
 }
 
+/** Localiza o controle (Input/Textarea/Select) entre os children do Field —
+ * incluindo children múltiplos (o primeiro controle ganha o htmlFor). */
+function findControlChild(children: React.ReactNode): {
+  control: AnyElement | undefined
+  index: number
+} {
+  const array = React.Children.toArray(children)
+  for (let index = 0; index < array.length; index += 1) {
+    const child = array[index]
+    if (React.isValidElement(child) && isFormControlElement(child)) {
+      return { control: child, index }
+    }
+  }
+  return { control: undefined, index: -1 }
+}
+
 export function Field({
   label,
   hint,
@@ -65,14 +81,16 @@ export function Field({
   className?: string
 }) {
   const generatedId = React.useId()
-  let controlId: string | undefined
-  let resolvedChildren = children
+  const { control, index: controlIndex } = findControlChild(children)
+  const controlId = control ? ((control.props as { id?: string }).id ?? generatedId) : undefined
+  let resolvedChildren: React.ReactNode = React.Children.toArray(children)
 
-  if (React.isValidElement(children) && isFormControlElement(children)) {
-    controlId = (children.props as { id?: string }).id ?? generatedId
-    if (!(children.props as { id?: string }).id) {
-      resolvedChildren = React.cloneElement(children as AnyElement, { id: generatedId })
-    }
+  if (control && !(control.props as { id?: string }).id) {
+    resolvedChildren = React.Children.toArray(children).map((child, index) =>
+      index === controlIndex
+        ? (React.cloneElement(control as AnyElement, { id: generatedId }) as React.ReactNode)
+        : child,
+    )
   }
 
   return (

@@ -1012,6 +1012,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       clientId: input.clientId,
       authMethod: input.authMethod,
       credentialId: input.credentialId ?? null,
+      certificateId: input.certificateId ?? null,
     })
   })
   handle(IPC.wizard.state, wizardIdSchema, ({ wizardId }) => sessions.getWizardState(wizardId))
@@ -1049,6 +1050,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       clientId: input.clientId,
       authMethod: input.authMethod,
       credentialId: input.credentialId ?? null,
+      certificateId: input.certificateId ?? null,
     })
   })
 

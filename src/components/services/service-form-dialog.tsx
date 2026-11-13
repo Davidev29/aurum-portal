@@ -35,7 +35,7 @@ import {
 import { isGovernmentHost, parseHttpUrl } from '@shared/network'
 import type { Service, ServiceInput, WizardState, WizardWarning } from '@shared/types'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
-import { useClients, useCredentials, useInvalidate } from '@/lib/queries'
+import { useClients, useCredentials, useCertificates, useInvalidate } from '@/lib/queries'
 import { cn } from '@/lib/utils'
 import {
   Dialog,
@@ -177,6 +177,7 @@ export function ServiceFormDialog({
   const [createdService, setCreatedService] = React.useState<Service | null>(null)
   const [teachClientId, setTeachClientId] = React.useState('')
   const [teachCredentialId, setTeachCredentialId] = React.useState('')
+  const [teachCertificateId, setTeachCertificateId] = React.useState('')
   const [teachAuthMethod, setTeachAuthMethod] = React.useState<AuthMethod>('password')
   const [wizardId, setWizardId] = React.useState<string | null>(null)
   const [wizardState, setWizardState] = React.useState<WizardState | null>(null)
@@ -190,6 +191,12 @@ export function ServiceFormDialog({
       ? { clientId: teachClientId, serviceId: createdService.id }
       : undefined,
     { enabled: Boolean(teachClientId && createdService) },
+  )
+  const certificatesQuery = useCertificates(teachClientId ? { clientId: teachClientId } : undefined)
+  const usableCertificates = (certificatesQuery.data ?? []).filter(
+    (certificate) =>
+      certificate.installed &&
+      (certificate.status === 'valid' || certificate.status === 'expiring'),
   )
 
   const normalizedUrl = React.useMemo(() => normalizeBaseUrlInput(baseUrl), [baseUrl])
@@ -214,6 +221,7 @@ export function ServiceFormDialog({
     setCreatedService(null)
     setTeachClientId('')
     setTeachCredentialId('')
+    setTeachCertificateId('')
     setTeachAuthMethod(service?.defaultAuth ?? 'password')
     setWizardId(null)
     setWizardState(null)
@@ -285,7 +293,17 @@ export function ServiceFormDialog({
     const refresh = async (): Promise<void> => {
       try {
         const state = await aurumBitPortal().wizard.state(wizardId)
-        if (alive) setWizardState(state)
+        if (alive) {
+          setWizardState(state)
+          // Se a gravação foi concluída no chrome do portal (ou pelo teto), o
+          // modal acompanha: vai para a revisão sozinho.
+          if (state.status === 'review') {
+            setReviewAutoSubmit(state.definition?.autoSubmit ?? true)
+            setReviewRemoved([])
+            setCancelConfirm(false)
+            setStage('review')
+          }
+        }
       } catch (caught) {
         if (!alive) return
         toast.error(errorMessage(caught))
@@ -327,6 +345,7 @@ export function ServiceFormDialog({
         clientId: teachClientId,
         authMethod: teachAuthMethod,
         credentialId: teachCredentialId || null,
+        certificateId: teachAuthMethod === 'certificate' ? teachCertificateId || null : null,
       }
       // Em acessos existentes, passa pelo guarda do reRecord (nativos nunca regravam).
       const result = service
@@ -995,7 +1014,10 @@ export function ServiceFormDialog({
                           type="button"
                           role="radio"
                           aria-checked={selected}
-                          onClick={() => setTeachAuthMethod(option.value as AuthMethod)}
+                          onClick={() => {
+                            setTeachAuthMethod(option.value as AuthMethod)
+                            setTeachCertificateId('')
+                          }}
                           className={cn(
                             'pv-pressable flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors',
                             selected
@@ -1009,6 +1031,32 @@ export function ServiceFormDialog({
                       )
                     })}
                   </div>
+                </Field>
+              ) : null}
+
+              {teachAuthMethod === 'certificate' ? (
+                <Field
+                  label="Qual certificado você quer usar?"
+                  required
+                  hint="O portal pedirá o certificado no carregamento — o AurumBit injeta pela impressão digital (A1)"
+                >
+                  <Select
+                    value={teachCertificateId}
+                    onChange={(event) => setTeachCertificateId(event.target.value)}
+                  >
+                    <option value="">Selecione…</option>
+                    {usableCertificates.map((certificate) => (
+                      <option key={certificate.id} value={certificate.id}>
+                        {certificate.label} · vence {String(certificate.validTo ?? '').slice(0, 10)}
+                      </option>
+                    ))}
+                  </Select>
+                  {usableCertificates.length === 0 ? (
+                    <p className="mt-1.5 text-xs text-[var(--pv-warning)]">
+                      Nenhuma A1 válida instalada para este cliente — instale/vincule uma primeiro
+                      (Clientes → Certificados) e volte aqui.
+                    </p>
+                  ) : null}
                 </Field>
               ) : null}
 
@@ -1079,6 +1127,19 @@ export function ServiceFormDialog({
                   <Timer className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />A gravação
                   será encerrada em 5 min. O que foi capturado será salvo como rascunho — nada se
                   perde.
+                </p>
+              ) : null}
+              {wizardState.warnings.length > 0 ? (
+                <div className="grid gap-2">
+                  {wizardState.warnings.map((warning, index) => (
+                    <WarningBanner key={`${warning.code}-${index}`} warning={warning} />
+                  ))}
+                </div>
+              ) : null}
+              {wizardState.status === 'error' ? (
+                <p className="flex items-start gap-2 rounded-xl border border-[var(--pv-danger)]/40 bg-[var(--pv-danger)]/10 px-3 py-2 text-xs font-medium text-[var(--pv-danger)]">
+                  <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />A
+                  gravação não pôde ser compilada. Descarte e regrave — nada será salvo.
                 </p>
               ) : null}
               {cancelConfirm ? (
@@ -1246,7 +1307,14 @@ export function ServiceFormDialog({
               <Button variant="secondary" onClick={skipTeach} disabled={wizardBusy}>
                 Pular por agora
               </Button>
-              <Button onClick={() => void startRecording()} disabled={wizardBusy || !teachClientId}>
+              <Button
+                onClick={() => void startRecording()}
+                disabled={
+                  wizardBusy ||
+                  !teachClientId ||
+                  (teachAuthMethod === 'certificate' && !teachCertificateId)
+                }
+              >
                 {wizardBusy ? 'Abrindo o portal…' : 'Ensinar agora'}
               </Button>
             </>
@@ -1260,7 +1328,10 @@ export function ServiceFormDialog({
               >
                 Cancelar e descartar
               </Button>
-              <Button onClick={() => void finishRecording()} disabled={wizardBusy}>
+              <Button
+                onClick={() => void finishRecording()}
+                disabled={wizardBusy || wizardState?.status === 'error'}
+              >
                 {wizardBusy ? 'Concluindo…' : 'Concluir gravação'}
               </Button>
             </>

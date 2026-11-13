@@ -169,10 +169,78 @@ export default function SessionPage() {
     )
   }
 
+  if (data.recording) {
+    const recording = data.recording
+    const handleFinish = (): void => {
+      setBusy(true)
+      void aurumBitPortal()
+        .wizard.finish(recording.wizardId)
+        .then(() => toast.success('Gravação concluída — revise e salve o robô no assistente.'))
+        .then(() => refetch())
+        .catch((error: unknown) => toast.error(errorMessage(error)))
+        .finally(() => setBusy(false))
+    }
+    const handleCancel = (): void => {
+      setBusy(true)
+      void aurumBitPortal()
+        .wizard.cancel(recording.wizardId)
+        .then(() => toast.success('Gravação descartada — o acesso mantém a automação automática.'))
+        .then(() => refetch())
+        .catch((error: unknown) => toast.error(errorMessage(error)))
+        .finally(() => setBusy(false))
+    }
+    return (
+      <div className="flex h-screen flex-col overflow-hidden bg-transparent">
+        <header
+          className="flex shrink-0 items-center gap-3 border-b border-[var(--pv-danger)]/40 bg-red-500/10 px-3"
+          style={{ height: SESSION_CHROME_HEIGHT }}
+        >
+          <span className="relative flex h-3 w-3 shrink-0" aria-hidden="true">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-tight text-[var(--pv-danger)]">
+              Gravando — faça o login no portal
+            </p>
+            <p className="mt-0.5 truncate text-[11px] text-[var(--pv-muted)]">
+              Tela T{recording.screenCount} · <strong>{recording.stepCount}</strong> etapas
+              {recording.gaps > 0 ? ` · ${recording.gaps} perdido(s) por navegação` : ''}
+              {recording.loggedInHint ? ' · Parece que você entrou ✓' : ''}
+              {recording.durationWarning ? ' · encerrando em 5 min' : ''}
+            </p>
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <Button size="sm" variant="secondary" disabled={busy} onClick={handleCancel}>
+              Cancelar
+            </Button>
+            <Button size="sm" disabled={busy} onClick={handleFinish}>
+              {busy ? 'Concluindo…' : 'Concluir gravação'}
+            </Button>
+          </div>
+        </header>
+
+        <main className="pointer-events-none min-h-0 flex-1 bg-transparent" aria-hidden="true" />
+
+        <footer
+          className="flex shrink-0 items-center gap-3 overflow-hidden border-t border-[var(--pv-border)] bg-[var(--pv-panel)] px-3 text-[10px] text-[var(--pv-muted)]"
+          style={{ height: SESSION_CHROME_FOOTER_HEIGHT }}
+        >
+          <span className="inline-flex items-center gap-1">
+            <Lock className="h-3 w-3 text-red-500" />
+            Sessão de gravação assistida
+          </span>
+          <span className="truncate">{data.serviceName}</span>
+          <span className="ml-auto shrink-0">O assistente acompanha pelo app</span>
+        </footer>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[var(--pv-bg)]">
+    <div className="flex h-screen flex-col overflow-hidden bg-transparent">
       <header
-        className="flex shrink-0 flex-col border-b border-[var(--pv-border)] bg-[var(--pv-panel)]/95 shadow-sm backdrop-blur"
+        className="pv-glass flex shrink-0 flex-col border-b border-[var(--pv-border)] shadow-sm"
         style={{ height: SESSION_CHROME_HEIGHT }}
       >
         <div className="flex h-12 items-center gap-2 overflow-x-auto whitespace-nowrap px-3 pv-scroll">

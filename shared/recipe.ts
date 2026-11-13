@@ -24,7 +24,7 @@ export const recipeStepSchema = z.object({
   /** Tela (documento) em que a etapa foi gravada: 'T1', 'T2'… */
   screen: z
     .string()
-    .regex(/^T\d{1,2}$/)
+    .regex(/^T\d{1,3}$/)
     .optional(),
   /** Confiança do seletor escolhido ao gravar. */
   confidence: z.enum(['high', 'medium', 'low']).optional(),
@@ -77,7 +77,7 @@ export const recipeDefinitionSchema = z.object({
   origin: z.enum(['auto', 'recorded']).optional(),
   /** Metadados da gravação (auditoria/diagnóstico). Nunca valores. */
   recordedAt: z.string().datetime().optional(),
-  recordedScreens: z.number().int().min(0).max(60).optional(),
+  recordedScreens: z.number().int().min(0).max(999).optional(),
 })
 
 export type RecipeDefinition = z.infer<typeof recipeDefinitionSchema>
