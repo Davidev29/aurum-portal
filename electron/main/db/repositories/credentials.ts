@@ -47,7 +47,7 @@ function mapCredential(
     username: row.username,
     usernameType: row.usernameType,
     notes: row.notes,
-    fields: row.fields ?? null,
+    fields: row.fields ? row.fields.map(({ name, kind }) => ({ name, kind })) : null,
     isDefault: row.isDefault,
     reused: (counts.get(row.passwordFingerprint) ?? 0) > 1,
     lastUsedAt: row.lastUsedAt,
@@ -104,6 +104,48 @@ export function getCredentialRecord(db: AppDatabase, id: string): CredentialReco
   return { row, clientName: client.name, serviceName: service.name, serviceSlug: service.slug }
 }
 
+/**
+ * Cifra os valores dos campos adicionais (AES-256-GCM, AAD
+ * `credentials:{id}:field:{name}`). Valores vazios são descartados; campos
+ * sem segredo (ex.: username/password — que são metadados) passam sem envelope.
+ */
+function sealCredentialFields(
+  vault: VaultService,
+  credentialId: string,
+  fields:
+    | Array<{
+        name: string
+        kind: 'username' | 'password' | 'text'
+        value?: string
+        enc?: 'aes-256-gcm'
+      }>
+    | null
+    | undefined,
+): Array<{
+  name: string
+  kind: 'username' | 'password' | 'text'
+  value?: string
+  enc?: 'aes-256-gcm'
+}> | null {
+  if (!fields) return null
+  return fields.map((field) => {
+    const value = field.value
+    if (value === undefined || value === '') {
+      return { name: field.name, kind: field.kind }
+    }
+    if (field.enc === 'aes-256-gcm') {
+      // Já cifrado — nunca re-cifrar (o envelope apareceria duplicado no replay).
+      return { name: field.name, kind: field.kind, value, enc: 'aes-256-gcm' as const }
+    }
+    return {
+      name: field.name,
+      kind: field.kind,
+      value: vault.sealFieldValue(credentialId, field.name, value),
+      enc: 'aes-256-gcm' as const,
+    }
+  })
+}
+
 export function createCredential(
   db: AppDatabase,
   vault: VaultService,
@@ -152,7 +194,7 @@ export function createCredential(
         passwordEnc: vault.sealCredentialPassword(id, parsed.password),
         passwordFingerprint: vault.fingerprintPassword(parsed.password),
         notes: emptyToNull(parsed.notes),
-        fields: parsed.fields ?? null,
+        fields: sealCredentialFields(vault, id, parsed.fields),
         isDefault: makeDefault,
         lastUsedAt: null,
         passwordChangedAt: now,
@@ -180,7 +222,10 @@ export function updateCredential(
     username: parsed.username ?? current.username,
     usernameType: parsed.usernameType ?? current.usernameType,
     notes: parsed.notes === undefined ? current.notes : emptyToNull(parsed.notes),
-    fields: parsed.fields === undefined ? current.fields : parsed.fields,
+    fields:
+      parsed.fields === undefined
+        ? current.fields
+        : sealCredentialFields(vault, id, parsed.fields),
     updatedAt: now,
   }
   if (parsed.password !== undefined) {
@@ -273,11 +318,24 @@ export function revealCredential(
   db: AppDatabase,
   vault: VaultService,
   id: string,
-): { username: string; password: string } {
+): { username: string; password: string; extraValues: Record<string, string> } {
   const row = getCredentialRow(db, id)
+  const extraValues: Record<string, string> = {}
+  for (const field of row.fields ?? []) {
+    if (!field.value) continue
+    try {
+      extraValues[field.name] =
+        field.enc === 'aes-256-gcm'
+          ? vault.openFieldValue(id, field.name, field.value)
+          : field.value // retrocompatibilidade: valor legado em texto claro
+    } catch {
+      // Nunca derruba o login por um campo corrompido — o passo vira humano.
+    }
+  }
   return {
     username: row.username,
     password: vault.openCredentialPassword(id, row.passwordEnc),
+    extraValues,
   }
 }
 

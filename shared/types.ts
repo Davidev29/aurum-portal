@@ -141,7 +141,10 @@ export interface Credential {
 export interface CredentialField {
   name: string
   kind: 'username' | 'password' | 'text'
+  /** Valor cifrado com AES-256-GCM quando `enc` está presente; ausente = sem valor. */
   value?: string
+  /** Marcador v2: `value` é envelope AES-256-GCM com AAD `credentials:{id}:field:{name}`. */
+  enc?: 'aes-256-gcm'
 }
 
 export interface RecipeSummary {

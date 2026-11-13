@@ -572,7 +572,8 @@ export const recipeReRecordSchema = z.object({
 
 export const wizardStartRecordSchema = z.object({
   serviceId: idSchema,
-  clientId: idSchema,
+  /** Opcional: ensinar o robô sem vincular cliente (o portal é o que importa). */
+  clientId: idSchema.nullish(),
   authMethod: authMethodSchema,
   /** Opcional (C2). Ausente ⇒ fingerprint NÃO avaliado; warning no-credential-bound. */
   credentialId: idSchema.nullish(),

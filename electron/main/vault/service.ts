@@ -66,6 +66,23 @@ export class VaultService {
     return passwordFingerprint(password, this.masterKey)
   }
 
+  /** Valor de campo adicional da credencial — cifrado por credencial e campo. */
+  sealFieldValue(credentialId: string, fieldName: string, value: string): string {
+    return encryptEnvelope(
+      value,
+      this.masterKey,
+      vaultAad('credentials', credentialId, `field:${fieldName}`),
+    )
+  }
+
+  openFieldValue(credentialId: string, fieldName: string, payload: string): string {
+    return decryptString(
+      payload,
+      this.masterKey,
+      vaultAad('credentials', credentialId, `field:${fieldName}`),
+    )
+  }
+
   sealBackup(plaintext: Buffer): string {
     return encryptEnvelope(plaintext, this.masterKey, 'backup:artifact:v1')
   }

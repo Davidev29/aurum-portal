@@ -60,6 +60,27 @@ export const postLoginSchema = z.object({
 
 export type PostLogin = z.infer<typeof postLoginSchema>
 
+/**
+ * Campo nomeado que o serviço aprendeu na gravação e que o portal exige no
+ * login. O valor nunca fica no serviço — só o NOME do campo; o valor vive na
+ * credencial do cliente, cifrado (AAD `fields:{credentialId}`).
+ */
+export const recipeFieldSpecSchema = z.object({
+  /** Chave estável derivada do name/id do campo no portal (ex.: codigo_empresa). */
+  key: z
+    .string()
+    .min(1)
+    .max(80)
+    .regex(/^[a-z0-9_]+$/),
+  /** Rótulo legível mostrado no formulário de credencial ("Código da empresa"). */
+  label: z.string().min(1).max(80),
+  kind: z.enum(['username', 'password', 'text']),
+  /** Seletor-base do campo, para diagnóstico. Sem valores. */
+  selector: z.string().max(300).optional(),
+})
+
+export type RecipeFieldSpec = z.infer<typeof recipeFieldSpecSchema>
+
 export const recipeDefinitionSchema = z.object({
   version: z.literal(1),
   service: z.string().min(1).max(100),
@@ -78,6 +99,22 @@ export const recipeDefinitionSchema = z.object({
   /** Metadados da gravação (auditoria/diagnóstico). Nunca valores. */
   recordedAt: z.string().datetime().optional(),
   recordedScreens: z.number().int().min(0).max(999).optional(),
+  /**
+   * Campos nomeados que o portal exige no login ("Código da empresa", …).
+   * O valor nunca fica aqui; a credencial do cliente carrega os valores.
+   */
+  fields: z.array(recipeFieldSpecSchema).max(20).optional(),
+  /**
+   * Passos ensinados na passada de CERTIFICADO (telas/cliques antes do mTLS).
+   * Quando presente, sessões de certificado executam estes passos; a ausência
+   * mantém o comportamento legado (steps).
+   */
+  certificateSteps: z.array(recipeStepSchema).max(60).optional(),
+  /**
+   * Passos ensinados na passada de SENHA (campos + cliques até entrar).
+   * Quando presente, sessões de senha executam estes passos.
+   */
+  passwordSteps: z.array(recipeStepSchema).max(60).optional(),
 })
 
 export type RecipeDefinition = z.infer<typeof recipeDefinitionSchema>
@@ -92,12 +129,19 @@ export const RECIPE_PLACEHOLDERS = [
 export function resolveRecipeTemplate(
   template: string,
   values: { username?: string; password?: string; document?: string; clientName?: string },
+  extraValues?: Record<string, string>,
 ): string {
-  return template
+  let out = template
     .replaceAll('{{credential.username}}', values.username ?? '')
     .replaceAll('{{credential.password}}', values.password ?? '')
     .replaceAll('{{client.document}}', values.document ?? '')
     .replaceAll('{{client.name}}', values.clientName ?? '')
+  if (extraValues) {
+    for (const [key, value] of Object.entries(extraValues)) {
+      out = out.replaceAll(`{{credential.${key}}}`, value ?? '')
+    }
+  }
+  return out
 }
 
 export function containsUnresolvedPlaceholder(value: string): boolean {
