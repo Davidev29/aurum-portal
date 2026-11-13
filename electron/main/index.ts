@@ -332,7 +332,7 @@ if (!singleInstance) {
     const window = new BrowserWindow({
       width: 1380,
       height: 900,
-      minWidth: 1024,
+      minWidth: 768,
       minHeight: 680,
       show: false,
       title: APP_NAME,

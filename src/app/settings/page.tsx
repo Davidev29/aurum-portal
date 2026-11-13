@@ -214,6 +214,18 @@ export default function SettingsPage() {
     return JSON.stringify(draft) !== JSON.stringify(settings)
   }, [draft, settings])
 
+  // Aviso de alterações não salvas ao fechar a janela/atualizar o app (Electron
+  // dispara beforeunload no fechamento). Navegação interna é tratada pela UI.
+  React.useEffect(() => {
+    if (!isDirty) return
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
   const save = async () => {
     if (!draft) return
     const officeCnpjDigits = onlyDigits(draft.office.cnpj)
@@ -401,7 +413,7 @@ export default function SettingsPage() {
                     value={draft.office.tradeName}
                     onChange={(event) => patchOffice('tradeName', event.target.value)}
                     maxLength={200}
-                    placeholder="Nome do escritório"
+                    placeholder="Nome do escritório…"
                   />
                 </Field>
               </div>
@@ -603,7 +615,7 @@ export default function SettingsPage() {
             />
           </Section>
 
-          <div className="grid items-start gap-8 lg:grid-cols-2">
+          <div className="grid items-start gap-8 xl:grid-cols-2">
             {/* Aparência */}
             <Section
               icon={<Monitor className="h-4 w-4" aria-hidden="true" />}

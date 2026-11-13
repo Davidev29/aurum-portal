@@ -177,7 +177,7 @@ export function WindowsCertificateDialog({
                   <Input
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Buscar titular ou documento"
+                    placeholder="Buscar titular ou documento…"
                     aria-label="Buscar certificado do Windows"
                     className="w-52 pl-8"
                   />

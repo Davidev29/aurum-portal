@@ -28,7 +28,7 @@ export default function ObrigacoesPage() {
       />
 
       <Tabs defaultValue="obrigacoes">
-        <TabsList aria-label="Seções de obrigações" className="mx-auto flex w-fit">
+        <TabsList aria-label="Seções de obrigações" className="mx-auto w-fit">
           <TabsTrigger value="obrigacoes">
             <CalendarDays className="h-4 w-4" aria-hidden="true" />
             Obrigações

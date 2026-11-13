@@ -448,7 +448,7 @@ export default function CertificatesPage() {
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-[var(--pv-radius)] border border-[var(--pv-border)] bg-[var(--pv-panel)] p-3 shadow-[var(--pv-shadow)]">
-        <div className="relative min-w-[260px] flex-1">
+        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
           <Search
             className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pv-muted)]"
             aria-hidden="true"
@@ -456,7 +456,7 @@ export default function CertificatesPage() {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por titular, documento, emissor ou thumbprint"
+            placeholder="Buscar por titular ou documento…"
             className="pl-10 pr-10"
             aria-label="Buscar certificados"
             type="search"
@@ -476,7 +476,7 @@ export default function CertificatesPage() {
         <Select
           value={status}
           onChange={(event) => setStatus(event.target.value)}
-          className="w-[220px]"
+          className="w-full sm:w-[220px]"
           aria-label="Filtrar por status"
         >
           <option value="all">Todos os status</option>
@@ -533,14 +533,14 @@ export default function CertificatesPage() {
         />
       ) : (
         <div className="overflow-hidden rounded-[var(--pv-radius)] border border-[var(--pv-border)] bg-[var(--pv-panel)] shadow-[var(--pv-shadow)]">
-          <Table className="min-w-[1020px]">
+          <Table className="min-w-[840px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[280px]">Titular</TableHead>
                 <TableHead className="w-[180px]">Validade</TableHead>
                 <TableHead className="w-[160px]">Status</TableHead>
-                <TableHead className="w-[150px]">Origem</TableHead>
-                <TableHead className="w-[190px]">Clientes</TableHead>
+                <TableHead className="hidden w-[150px] xl:table-cell">Origem</TableHead>
+                <TableHead className="hidden w-[190px] 2xl:table-cell">Clientes</TableHead>
                 <TableHead className="w-[220px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -620,7 +620,7 @@ export default function CertificatesPage() {
                       ) : null}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden xl:table-cell">
                     <div className="flex flex-col items-start gap-0.5">
                       <span className="text-xs font-medium text-[var(--pv-text)]">
                         {certificate.source === 'windows' ? 'Windows' : 'PFX'}
@@ -636,7 +636,7 @@ export default function CertificatesPage() {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden 2xl:table-cell">
                     <div className="flex max-w-[190px] flex-col gap-0.5">
                       {certificate.clients.length === 0 ? (
                         <span className="text-xs text-[var(--pv-muted)]">Sem vínculo</span>

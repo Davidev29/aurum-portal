@@ -232,7 +232,7 @@ export function LetterheadEditor({ office, value, onChange, generating, onGenera
     value.logoSize === 's' ? 'h-7 w-14' : value.logoSize === 'l' ? 'h-11 w-[90px]' : 'h-9 w-[72px]'
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="grid content-start gap-6">
         {/* Tema: minimalista — biblioteca oculta até clicar */}
         <div className="rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)] p-4">

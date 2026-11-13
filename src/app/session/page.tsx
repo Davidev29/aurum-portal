@@ -175,7 +175,7 @@ export default function SessionPage() {
         className="flex shrink-0 flex-col border-b border-[var(--pv-border)] bg-[var(--pv-panel)]/95 shadow-sm backdrop-blur"
         style={{ height: SESSION_CHROME_HEIGHT }}
       >
-        <div className="flex h-12 items-center gap-2 px-3">
+        <div className="flex h-12 items-center gap-2 overflow-x-auto whitespace-nowrap px-3 pv-scroll">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-brand-50">
             <Lock className="h-4 w-4" />
           </div>
@@ -257,7 +257,7 @@ export default function SessionPage() {
                 ) : (
                   <KeyRound className="h-4 w-4" />
                 )}
-                {manualOpen ? 'Ocultar credencial' : 'Credencial manual'}
+                <span className="hidden lg:inline">{manualOpen ? 'Ocultar credencial' : 'Credencial manual'}</span>
               </Button>
             ) : null}
             <Button
@@ -294,7 +294,7 @@ export default function SessionPage() {
           </div>
         </div>
 
-        <div className="flex h-12 items-center gap-2 border-t border-[var(--pv-border)] px-3">
+        <div className="flex h-12 items-center gap-2 overflow-x-auto whitespace-nowrap border-t border-[var(--pv-border)] px-3 pv-scroll">
           {manualOpen ? (
             <>
               <Badge variant="secondary" className="shrink-0">

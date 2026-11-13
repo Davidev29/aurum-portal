@@ -317,7 +317,7 @@ export function LaunchDialog({
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar cliente por nome, CPF/CNPJ, tag ou certificado"
+                placeholder="Buscar cliente por nome, CPF/CNPJ, tag ou certificado…"
                 className="pl-10"
                 autoFocus
                 aria-label="Buscar cliente por nome, documento, tag ou certificado"

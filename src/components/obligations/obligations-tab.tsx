@@ -256,7 +256,7 @@ export function ObligationsTab() {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por nome, sigla ou departamento…"
+            placeholder="Buscar por nome ou sigla…"
             aria-label="Buscar obrigação"
             className="pl-10"
           />

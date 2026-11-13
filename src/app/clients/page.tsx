@@ -234,7 +234,7 @@ export default function ClientsPage() {
       />
 
       <div className="mb-5 flex flex-wrap gap-2 rounded-[var(--pv-radius)] border border-[var(--pv-border)] bg-[var(--pv-panel)] p-3 shadow-[var(--pv-shadow)]">
-        <div className="relative min-w-[260px] flex-1">
+        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
           <Search
             className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pv-muted)]"
             aria-hidden="true"
@@ -242,7 +242,7 @@ export default function ClientsPage() {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por nome, documento ou tag"
+            placeholder="Buscar por nome, documento ou tag…"
             className="pl-10"
             aria-label="Buscar clientes"
           />
@@ -250,7 +250,7 @@ export default function ClientsPage() {
         <Select
           value={status}
           onChange={(event) => setStatus(event.target.value as 'active' | 'archived' | 'all')}
-          className="w-[190px]"
+          className="w-full sm:w-[190px]"
         >
           <option value="active">Ativos</option>
           <option value="archived">Arquivados</option>
@@ -287,11 +287,11 @@ export default function ClientsPage() {
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Documento</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Tags</TableHead>
+                <TableHead className="hidden lg:table-cell">Contato</TableHead>
+                <TableHead className="hidden 2xl:table-cell">Tags</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Criado</TableHead>
-                <TableHead className="w-[140px] text-right">Ações</TableHead>
+                <TableHead className="hidden 2xl:table-cell">Criado</TableHead>
+                <TableHead className="w-[104px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -300,7 +300,7 @@ export default function ClientsPage() {
                   <TableCell>
                     <Link
                       href={`/clients/detail?id=${encodeURIComponent(client.id)}`}
-                      className="flex items-center gap-3"
+                      className="flex max-w-[210px] items-center gap-3 xl:max-w-[340px] 2xl:max-w-none"
                     >
                       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-200">
                         {initials(client.name)}
@@ -313,14 +313,16 @@ export default function ClientsPage() {
                       </span>
                     </Link>
                   </TableCell>
-                  <TableCell className="font-mono text-xs">
+                  <TableCell className="whitespace-nowrap font-mono text-xs">
                     {formatDocumentMasked(client.document)}
                   </TableCell>
-                  <TableCell>
-                    <div className="text-xs">{client.email ?? '—'}</div>
+                  <TableCell className="hidden lg:table-cell">
+                    <div className="max-w-[240px] truncate text-xs" title={client.email ?? undefined}>
+                      {client.email ?? '—'}
+                    </div>
                     <div className="text-xs text-[var(--pv-muted)]">{client.phone ?? ''}</div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden 2xl:table-cell">
                     <div className="flex max-w-[190px] flex-wrap gap-1">
                       {client.tags.slice(0, 3).map((tag) => (
                         <Badge key={tag} variant="outline">
@@ -337,7 +339,7 @@ export default function ClientsPage() {
                       {client.status === 'active' ? 'Ativo' : 'Arquivado'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-xs text-[var(--pv-muted)]">
+                  <TableCell className="hidden 2xl:table-cell text-xs text-[var(--pv-muted)]">
                     {formatDate(client.createdAt)}
                   </TableCell>
                   <TableCell>

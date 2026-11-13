@@ -33,7 +33,7 @@ const sessionLabels: Record<
 
 export function SessionStatusBadge({ status }: { status: SessionStatus }) {
   const config = sessionLabels[status]
-  return <Badge variant={config.variant}>{config.label}</Badge>
+  return <Badge variant={config.variant} className="shrink-0">{config.label}</Badge>
 }
 
 export function AuthMethodBadges({ methods }: { methods: Array<'certificate' | 'password'> }) {

@@ -1723,7 +1723,7 @@ export default function AssinaturasPage() {
           ) : (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden gap-3">
               <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)] p-3">
-                <div className="relative min-w-[260px] flex-1">
+                <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
                   <Search
                     className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pv-muted)]"
                     aria-hidden="true"
@@ -1740,7 +1740,7 @@ export default function AssinaturasPage() {
                   <Select
                     value={clientFilter}
                     onChange={(event) => setClientFilter(event.target.value)}
-                    className="w-[220px]"
+                    className="w-full sm:w-[220px]"
                     aria-label="Filtrar por cliente"
                   >
                     <option value="all">Todos os clientes ({totalEligible})</option>

@@ -4,6 +4,7 @@ import * as React from 'react'
 import { toast } from 'sonner'
 import {
   ChevronLeft,
+  Eye,
   ChevronRight,
   Download,
   FileClock,
@@ -199,7 +200,7 @@ export default function AuditPage() {
       />
 
       <div className="mb-5 flex flex-wrap items-end gap-2 rounded-[var(--pv-radius)] border border-[var(--pv-border)] bg-[var(--pv-panel)] p-3 shadow-[var(--pv-shadow)]">
-        <div className="relative min-w-[220px] flex-1">
+        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
           <Search
             className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pv-muted)]"
             aria-hidden="true"
@@ -215,7 +216,7 @@ export default function AuditPage() {
         <Select
           value={type}
           onChange={(event) => setType(event.target.value)}
-          className="w-[260px]"
+          className="w-full sm:w-[260px]"
           aria-label="Filtrar por tipo"
         >
           <option value="">Todos os tipos</option>
@@ -259,8 +260,9 @@ export default function AuditPage() {
                   <TableHead>Data</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Entidade</TableHead>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Metadados</TableHead>
+                  <TableHead className="hidden lg:table-cell">ID</TableHead>
+                  <TableHead className="hidden xl:table-cell">Metadados</TableHead>
+                  <TableHead className="w-[72px] text-right"><span className="sr-only">Detalhes</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -286,11 +288,33 @@ export default function AuditPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs">{event.entity}</TableCell>
-                    <TableCell className="max-w-[160px] truncate font-mono text-[10px] text-[var(--pv-muted)]">
+                    <TableCell className="hidden lg:table-cell max-w-[160px] truncate font-mono text-[10px] text-[var(--pv-muted)]">
                       {event.entityId ?? '—'}
                     </TableCell>
-                    <TableCell className="max-w-[420px] truncate text-xs text-[var(--pv-muted)]">
+                    <TableCell className="hidden xl:table-cell max-w-[420px] truncate text-xs text-[var(--pv-muted)]">
                       {JSON.stringify(event.metadata)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Ver detalhes"
+                          aria-label={`Ver detalhes do evento ${event.type}`}
+                          onClick={(clickEvent) => {
+                            clickEvent.stopPropagation()
+                            setDetail({
+                              type: event.type,
+                              entity: event.entity,
+                              createdAt: event.createdAt,
+                              metadata: event.metadata,
+                            })
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

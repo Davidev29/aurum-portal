@@ -221,7 +221,13 @@ export function CredentialFormDialog({
             </Field>
           </div>
           <Field label="Usuario" required>
-            <Input value={username} onChange={(event) => setUsername(event.target.value)} />
+            <Input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              autoCapitalize="off"
+            />
           </Field>
           <Field
             label={credential ? 'Nova senha (deixe vazio para manter)' : 'Senha'}
@@ -270,12 +276,15 @@ export function CredentialFormDialog({
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Campo de login" hint="Nome do input no portal">
-              <Input value={loginField} onChange={(event) => setLoginField(event.target.value)} />
+              <Input value={loginField} onChange={(event) => setLoginField(event.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="off" />
             </Field>
             <Field label="Campo de senha" hint="Nome do input no portal">
               <Input
                 value={passwordField}
                 onChange={(event) => setPasswordField(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                autoCapitalize="off"
               />
             </Field>
           </div>

@@ -304,7 +304,7 @@ export default function AcessosPage() {
       ) : null}
 
       <Toolbar>
-        <div className="relative min-w-[240px] flex-1">
+        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
           <Search
             className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pv-muted)]"
             aria-hidden="true"
@@ -312,7 +312,7 @@ export default function AcessosPage() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar acesso, categoria ou URL"
+            placeholder="Buscar acesso, categoria ou URL…"
             className="pl-10"
             aria-label="Buscar acessos"
           />
@@ -567,7 +567,7 @@ function AccessCard({
         onClick={handleFavorite}
         aria-label={service.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
         aria-pressed={service.favorite}
-        className="absolute right-2.5 top-2.5 flex h-10 w-10 items-center justify-center rounded-full text-[var(--pv-access-ink-2)] transition-colors hover:bg-black/5 hover:text-[var(--pv-warning)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pv-accent-solid)] dark:hover:bg-white/5"
+        className="absolute right-2.5 top-2.5 flex h-10 w-10 items-center justify-center rounded-full text-[var(--pv-access-ink-2)] transition-colors hover:bg-black/5 hover:text-[var(--pv-warning)] focus-visible:ring-2 focus-visible:ring-[var(--pv-accent-solid)] dark:hover:bg-white/5"
       >
         <Star
           key={String(service.favorite)}

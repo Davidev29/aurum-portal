@@ -75,8 +75,8 @@ export function AppShell({
       >
         Pular para o conteúdo
       </a>
-      <aside className="flex w-[264px] shrink-0 flex-col border-r border-[var(--pv-border)] bg-[var(--pv-panel)]">
-        <div className="flex h-[72px] shrink-0 items-center gap-3 border-b border-[var(--pv-border)] px-6">
+      <aside className="flex w-[76px] shrink-0 flex-col border-r border-[var(--pv-border)] bg-[var(--pv-panel)] transition-[width] duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] lg:w-[264px]">
+        <div className="flex h-[72px] shrink-0 items-center justify-center gap-3 border-b border-[var(--pv-border)] px-2 lg:justify-start lg:px-6">
           <div className="relative shrink-0">
             <img
               src={APP_LOGO_URL}
@@ -89,7 +89,7 @@ export function AppShell({
               aria-hidden="true"
             />
           </div>
-          <div className="min-w-0">
+          <div className="hidden min-w-0 lg:block">
             <div className="truncate text-[14px] font-semibold tracking-[-0.01em]">
               {APP_DISPLAY_NAME}
             </div>
@@ -105,7 +105,7 @@ export function AppShell({
         >
           {navigation.map((group) => (
             <div key={group.section} className="space-y-1">
-              <div className="px-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[var(--pv-faint)]">
+              <div className="hidden px-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[var(--pv-faint)] lg:block">
                 {group.section}
               </div>
               {group.items.map((item) => {
@@ -116,8 +116,10 @@ export function AppShell({
                     key={item.href}
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
+                    aria-label={item.label}
+                    title={item.label}
                     className={cn(
-                      'pv-nav-link group relative flex items-center gap-3 overflow-hidden rounded-[var(--pv-radius-control)] py-2 px-3 text-[13.5px] font-medium focus-visible:ring-2 focus-visible:ring-[var(--pv-accent-solid)]',
+                      'pv-nav-link group relative flex items-center justify-center gap-0 overflow-hidden rounded-[var(--pv-radius-control)] py-2.5 px-2 text-[13.5px] font-medium focus-visible:ring-2 focus-visible:ring-[var(--pv-accent-solid)] lg:justify-start lg:gap-3 lg:py-2 lg:px-3',
                       active ? 'is-active' : 'hover:bg-[var(--pv-panel-2)]',
                     )}
                   >
@@ -131,11 +133,19 @@ export function AppShell({
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </span>
-                    <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
+                    <span className="hidden min-w-0 flex-1 leading-snug lg:block">{item.label}</span>
                     {item.href === '/sessions' && openSessions > 0 ? (
-                      <span className="pv-anim-check-pop flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--pv-success-solid)] px-1.5 text-[10px] font-bold text-white">
-                        {openSessions}
-                      </span>
+                      <>
+                        <span className="pv-anim-check-pop hidden h-5 min-w-5 items-center justify-center rounded-full bg-[var(--pv-success-solid)] px-1.5 text-[10px] font-bold text-white lg:flex">
+                          {openSessions}
+                        </span>
+                        <span
+                          className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--pv-success-solid)] px-1 text-[9px] font-bold leading-none text-white ring-2 ring-[var(--pv-panel)] lg:hidden"
+                          aria-hidden="true"
+                        >
+                          {openSessions}
+                        </span>
+                      </>
                     ) : null}
                   </Link>
                 )
@@ -150,7 +160,7 @@ export function AppShell({
         tabIndex={-1}
         className="flex min-w-0 flex-1 flex-col overflow-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pv-accent-solid)]"
       >
-        <div className="relative flex h-16 shrink-0 items-center justify-between gap-4 border-b border-[var(--pv-border)] bg-[var(--pv-panel)]/85 px-6 backdrop-blur supports-[backdrop-filter]:bg-[var(--pv-panel)]/80">
+        <div className="relative flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[var(--pv-border)] bg-[var(--pv-panel)]/85 px-3 backdrop-blur supports-[backdrop-filter]:bg-[var(--pv-panel)]/80 sm:gap-4 sm:px-6">
           <nav
             className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--pv-muted)]"
             aria-label="Caminho"
@@ -172,16 +182,20 @@ export function AppShell({
             {openSessions > 0 ? (
               <Link
                 href="/sessions"
-                className="pv-pressable inline-flex h-9 items-center gap-2 rounded-[var(--pv-radius-control)] border border-[var(--pv-border)] bg-[var(--pv-panel)] px-3.5 text-sm font-bold text-[var(--pv-success)] shadow-sm hover:brightness-[1.02]"
+                className="pv-pressable inline-flex h-9 items-center gap-2 rounded-[var(--pv-radius-control)] border border-[var(--pv-border)] bg-[var(--pv-panel)] px-2.5 text-sm font-bold tabular-nums text-[var(--pv-success)] shadow-sm hover:brightness-[1.02] sm:px-3.5"
+                aria-label={`${openSessions} sessão(ões) aberta(s)`}
               >
                 <span
                   className="h-2 w-2 animate-pulse rounded-full bg-[var(--pv-success)]"
                   aria-hidden="true"
                 />
-                {openSessions} sessão(ões) aberta(s)
+                <span className="hidden xl:inline">{openSessions} sessão(ões) aberta(s)</span>
+                <span className="xl:hidden">{openSessions}</span>
               </Link>
             ) : (
-              <Badge variant="outline">Nenhuma sessão aberta</Badge>
+              <Badge variant="outline" className="hidden md:inline-flex">
+                Nenhuma sessão aberta
+              </Badge>
             )}
           </div>
         </div>
@@ -196,8 +210,8 @@ export function AppShell({
             key={pathname ?? 'root'}
             className={
               fullHeight
-                ? 'pv-page-transition mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col p-6 md:p-8'
-                : 'pv-page-transition mx-auto w-full max-w-[1440px] p-6 md:p-8'
+                ? 'pv-page-transition mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col p-4 sm:p-6 lg:p-8'
+                : 'pv-page-transition mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8'
             }
           >
             {children}
