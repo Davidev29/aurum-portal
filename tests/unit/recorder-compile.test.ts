@@ -17,9 +17,7 @@ function makeContext(overrides: Partial<CompileContext> = {}): CompileContext {
     autoSubmit: true,
     clientDocument: '529.982.247-25',
     fingerprintTargetId: 'cred-1',
-    credentials: [
-      { id: 'cred-1', passwordFingerprint: BASE_THUMB, username: 'joao.silva' },
-    ],
+    credentials: [{ id: 'cred-1', passwordFingerprint: BASE_THUMB, username: 'joao.silva' }],
     navigations: [],
     previousRecipe: {
       version: 1,
@@ -37,7 +35,9 @@ function makeContext(overrides: Partial<CompileContext> = {}): CompileContext {
       captchaSelectors: ['.g-recaptcha'],
       twoFactorSelectors: ["input[autocomplete='one-time-code']"],
     },
-    vault: { fingerprintPassword: (value: string) => (value === 'senha-certa' ? BASE_THUMB : OTHER_THUMB) },
+    vault: {
+      fingerprintPassword: (value: string) => (value === 'senha-certa' ? BASE_THUMB : OTHER_THUMB),
+    },
     now: () => Date.parse('2026-11-13T18:20:11.000Z'),
     ...overrides,
   }
@@ -208,7 +208,9 @@ describe('compileRecording — navegação e telas (D5)', () => {
       [clickEvent('Fazer login', 1000, 'T1')],
       [],
       makeContext({
-        navigations: [{ at: 9000, toUrl: 'https://sso.acesso.gov.br/authorize?session_code=abc&state=xyz' }],
+        navigations: [
+          { at: 9000, toUrl: 'https://sso.acesso.gov.br/authorize?session_code=abc&state=xyz' },
+        ],
       }),
     )
     const waitStep = definition.steps.find((step) => step.action === 'waitForURL')
@@ -233,7 +235,9 @@ describe('compileRecording — navegação e telas (D5)', () => {
       [clickEvent('Entrar', 1000, 'T1')],
       [],
       makeContext({
-        navigations: [{ at: 2000, toUrl: 'https://portal.exemplo.gov.br/area?cid=999&session_code=abc' }],
+        navigations: [
+          { at: 2000, toUrl: 'https://portal.exemplo.gov.br/area?cid=999&session_code=abc' },
+        ],
       }),
     )
     const raw = JSON.stringify(definition)
@@ -257,11 +261,7 @@ describe('compileRecording — formato da receita (C1)', () => {
   })
 
   it('reutiliza postLogin/captcha/2fa da receita anterior (C1)', () => {
-    const { definition } = compileRecording(
-      [clickEvent('Entrar', 1000, 'T1')],
-      [],
-      makeContext(),
-    )
+    const { definition } = compileRecording([clickEvent('Entrar', 1000, 'T1')], [], makeContext())
     expect(definition.postLogin.selectors).toEqual(['text=Sair'])
     expect(definition.postLogin.urlExcludes).toEqual(['autenticacao'])
     expect(definition.captchaSelectors).toEqual(['.g-recaptcha'])
@@ -280,11 +280,7 @@ describe('compileRecording — formato da receita (C1)', () => {
   })
 
   it('isSensitiveStep reconhece os fills gravados', () => {
-    const { definition } = compileRecording(
-      [fillPassword(0, 1000)],
-      ['senha-certa'],
-      makeContext(),
-    )
+    const { definition } = compileRecording([fillPassword(0, 1000)], ['senha-certa'], makeContext())
     const fill = definition.steps.find((step) => step.action === 'fill')
     expect(fill && isSensitiveStep(fill)).toBe(true)
   })

@@ -383,7 +383,9 @@ function normalizeCandidates(candidates: RecorderCandidate[]): {
   confidence: 'high' | 'medium' | 'low'
 } {
   const viable = (candidates ?? [])
-    .filter((candidate) => candidate.sel && candidate.sel.length <= 500 && candidate.matchCount >= 1)
+    .filter(
+      (candidate) => candidate.sel && candidate.sel.length <= 500 && candidate.matchCount >= 1,
+    )
     .map((candidate) => ({
       ...candidate,
       confidence: candidate.matchCount > 1 ? demote(candidate.confidence) : candidate.confidence,
@@ -406,7 +408,8 @@ export function compileRecording(
 ): CompiledRecording {
   const warnings: WizardWarning[] = []
   const warn = (warning: WizardWarning): void => {
-    if (warnings.some((item) => item.code === warning.code && item.detail === warning.detail)) return
+    if (warnings.some((item) => item.code === warning.code && item.detail === warning.detail))
+      return
     warnings.push(warning)
   }
   const now = ctx.now ?? Date.now
@@ -600,8 +603,7 @@ export function compileRecording(
     }
 
     // b) campo de usuário — hint do nome/autocomplete (type solto não basta)
-    const hasUserHint =
-      /user|login|cpf|cnpj|e-?mail|matr|insc|conta|document|ident/i.test(haystack)
+    const hasUserHint = /user|login|cpf|cnpj|e-?mail|matr|insc|conta|document|ident/i.test(haystack)
     const looksUsername = meta.autocomplete === 'username' || hasUserHint
     if (looksUsername) {
       let resolved = '{{credential.username}}'

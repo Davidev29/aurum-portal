@@ -22,7 +22,10 @@ export const recipeStepSchema = z.object({
   /** Origem da etapa gravada pelo recorder. */
   source: z.enum(['recorded']).optional(),
   /** Tela (documento) em que a etapa foi gravada: 'T1', 'T2'… */
-  screen: z.string().regex(/^T\d{1,2}$/).optional(),
+  screen: z
+    .string()
+    .regex(/^T\d{1,2}$/)
+    .optional(),
   /** Confiança do seletor escolhido ao gravar. */
   confidence: z.enum(['high', 'medium', 'low']).optional(),
   /** Pós-condição: o que deve ser verdade após a ação para seguir o fluxo. */

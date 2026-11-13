@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { shouldFallbackToAgent } from '../../electron/main/recipes/fallback'
 import type { RecipeRunResult } from '../../electron/main/recipes/runner'
 
-function result(failureCode: RecipeRunResult['failureCode'], failedStep: number | null): RecipeRunResult {
+function result(
+  failureCode: RecipeRunResult['failureCode'],
+  failedStep: number | null,
+): RecipeRunResult {
   return {
     status: 'manual',
     message: 'parou',

@@ -853,7 +853,12 @@ export interface AurumBitPortalEvents {
   onObligationsChanged(callback: () => void): () => void
   onNotificationsChanged(callback: (payload: { created: number } | null) => void): () => void
   onWizardProgress(
-    callback: (progress: { stepCount: number; screen: number; gaps: number }) => void,
+    callback: (progress: {
+      wizardId: string
+      stepCount: number
+      screen: number
+      gaps: number
+    }) => void,
   ): () => void
 }
 

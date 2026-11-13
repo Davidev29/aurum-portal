@@ -47,10 +47,11 @@ export function useClientNotes(clientId: string | null) {
   })
 }
 
-export function useCredentials(filter?: CredentialFilter) {
+export function useCredentials(filter?: CredentialFilter, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.credentials(filter),
     queryFn: () => aurumBitPortal().credentials.list(filter),
+    enabled: options?.enabled ?? true,
   })
 }
 

@@ -69,10 +69,7 @@ import {
 } from '../recipes/recorder'
 import { constantTimeEqualHex } from '../vault/crypto'
 import { saveRecipe } from '../db/repositories/recipes'
-import {
-  RECORDING_MAX_DURATION_MS,
-  RECORDING_WARNING_DURATION_MS,
-} from '../../../shared/constants'
+import { RECORDING_MAX_DURATION_MS, RECORDING_WARNING_DURATION_MS } from '../../../shared/constants'
 import type { WizardState, WizardStatus, WizardWarning } from '../../../shared/types'
 import { recipeDefinitionSchema, type RecipeDefinition } from '../../../shared/recipe'
 import { stepCarriesCredentials } from '../../../shared/custom-service'
@@ -1128,9 +1125,7 @@ export class SessionManager {
       // gravação que estava em captcha/2FA, nem double-submit.
       const recorded = definition.origin === 'recorded' && definition.steps.length > 0
       const preferRecipe = recorded || record.authMethod === 'certificate' || !username
-      let result = preferRecipe
-        ? await recipeLogin()
-        : await agentLogin()
+      let result = preferRecipe ? await recipeLogin() : await agentLogin()
       if (
         recorded &&
         record.authMethod !== 'certificate' &&
@@ -1933,11 +1928,16 @@ export class SessionManager {
       compiled: null,
       startedAt: Date.now(),
     })
-    this.record('recipe.record_started', wizardId, {
-      serviceId: service.id,
-      clientId: client.id,
-      authMethod: input.authMethod,
-    }, 'recipe')
+    this.record(
+      'recipe.record_started',
+      wizardId,
+      {
+        serviceId: service.id,
+        clientId: client.id,
+        authMethod: input.authMethod,
+      },
+      'recipe',
+    )
     this.emitWizardProgress(id, wizardId, true)
     return { sessionId: id, wizardId }
   }
@@ -1965,7 +1965,11 @@ export class SessionManager {
     const screen = `T${rec.screen}`
     const target = this.targetForRecorder(record)
     try {
-      const armed = await safeExecute(target, buildRecorderScript({ token: rec.token, screen }), 5_000)
+      const armed = await safeExecute(
+        target,
+        buildRecorderScript({ token: rec.token, screen }),
+        5_000,
+      )
       if (!armed) return
     } catch {
       return
@@ -1988,7 +1992,8 @@ export class SessionManager {
     if (!raw || !raw.ok) {
       rec.drainFailures += 1
       if (rec.drainFailures >= 5 && record.statusMessage !== 'drain-stuck') {
-        record.statusMessage = 'Não estou conseguindo falar com a página — conclua ou cancele a gravação.'
+        record.statusMessage =
+          'Não estou conseguindo falar com a página — conclua ou cancele a gravação.'
         this.emit()
       }
       return
@@ -2155,7 +2160,10 @@ export class SessionManager {
     }
 
     if (record) {
-      this.dispose(record, opts.reason ?? (opts.partial ? 'Gravação finalizada (limite)' : 'Gravação concluída'))
+      this.dispose(
+        record,
+        opts.reason ?? (opts.partial ? 'Gravação finalizada (limite)' : 'Gravação concluída'),
+      )
     }
     this.record(
       'recipe.record_finished',
@@ -2179,7 +2187,8 @@ export class SessionManager {
   ): RecipeSummary {
     const wizard = this.wizards.get(wizardId)
     if (!wizard) throw new AppError('NOT_FOUND', 'Gravação não encontrada')
-    if (!wizard.compiled) throw new AppError('VALIDATION', 'A gravação ainda não está pronta para salvar')
+    if (!wizard.compiled)
+      throw new AppError('VALIDATION', 'A gravação ainda não está pronta para salvar')
     let definition = wizard.compiled
     if (input.removedStepIndexes && input.removedStepIndexes.length > 0) {
       const drop = new Set(input.removedStepIndexes)
