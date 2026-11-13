@@ -25,6 +25,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { SERVICE_CATEGORIES, type AuthMethod, type ServiceCategory } from '@shared/constants'
+import type { RecipeDefinition, RecipeFieldSpec } from '@shared/recipe'
 import {
   deriveServiceDefaults,
   normalizeBaseUrlInput,
@@ -94,6 +95,20 @@ const STEP_GLYPHS: Record<string, typeof MousePointerClick> = {
   sleep: Timer,
   evaluate: Braces,
   assert: Braces,
+}
+
+/** Une os campos aprendidos nos dois passes (certificado + senha), sem duplicatas. */
+function dedupeFieldSpecs(specs: RecipeFieldSpec[] | undefined): RecipeFieldSpec[] | undefined {
+  if (!specs || specs.length === 0) return undefined
+  const seen = new Set<string>()
+  const out: RecipeFieldSpec[] = []
+  for (const spec of specs) {
+    if (seen.has(spec.key)) continue
+    seen.add(spec.key)
+    out.push(spec)
+    if (out.length >= 20) break
+  }
+  return out.length > 0 ? out : undefined
 }
 
 function ConfidenceChip({ confidence }: { confidence?: 'high' | 'medium' | 'low' | undefined }) {
@@ -185,6 +200,8 @@ export function ServiceFormDialog({
   const [reviewRemoved, setReviewRemoved] = React.useState<number[]>([])
   const [reviewAutoSubmit, setReviewAutoSubmit] = React.useState(true)
   const [cancelConfirm, setCancelConfirm] = React.useState(false)
+  const [taughtCert, setTaughtCert] = React.useState<RecipeDefinition | null>(null)
+  const [reviewPass, setReviewPass] = React.useState<AuthMethod>('password')
   const clientsQuery = useClients()
   const credentialsQuery = useCredentials(
     teachClientId && createdService
@@ -225,6 +242,8 @@ export function ServiceFormDialog({
     setTeachAuthMethod(service?.defaultAuth ?? 'password')
     setWizardId(null)
     setWizardState(null)
+    setTaughtCert(null)
+    setReviewPass(service?.defaultAuth ?? 'password')
     setWizardBusy(false)
     setReviewRemoved([])
     setReviewAutoSubmit(true)
@@ -299,6 +318,7 @@ export function ServiceFormDialog({
           // modal acompanha: vai para a revisão sozinho.
           if (state.status === 'review') {
             setReviewAutoSubmit(state.definition?.autoSubmit ?? true)
+            setReviewPass(teachAuthMethod)
             setReviewRemoved([])
             setCancelConfirm(false)
             setStage('review')
@@ -342,15 +362,25 @@ export function ServiceFormDialog({
     try {
       const input = {
         serviceId: createdService.id,
-        clientId: teachClientId,
+        clientId: teachClientId || null,
         authMethod: teachAuthMethod,
-        credentialId: teachCredentialId || null,
+        credentialId:
+          teachAuthMethod === 'password' && teachClientId ? teachCredentialId || null : null,
         certificateId: teachAuthMethod === 'certificate' ? teachCertificateId || null : null,
       }
       // Em acessos existentes, passa pelo guarda do reRecord (nativos nunca regravam).
-      const result = service
-        ? await aurumBitPortal().recipes.reRecord(input)
-        : await aurumBitPortal().wizard.startRecord(input)
+      // Reconfigurar exige o cliente — o acesso pertence a ele.
+      let result
+      if (service) {
+        if (!teachClientId) {
+          setError('Escolha o cliente do acesso para reconfigurar o robô.')
+          setWizardBusy(false)
+          return
+        }
+        result = await aurumBitPortal().recipes.reRecord({ ...input, clientId: teachClientId })
+      } else {
+        result = await aurumBitPortal().wizard.startRecord(input)
+      }
       setWizardId(result.wizardId)
       setWizardState({
         wizardId: result.wizardId,
@@ -378,6 +408,7 @@ export function ServiceFormDialog({
       const state = await aurumBitPortal().wizard.finish(wizardId)
       setWizardState(state)
       setReviewAutoSubmit(state.definition?.autoSubmit ?? true)
+      setReviewPass(teachAuthMethod)
       setReviewRemoved([])
       setCancelConfirm(false)
       setStage('review')
@@ -405,16 +436,59 @@ export function ServiceFormDialog({
     }
   }
 
+  const removeStepsFrom = (definition: RecipeDefinition, indexes: number[]): RecipeDefinition => {
+    if (indexes.length === 0) return definition
+    const drop = new Set(indexes)
+    return { ...definition, steps: definition.steps.filter((_, index) => !drop.has(index)) }
+  }
+
   const saveRecorded = async (): Promise<void> => {
-    if (!wizardId) return
+    if (!wizardId || !wizardState?.definition || !createdService) return
     setWizardBusy(true)
     setError(null)
     try {
-      await aurumBitPortal().wizard.save({
-        wizardId,
-        autoSubmit: reviewAutoSubmit,
-        removedStepIndexes: reviewRemoved.length > 0 ? reviewRemoved : undefined,
-      })
+      const isTwoPass = createdService.authMethods.length > 1
+      const current =
+        reviewRemoved.length > 0
+          ? removeStepsFrom(wizardState.definition, reviewRemoved)
+          : wizardState.definition
+
+      if (isTwoPass && reviewPass === 'certificate') {
+        // Guarda o passe de certificado e avança para a senha.
+        setTaughtCert(current)
+        setStage('teach')
+        setTeachAuthMethod('password')
+        setWizardId(null)
+        setWizardState(null)
+        setReviewRemoved([])
+        setReviewAutoSubmit(true)
+        setCancelConfirm(false)
+        setWizardBusy(false)
+        return
+      }
+
+      if (isTwoPass) {
+        const passwordDef = current
+        const certDef = taughtCert ?? null
+        const merged: RecipeDefinition = {
+          ...passwordDef,
+          certificateSteps: certDef?.steps,
+          passwordSteps: passwordDef.steps,
+          fields: dedupeFieldSpecs([...(passwordDef.fields ?? []), ...(certDef?.fields ?? [])]),
+        }
+        await aurumBitPortal().recipes.save({
+          serviceId: createdService.id,
+          definition: merged,
+        })
+        toast.success('Robo salvo — os dois fluxos (certificado e senha) foram gravados.')
+      } else {
+        await aurumBitPortal().wizard.save({
+          wizardId,
+          autoSubmit: reviewAutoSubmit,
+          removedStepIndexes: reviewRemoved.length > 0 ? reviewRemoved : undefined,
+        })
+        toast.success('Robo salvo para este acesso.')
+      }
       setStage('saved')
       await invalidate.services()
     } catch (caught) {
@@ -969,9 +1043,17 @@ export function ServiceFormDialog({
               </div>
 
               <Field
-                label="Qual cliente usa este acesso?"
-                required
-                hint="A gravação abre o portal como este cliente"
+                label={
+                  teachAuthMethod === 'certificate'
+                    ? 'Qual cliente usa este acesso?'
+                    : 'Qual cliente usa este acesso? (opcional — só para ancorar o teste)'
+                }
+                required={teachAuthMethod === 'certificate'}
+                hint={
+                  teachAuthMethod === 'certificate'
+                    ? 'A gravação abre o portal como este cliente'
+                    : 'Deixe vazio para ensinar o robô sem vincular ninguém — o robô aprende o portal; o cliente entra na hora de usar'
+                }
               >
                 <Select
                   value={teachClientId}
@@ -980,17 +1062,17 @@ export function ServiceFormDialog({
                     setTeachCredentialId('')
                   }}
                 >
-                  <option value="">Selecione…</option>
+                  <option value="">Nenhum — ensinar sem cliente</option>
                   {(clientsQuery.data ?? []).map((client) => (
                     <option key={client.id} value={client.id}>
                       {client.name}
                     </option>
                   ))}
                 </Select>
-                {(clientsQuery.data ?? []).length === 0 ? (
+                {teachAuthMethod === 'certificate' && (clientsQuery.data ?? []).length === 0 ? (
                   <p className="mt-1.5 text-xs text-[var(--pv-warning)]">
-                    Cadastre um cliente primeiro (Clientes → Novo cliente) — a gravação precisa
-                    abrir o portal como um cliente.
+                    Cadastre um cliente primeiro (Clientes → Novo cliente) para ensinar o fluxo de
+                    certificado — o certificado precisa de um dono.
                   </p>
                 ) : null}
               </Field>
@@ -1003,9 +1085,14 @@ export function ServiceFormDialog({
                     className="grid grid-cols-2 gap-2"
                   >
                     {[
-                      { value: 'password', label: 'Login e senha', icon: KeyRound },
-                      { value: 'certificate', label: 'Certificado digital', icon: ShieldCheck },
+                      {
+                        value: 'certificate',
+                        label: '1º — Certificado digital',
+                        icon: ShieldCheck,
+                      },
+                      { value: 'password', label: '2º — Login e senha', icon: KeyRound },
                     ].map((option) => {
+                      const taught = option.value === 'certificate' && taughtCert
                       const selected = teachAuthMethod === option.value
                       const Icon = option.icon
                       return (
@@ -1019,7 +1106,7 @@ export function ServiceFormDialog({
                             setTeachCertificateId('')
                           }}
                           className={cn(
-                            'pv-pressable flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors',
+                            'pv-pressable flex flex-col items-center gap-1 rounded-xl border px-3 py-2.5 text-center text-sm font-semibold transition-colors',
                             selected
                               ? 'border-brand-600 bg-[var(--pv-accent-soft)] ring-2 ring-brand-500/40'
                               : 'border-[var(--pv-border)] hover:border-brand-300',
@@ -1027,6 +1114,11 @@ export function ServiceFormDialog({
                         >
                           <Icon className="h-4 w-4" aria-hidden="true" />
                           {option.label}
+                          {taught ? (
+                            <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                              ✓ ensinado
+                            </span>
+                          ) : null}
                         </button>
                       )
                     })}
@@ -1311,8 +1403,7 @@ export function ServiceFormDialog({
                 onClick={() => void startRecording()}
                 disabled={
                   wizardBusy ||
-                  !teachClientId ||
-                  (teachAuthMethod === 'certificate' && !teachCertificateId)
+                  (teachAuthMethod === 'certificate' && (!teachClientId || !teachCertificateId))
                 }
               >
                 {wizardBusy ? 'Abrindo o portal…' : 'Ensinar agora'}
@@ -1367,7 +1458,13 @@ export function ServiceFormDialog({
                 Descartar
               </Button>
               <Button onClick={() => void saveRecorded()} disabled={wizardBusy}>
-                {wizardBusy ? 'Salvando…' : 'Salvar robô'}
+                {wizardBusy
+                  ? 'Salvando…'
+                  : createdService &&
+                      createdService.authMethods.length > 1 &&
+                      reviewPass === 'certificate'
+                    ? 'Salvar e ensinar a senha →'
+                    : 'Salvar robô'}
               </Button>
             </>
           ) : null}
