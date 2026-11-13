@@ -121,6 +121,14 @@ function sealCredentialFields(
       }>
     | null
     | undefined,
+  /** Valores cifrados existentes a preservar quando o campo chega sem valor
+   * (edição: campo deixado em branco não pode apagar o valor guardado). */
+  preserveFrom?: Array<{
+    name: string
+    kind: string
+    value?: string | null | undefined
+    enc?: string | null | undefined
+  }> | null,
 ): Array<{
   name: string
   kind: 'username' | 'password' | 'text'
@@ -131,6 +139,28 @@ function sealCredentialFields(
   return fields.map((field) => {
     const value = field.value
     if (value === undefined || value === '') {
+      // Sem valor enviado na edição: preserva o blob cifrado atual.
+      const previous = preserveFrom?.find(
+        (item) => item.name === field.name && item.kind === field.kind,
+      )
+      if (previous?.value) {
+        if (previous.enc === 'aes-256-gcm') {
+          // Já cifrado — preserva o blob intacto.
+          return {
+            name: field.name,
+            kind: field.kind,
+            value: previous.value,
+            enc: 'aes-256-gcm' as const,
+          }
+        }
+        // Legado em claro — sela na hora (migração transparente, sem perder dado).
+        return {
+          name: field.name,
+          kind: field.kind,
+          value: vault.sealFieldValue(credentialId, field.name, previous.value),
+          enc: 'aes-256-gcm' as const,
+        }
+      }
       return { name: field.name, kind: field.kind }
     }
     if (field.enc === 'aes-256-gcm') {
@@ -225,7 +255,7 @@ export function updateCredential(
     fields:
       parsed.fields === undefined
         ? current.fields
-        : sealCredentialFields(vault, id, parsed.fields),
+        : sealCredentialFields(vault, id, parsed.fields, current.fields ?? null),
     updatedAt: now,
   }
   if (parsed.password !== undefined) {

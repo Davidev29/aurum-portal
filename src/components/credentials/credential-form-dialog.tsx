@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { toast } from 'sonner'
 import { Copy, Eye, EyeOff, Wand2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import type { Credential, CredentialCreateInput, UsernameType } from '@shared/types'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
 import { useClients, useInvalidate, useServices } from '@/lib/queries'
@@ -53,6 +54,21 @@ export function CredentialFormDialog({
   const [loginField, setLoginField] = React.useState('username')
   const [passwordField, setPasswordField] = React.useState('password')
   const [extraFields, setExtraFields] = React.useState('')
+  // Campos "aprendidos" pelo robô na gravação (nome/label do portal). Os
+  // VALORES nunca vêm de volta em claro — só nome/label; vazio na edição
+  // preserva o valor cifrado existente.
+  const [extraValues, setExtraValues] = React.useState<Record<string, string>>({})
+
+  // Busca a receita do serviço para pré-preencher os campos nomeados.
+  const { data: recipeSummary } = useQuery({
+    queryKey: ['recipe', serviceId],
+    queryFn: () => aurumBitPortal().recipes.get(serviceId),
+    enabled: Boolean(serviceId),
+  })
+  const learnedSpecs = React.useMemo(
+    () => (recipeSummary?.definition.fields ?? []).filter((field) => field.kind === 'text'),
+    [recipeSummary],
+  )
 
   React.useEffect(() => {
     if (!open) return
@@ -72,9 +88,9 @@ export function CredentialFormDialog({
     setPasswordField(pass ?? 'password')
     const extras = (credential?.fields ?? [])
       .filter((field) => field.kind === 'text')
-      .map((field) => `${field.name}=${field.value ?? ''}`)
-      .join('\n')
-    setExtraFields(extras)
+      .map((field) => field.name)
+    setExtraFields(extras.join('\n'))
+    setExtraValues({})
   }, [open, credential, defaultClientId, defaultServiceId])
 
   const buildFields = () => {
@@ -82,6 +98,15 @@ export function CredentialFormDialog({
       { name: loginField.trim() || 'username', kind: 'username' },
       { name: passwordField.trim() || 'password', kind: 'password' },
     ]
+    if (learnedSpecs.length > 0) {
+      for (const spec of learnedSpecs) {
+        const value = (extraValues[spec.key] ?? '').trim()
+        fields.push(
+          value ? { name: spec.key, kind: 'text', value } : { name: spec.key, kind: 'text' },
+        )
+      }
+      return fields
+    }
     for (const line of extraFields.split('\n')) {
       const trimmed = line.trim()
       if (!trimmed) continue
@@ -294,12 +319,57 @@ export function CredentialFormDialog({
               />
             </Field>
           </div>
-          <Field label="Campos adicionais" hint="Um por linha: nome=valor (opcional)">
-            <Textarea
-              value={extraFields}
-              onChange={(event) => setExtraFields(event.target.value)}
-            />
-          </Field>
+          {learnedSpecs.length > 0 ? (
+            <div className="rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)] p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--pv-muted)]">
+                Campos que o portal pede (aprendidos na gravação do robô)
+              </p>
+              <div className="mt-2.5 grid gap-2.5">
+                {learnedSpecs.map((spec) => (
+                  <div
+                    key={spec.key}
+                    className="grid grid-cols-1 items-center gap-1.5 sm:grid-cols-[1fr_2fr] sm:gap-3"
+                  >
+                    <label
+                      htmlFor={`learned-${spec.key}`}
+                      className="text-xs font-semibold text-[var(--pv-text)]"
+                    >
+                      {spec.label}
+                    </label>
+                    <Input
+                      id={`learned-${spec.key}`}
+                      type="password"
+                      value={extraValues[spec.key] ?? ''}
+                      onChange={(event) =>
+                        setExtraValues((current) => ({
+                          ...current,
+                          [spec.key]: event.target.value,
+                        }))
+                      }
+                      autoComplete="off"
+                      spellCheck={false}
+                      autoCapitalize="off"
+                      placeholder="Vazio = manter o valor guardado"
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] leading-snug text-[var(--pv-muted)]">
+                Os valores ficam cifrados no cofre; nunca saem do seu computador. Em branco na
+                edição, o valor guardado é preservado.
+              </p>
+            </div>
+          ) : (
+            <Field
+              label="Campos adicionais"
+              hint="Um por linha: nome=valor (opcional). Reescreva os valores antigos para cifra-los."
+            >
+              <Textarea
+                value={extraFields}
+                onChange={(event) => setExtraFields(event.target.value)}
+              />
+            </Field>
+          )}
           <Field label="Notas">
             <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
           </Field>
