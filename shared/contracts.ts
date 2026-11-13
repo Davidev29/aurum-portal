@@ -514,6 +514,11 @@ export const sessionOpenSchema = z.object({
   authMethod: authMethodSchema,
   credentialId: idSchema.nullish(),
   forceNew: z.boolean().optional(),
+  /**
+   * Marca de origem do teste explícito do robô gravado (§14-F). O audit
+   * `session.opened`/`credential` inclui `origin` no metadata — sem tipo novo.
+   */
+  origin: z.literal('verify-test').optional(),
 })
 
 export const sessionIdSchema = z.object({ sessionId: idSchema })

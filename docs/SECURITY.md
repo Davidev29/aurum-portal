@@ -115,7 +115,19 @@ Log, auditoria e diagnóstico não enviam dados para fora da estação.
 - Logs em `%APPDATA%\AurumBit Portal\logs\aurumbit-portal.log`, rotação em 10 MB.
 - URLs logadas têm parâmetros sensíveis redigidos; PEM e blobs grandes são substituídos.
 
+## Gravação Assistida do robô de login
+
+O app permite que o operador **ensine** o caminho de login de um portal uma única vez; os cliques e campos viram uma receita determinística daquele serviço (prioridade sobre o preenchimento inteligente). Garantias de segurança desta funcionalidade:
+
+- **A senha digitada nunca é persistida.** Campos de senha são gravados como referência (`{{credential.password}}`), casados por impressão digital (HMAC-SHA256, HKDF de propósito `password-reuse-fingerprint`) — **sem descriptografar a credencial** durante a gravação. Campos não-credenciais (conta, agência, CPF do contribuinte...) têm o valor **descartado** com aviso na revisão.
+- **O portal nunca recebe IPC.** A view remota não ganha preload nem canais; a comunicação é exclusivamente main→página→main, como no resto do robô.
+- **Nada é salvo sem revisão humana.** A tela de revisão lista as etapas compiladas com confiança por seletor e avisos; o usuário pode remover etapas antes de salvar (chave `removedStepIndexes`, validada no processo principal).
+- **Só o teste real marca a receita como `verified`** — salvar nunca marca; o teste abre sessão real e o pós-login detecta como de costume. O evento de auditoria `session.opened`/`credential` recebe `origin: 'verify-test'` no metadata para distinguir teste de uso operacional.
+- **Receitas gravadas são intocáveis pelo "heal" do boot** (`origin: 'recorded'` / `source: 'recorded'`).
+- **Gravação é sempre uma sessão explícita** criada pelo operador, com a mesma allowlist de navegação, bloqueio de downloads e popups do restante do app. Fechar a janela/app durante a gravação exige confirmação; kill/crash deixa apenas o marcador `recipe.record_started`, detectado no próximo boot com aviso — nada fica meio-salvo.
+
 ## Responsabilidades do operador
+
 
 1. **Perfil dedicado.** Use um perfil Windows exclusivo para o AurumBit Portal, com senha forte e bloqueio automático do sistema.
 2. **Disco cifrado.** Ative BitLocker (ou equivalente) na estação. O DPAPI protege a chave, não o disco roubado desligado.

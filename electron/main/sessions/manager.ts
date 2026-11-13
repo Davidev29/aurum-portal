@@ -63,6 +63,7 @@ import {
   buildRecorderScript,
   buildTeardownScript,
   compileRecording,
+  shouldEmitWizardProgress,
   type CompileCredential,
   type RecordedDrain,
   type RecordedEvent,
@@ -642,6 +643,7 @@ export class SessionManager {
       authMethod: request.authMethod,
       certificateId,
       partition,
+      ...(request.origin ? { origin: request.origin } : {}),
     })
     if (certificateId) markCertificateUsed(this.deps.db, certificateId)
     if (credentialId) markCredentialUsed(this.deps.db, credentialId)
@@ -2047,7 +2049,7 @@ export class SessionManager {
     const rec = record?.recording ?? null
     const wizard = this.wizards.get(wizardId)
     const now = Date.now()
-    if (!immediate && rec && now - rec.lastProgressEmit < 1_000) return
+    if (!immediate && rec && !shouldEmitWizardProgress(rec.lastProgressEmit, now)) return
     if (rec) rec.lastProgressEmit = now
     cb({
       wizardId,

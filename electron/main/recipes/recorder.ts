@@ -99,6 +99,18 @@ export interface RecordedDrain {
 const MAX_STEPS = 60
 const FUSION_WINDOW_MS = 5_000
 
+/**
+ * Política de throttle do broadcast `wizard:progress` (C8): no máximo 1/s,
+ * exceto flush imediato em start/finish/cancel (controle externo, sempre visível).
+ */
+export function shouldEmitWizardProgress(
+  lastEmit: number,
+  now: number,
+  minIntervalMs = 1_000,
+): boolean {
+  return now - lastEmit >= minIntervalMs
+}
+
 // ---------------------------------------------------------------------------
 // 1) Scripts injetados
 // ---------------------------------------------------------------------------

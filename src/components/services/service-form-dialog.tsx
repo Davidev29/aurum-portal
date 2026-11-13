@@ -11,6 +11,7 @@ import {
   Globe,
   GraduationCap,
   Hourglass,
+  BadgeCheck,
   ImagePlus,
   KeyRound,
   Landmark,
@@ -170,7 +171,9 @@ export function ServiceFormDialog({
   // ------------------------------------------------------------------
   // Assistente de gravação (Fase 1, apenas no fluxo de CRIAÇÃO)
   // ------------------------------------------------------------------
-  const [stage, setStage] = React.useState<'form' | 'teach' | 'recording' | 'review'>('form')
+  const [stage, setStage] = React.useState<'form' | 'teach' | 'recording' | 'review' | 'saved'>(
+    'form',
+  )
   const [createdService, setCreatedService] = React.useState<Service | null>(null)
   const [teachClientId, setTeachClientId] = React.useState('')
   const [teachCredentialId, setTeachCredentialId] = React.useState('')
@@ -319,12 +322,16 @@ export function ServiceFormDialog({
     setWizardBusy(true)
     setError(null)
     try {
-      const result = await aurumBitPortal().wizard.startRecord({
+      const input = {
         serviceId: createdService.id,
         clientId: teachClientId,
         authMethod: teachAuthMethod,
         credentialId: teachCredentialId || null,
-      })
+      }
+      // Em acessos existentes, passa pelo guarda do reRecord (nativos nunca regravam).
+      const result = service
+        ? await aurumBitPortal().recipes.reRecord(input)
+        : await aurumBitPortal().wizard.startRecord(input)
       setWizardId(result.wizardId)
       setWizardState({
         wizardId: result.wizardId,
@@ -389,14 +396,40 @@ export function ServiceFormDialog({
         autoSubmit: reviewAutoSubmit,
         removedStepIndexes: reviewRemoved.length > 0 ? reviewRemoved : undefined,
       })
-      toast.success('Robô salvo para este acesso.')
-      await Promise.all([invalidate.services(), invalidate.audit()])
-      onOpenChange(false)
+      setStage('saved')
+      await invalidate.services()
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
       setWizardBusy(false)
     }
+  }
+
+  const verifyRobotTest = async (): Promise<void> => {
+    if (!createdService) return
+    try {
+      await aurumBitPortal().sessions.open({
+        serviceId: createdService.id,
+        clientId: teachClientId,
+        authMethod: teachAuthMethod,
+        credentialId: teachAuthMethod === 'password' ? teachCredentialId || undefined : undefined,
+        forceNew: true,
+        origin: 'verify-test',
+      })
+      toast.success('Abrimos o portal para o teste. Sucesso marcado automaticamente se entrar.')
+      await Promise.all([invalidate.services(), invalidate.audit()])
+      onOpenChange(false)
+    } catch (caught) {
+      toast.error(errorMessage(caught))
+    }
+  }
+
+  const verifyRobotLater = (): void => {
+    toast.info(
+      'Recomendamos testar antes de confiar no robô — você pode testar depois abrindo o acesso.',
+    )
+    void Promise.all([invalidate.services(), invalidate.audit()])
+    onOpenChange(false)
   }
 
   const discardRecorded = async (): Promise<void> => {
@@ -501,6 +534,24 @@ export function ServiceFormDialog({
     }
   }
 
+  const startReRecord = (): void => {
+    if (!service || service.isBuiltin || !service.recipe) return
+    setCreatedService(service)
+    const defaultAuth = service.authMethods.includes(service.defaultAuth)
+      ? service.defaultAuth
+      : service.authMethods.includes('password')
+        ? 'password'
+        : 'certificate'
+    setTeachAuthMethod(defaultAuth)
+    setTeachClientId('')
+    setTeachCredentialId('')
+    setWizardId(null)
+    setWizardState(null)
+    setReviewRemoved([])
+    setCancelConfirm(false)
+    setStage('teach')
+  }
+
   const toggleAutoSubmit = async (checked: boolean) => {
     if (!service?.recipe) return
     setRecipeActionBusy(true)
@@ -586,7 +637,9 @@ export function ServiceFormDialog({
                   ? 'Novo acesso — Gravando…'
                   : stage === 'review'
                     ? 'Revise o robô'
-                    : 'Novo acesso'}
+                    : stage === 'saved'
+                      ? 'Robô salvo'
+                      : 'Novo acesso'}
           </DialogTitle>
           <DialogDescription>
             {service
@@ -597,7 +650,9 @@ export function ServiceFormDialog({
                   ? `${stepIndicator} · Você mostra uma vez como entrar; o AurumBit repete sozinho nas próximas.`
                   : stage === 'recording'
                     ? `${stepIndicator} · Faça o login normalmente no portal aberto ao lado.`
-                    : `${stepIndicator} · Confira o que o robô aprendeu antes de salvar.`}
+                    : stage === 'review'
+                      ? `${stepIndicator} · Confira o que o robô aprendeu antes de salvar.`
+                      : 'Tudo salvo — falta só descobrir se o robô acerta sozinho.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -813,6 +868,17 @@ export function ServiceFormDialog({
                             />
                             Regenerar automação
                           </Button>
+                          {!service.isBuiltin && service.recipe ? (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={startReRecord}
+                              disabled={recipeActionBusy}
+                            >
+                              <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />
+                              Reconfigurar robô
+                            </Button>
+                          ) : null}
                           <Button
                             variant="secondary"
                             size="sm"
@@ -1126,6 +1192,34 @@ export function ServiceFormDialog({
             </div>
           ) : null}
 
+          {stage === 'saved' && createdService ? (
+            <div className="grid gap-4">
+              <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4">
+                <BadgeCheck
+                  className="mt-0.5 h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400"
+                  aria-hidden="true"
+                />
+                <div className="text-sm leading-snug">
+                  <p className="font-semibold">Robô salvo para este acesso.</p>
+                  <p className="mt-1 text-[var(--pv-muted)]">
+                    A gravação ensinou o caminho — mas ainda não testamos se o robô acerta sozinho.
+                    Em uns 20 segundos dá para descobrir (o teste abre o portal com a credencial e o
+                    app detecta se entrou).
+                  </p>
+                </div>
+              </div>
+              {teachAuthMethod === 'password' &&
+              !teachCredentialId &&
+              (credentialsQuery.data ?? []).length === 0 ? (
+                <p className="flex items-start gap-1.5 text-xs leading-snug text-[var(--pv-warning)]">
+                  <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Para testar, o acesso precisa de uma credencial — vincule uma em Editar →
+                  Credenciais e abra o acesso depois.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {error ? (
             <p role="alert" className="text-sm font-medium text-[var(--pv-danger)]">
               {error}
@@ -1168,6 +1262,24 @@ export function ServiceFormDialog({
               </Button>
               <Button onClick={() => void finishRecording()} disabled={wizardBusy}>
                 {wizardBusy ? 'Concluindo…' : 'Concluir gravação'}
+              </Button>
+            </>
+          ) : null}
+          {stage === 'saved' ? (
+            <>
+              <Button variant="secondary" onClick={verifyRobotLater} disabled={wizardBusy}>
+                Testar depois
+              </Button>
+              <Button
+                onClick={() => void verifyRobotTest()}
+                disabled={
+                  wizardBusy ||
+                  (teachAuthMethod === 'password' &&
+                    !teachCredentialId &&
+                    (credentialsQuery.data ?? []).length === 0)
+                }
+              >
+                Testar agora
               </Button>
             </>
           ) : null}

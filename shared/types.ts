@@ -543,6 +543,8 @@ export interface SessionOpenRequest {
   authMethod: AuthMethod
   credentialId?: string | null
   forceNew?: boolean
+  /** Origem do teste explícito do robô gravado (§14-F) — vai para o metadata do audit. */
+  origin?: 'verify-test'
 }
 
 export interface SessionOpenResult {
