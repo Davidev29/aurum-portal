@@ -25,6 +25,7 @@ export default defineConfig({
         'electron/main/certificates/parse.ts',
         'electron/main/sessions/partition.ts',
         'electron/main/recipes/core.ts',
+        'electron/main/recipes/readiness.ts',
         'electron/main/security/**/*.ts',
       ],
       exclude: ['**/*.d.ts', '**/index.ts'],

@@ -14,6 +14,21 @@
  * Fortaleza, e-SEFIN, gov.br SSO), sem seletor fixo configurado pelo usuário.
  */
 import { safeExecute, type RecipeTarget } from './runner'
+import { probeReadiness, type ReadinessProbeSample } from './readiness'
+
+/** Teto de parede do ciclo do agente (uma sessão de login). */
+const AGENT_WALL_BUDGET_MS = 120_000
+
+/** Pronta segundo a probe mínima (readyState completo, sem ocupador, rede quieta)? */
+function minimalProbeReady(sample: ReadinessProbeSample | null): boolean {
+  return Boolean(
+    sample &&
+    sample.recognized &&
+    sample.readyState === 'complete' &&
+    !sample.busyVisible &&
+    sample.recentResourceCount === 0,
+  )
+}
 
 export interface AgentValues {
   username: string
@@ -194,6 +209,8 @@ export async function runAgenticLogin(options: AgentOptions): Promise<AgentResul
   // delega a confirmacao ao watcher de pos-login — em vez de queimar todas as
   // iteracoes em paginas sem formulario.
   let noWorkStreak = 0
+  // Orçamento de parede (120 s) — impede laço eterno em portal patológico.
+  const startedAt = Date.now()
 
   for (let index = 0; index < maxIterations; index += 1) {
     if (target.isDestroyed()) {
@@ -206,7 +223,30 @@ export async function runAgenticLogin(options: AgentOptions): Promise<AgentResul
         lastUrl: startUrl,
       }
     }
+
+    if (Date.now() - startedAt >= AGENT_WALL_BUDGET_MS) {
+      return {
+        status: 'manual',
+        message: 'O acesso demorou mais que o esperado. Pausamos para você concluir.',
+        twoFactorDetected: false,
+        captchaDetected: false,
+        iterations: index,
+        lastUrl: target.getURL(),
+      }
+    }
     options.onProgress?.(index, maxIterations)
+
+    // Probe MÍNIMA antes do OBSERVE (a partir da 2ª iteração). Nunca bloqueia:
+    // se a página não estiver pronta, dorme 400 ms e re-proba uma vez; ainda
+    // assim segue — o loop desiste sozinho nas iterações/no orçamento de
+    // parede. Usa timeout curto (2 s por amostra) e 1 amostra por vez.
+    if (index > 0) {
+      const first = await probeReadiness(target, { timeoutMs: 2_000 })
+      if (!minimalProbeReady(first)) {
+        await sleep(400)
+        await probeReadiness(target, { timeoutMs: 2_000 })
+      }
+    }
 
     const obs = await safeExecute<{
       href: string

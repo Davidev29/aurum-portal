@@ -10,6 +10,8 @@ import {
   buildWaitScript,
 } from './core'
 import { redactUrl } from '../security/redaction'
+import { logger } from '../logger'
+import { waitForReady, ReadinessProbeError, type ReadinessReport } from './readiness'
 
 export interface RecipeTarget {
   executeJavaScript<T = unknown>(code: string): Promise<T>
@@ -301,6 +303,60 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
         }
       }
       continue
+    }
+
+    // Espera de prontidão (Fase 2): exceto goto/sleep/waitForURL — eles têm
+    // semântica própria (navegação, pausa explícita e espera de URL, nesta
+    // ordem). Passos optional pulam com log em vez de pausar. Nunca age com a
+    // página ainda estabilizando — no máximo PAUSA para o humano.
+    let readiness: ReadinessReport | null = null
+    try {
+      readiness = await waitForReady(target, {
+        quietMs: step.readinessMs ?? 800,
+        timeoutMs: Math.min(step.timeoutMs ?? 12_000, 12_000),
+        busySelectors: undefined,
+        sleep,
+      })
+    } catch (error) {
+      if (!(error instanceof ReadinessProbeError)) throw error
+      // probe-error: PAUSAR (ou pular, se optional) — nunca seguir no escuro.
+      if (step.optional) {
+        logger.info('readiness_skipped_optional', {
+          step: index,
+          action: step.action,
+          reason: 'probe-error',
+        })
+        continue
+      }
+      return {
+        status: 'manual',
+        message: 'O portal não está respondendo à automação. Use o modo manual.',
+        failedStep: index,
+        captchaDetected: false,
+        twoFactorDetected: false,
+        lastUrl: target.getURL(),
+        failureCode: 'probe-error',
+      }
+    }
+    if (!readiness.ready) {
+      if (step.optional) {
+        logger.info('readiness_skipped_optional', {
+          step: index,
+          action: step.action,
+          reason: 'readiness-timeout',
+        })
+        continue
+      }
+      return {
+        status: 'manual',
+        message:
+          'A página do portal não estabilizou. Pausamos aqui para você concluir com segurança.',
+        failedStep: index,
+        captchaDetected: false,
+        twoFactorDetected: false,
+        lastUrl: target.getURL(),
+        failureCode: 'readiness-timeout',
+      }
     }
 
     // Sessão por certificado não tem credencial para preencher. Pular o passo
