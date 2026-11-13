@@ -99,6 +99,11 @@ export const AUDIT_TYPES = [
   'session.recipe_failed',
   'session.manual_mode',
   'recipe.updated',
+  'recipe.record_started',
+  'recipe.record_finished',
+  'recipe.record_discarded',
+  'recipe.record_interrupted',
+  'recipe.recorded',
   'settings.updated',
   'audit.exported',
   'backup.created',
@@ -146,6 +151,14 @@ export const RECIPE_ACTIONS = [
 ] as const
 
 export type RecipeAction = (typeof RECIPE_ACTIONS)[number]
+
+/**
+ * Gravação Assistida (Fase 1): teto de duração de uma gravação. Aos 10 min
+ * o wizard avisa; no teto, a gravação auto-finaliza como draft parcial.
+ * `RECORDING_MAX_DURATION_MS` = 15 minutos.
+ */
+export const RECORDING_MAX_DURATION_MS = 15 * 60_000
+export const RECORDING_WARNING_DURATION_MS = 10 * 60_000
 
 export const SESSION_STATUSES = [
   'opening',

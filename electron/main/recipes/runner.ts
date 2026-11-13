@@ -7,6 +7,7 @@ import {
   buildAutoSubmitScript,
   buildDetectScript,
   buildPostLoginScript,
+  buildWaitScript,
 } from './core'
 import { redactUrl } from '../security/redaction'
 
@@ -26,6 +27,19 @@ export interface RecipeTarget {
 
 export type RecipeRunStatus = 'authenticated' | 'awaiting_login' | 'manual' | 'error'
 
+/**
+ * Códigos estruturados de falha do runner (C7 do plano §5.4). Substituem o
+ * acoplamento por mensagem. O fallback para o agente inteligente depende
+ * apenas de `element-not-found` no passo 0 — ver `fallback.ts`.
+ */
+export type RecipeFailureCode =
+  | 'element-not-found'
+  | 'selector-not-found'
+  | 'readiness-timeout'
+  | 'post-condition-failed'
+  | 'probe-error'
+  | 'budget-exhausted'
+
 export interface RecipeRunResult {
   status: RecipeRunStatus
   message: string
@@ -33,6 +47,7 @@ export interface RecipeRunResult {
   captchaDetected: boolean
   twoFactorDetected: boolean
   lastUrl: string
+  failureCode: RecipeFailureCode | null
 }
 
 export interface RunRecipeOptions {
@@ -146,6 +161,46 @@ export async function waitForUrlMatch(
   return { ok: false, detail: 'timeout aguardando URL esperada' }
 }
 
+/**
+ * Pós-condição simples (Fase 1): confirmar que a URL passou a conter um dos
+ * `expectedAfter.urlIncludes` — ou, como alternativa, que um marcador
+ * `expectedAfter.selectors` existe — dentro de uma janela curta. Rodado
+ * apenas quando o passo traz `expectedAfter` (receita gravada). Polling no
+ * processo main (URL) ou em páginas (marcador), nunca chute.
+ */
+export async function verifyExpectedAfter(
+  step: Pick<RecipeStep, 'expectedAfter' | 'label'>,
+  target: RecipeTarget,
+  sleep: (ms: number) => Promise<void> = defaultSleep,
+): Promise<{ ok: boolean; detail: string }> {
+  const guard = step.expectedAfter
+  if (!guard) return { ok: true, detail: 'sem pós-condição' }
+  const timeoutMs = Math.min(Math.max(guard.timeoutMs ?? 8_000, 500), 60_000)
+
+  if (guard.urlIncludes && guard.urlIncludes.length > 0) {
+    return waitForUrlMatch(target, { urlIncludes: guard.urlIncludes, timeoutMs }, sleep)
+  }
+
+  if (guard.selectors && guard.selectors.length > 0) {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+      if (target.isDestroyed()) {
+        return { ok: false, detail: 'sessao encerrada durante a pos-condicao' }
+      }
+      const probe = await safeExecute<RecipeActionResult>(
+        target,
+        buildWaitScript(guard.selectors, 1_500),
+        3_000,
+      )
+      if (probe?.ok) return { ok: true, detail: 'marcador pós-ação encontrado' }
+      await sleep(250)
+    }
+    return { ok: false, detail: 'timeout aguardando marcador pós-ação' }
+  }
+
+  return { ok: true, detail: 'pós-condição vazia' }
+}
+
 export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunResult> {
   const { recipe, values, target, allowedDomains } = options
   const sleep = options.sleep ?? defaultSleep
@@ -159,6 +214,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
       captchaDetected: false,
       twoFactorDetected: false,
       lastUrl: currentUrl,
+      failureCode: null,
     }
   }
 
@@ -171,6 +227,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
         captchaDetected: false,
         twoFactorDetected: false,
         lastUrl: currentUrl,
+        failureCode: 'probe-error',
       }
     }
     const step = recipe.steps[index] as RecipeStep
@@ -187,6 +244,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
         captchaDetected: interstitial.captcha,
         twoFactorDetected: interstitial.twoFactor,
         lastUrl: target.getURL(),
+        failureCode: null,
       }
     }
 
@@ -200,6 +258,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
           captchaDetected: false,
           twoFactorDetected: false,
           lastUrl: currentUrl,
+          failureCode: null,
         }
       }
       try {
@@ -213,6 +272,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
           captchaDetected: false,
           twoFactorDetected: false,
           lastUrl: redactUrl(step.url as string),
+          failureCode: 'probe-error',
         }
       }
       continue
@@ -237,6 +297,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
           captchaDetected: false,
           twoFactorDetected: false,
           lastUrl: target.getURL(),
+          failureCode: 'element-not-found',
         }
       }
       continue
@@ -269,9 +330,29 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
         captchaDetected: false,
         twoFactorDetected: false,
         lastUrl: target.getURL(),
+        failureCode: 'element-not-found',
       }
     }
     currentUrl = target.getURL()
+
+    // Pós-condição (Fase 1, simples): só se o passo traz `expectedAfter`
+    // (gravado pela Gravação Assistida). Receitas builtin/auto não trazem —
+    // comportamento inalterado. Falha ⇒ PAUSAR (nunca chutar).
+    if (step.expectedAfter) {
+      const check = await verifyExpectedAfter(step, target, sleep)
+      if (!check.ok) {
+        if (step.optional) continue
+        return {
+          status: 'manual',
+          message: `Após '${step.label ?? 'ação'}' o portal não chegou onde esperávamos. Pausamos para você.`,
+          failedStep: index,
+          captchaDetected: false,
+          twoFactorDetected: false,
+          lastUrl: target.getURL(),
+          failureCode: 'post-condition-failed',
+        }
+      }
+    }
   }
 
   if (recipe.autoSubmit) {
@@ -284,6 +365,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
         captchaDetected: false,
         twoFactorDetected: false,
         lastUrl: target.getURL(),
+        failureCode: null,
       }
     }
   }
@@ -305,6 +387,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
       captchaDetected: false,
       twoFactorDetected: false,
       lastUrl: target.getURL(),
+      failureCode: null,
     }
   }
 
@@ -321,6 +404,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
       captchaDetected: interstitial.captcha,
       twoFactorDetected: interstitial.twoFactor,
       lastUrl: target.getURL(),
+      failureCode: null,
     }
   }
 
@@ -336,6 +420,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
     captchaDetected: false,
     twoFactorDetected: false,
     lastUrl: target.getURL(),
+    failureCode: null,
   }
 }
 

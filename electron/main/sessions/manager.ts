@@ -55,6 +55,7 @@ import {
 import { SESSION_CHROME_FOOTER_HEIGHT, SESSION_CHROME_HEIGHT } from '../../../shared/constants'
 import { buildPartition, sessionReuseKey } from './partition'
 import type { SessionContext, SessionContextRegistry } from './context-registry'
+import { shouldFallbackToAgent } from '../recipes/fallback'
 import { checkPostLogin, runRecipe, type RecipeTarget } from '../recipes/runner'
 import { runAgenticLogin, agentValues } from '../recipes/agent'
 import { stepCarriesCredentials } from '../../../shared/custom-service'
@@ -1001,41 +1002,64 @@ export class SessionManager {
       // em vez de seguir uma lista fixa de passos. Se o usuário optou por
       // revisar antes de enviar (autoSubmit=false), apenas preenche e espera
       // que ele clique em Entrar.
-      const result =
-        record.authMethod === 'password' && username
-          ? await runAgenticLogin({
-              values: agentValues({
-                username,
-                password,
-                document: record.clientDocument,
-                clientName: record.clientName,
-              }),
-              target,
-              autoSubmit: definition.autoSubmit,
-              onProgress: (stepIndex, total) => {
-                if (record.closed) return
-                record.statusMessage = `Acessando ${record.serviceName}... passo ${Math.min(stepIndex + 1, total)}/${total}`
-                this.emit()
-              },
-            }).then((agentResult) => ({
-              status: agentResult.status,
-              message: agentResult.message,
-              failedStep: null,
-              captchaDetected: agentResult.captchaDetected,
-              twoFactorDetected: agentResult.twoFactorDetected,
-              lastUrl: agentResult.lastUrl,
-            }))
-          : await runRecipe({
-              recipe: definition,
-              values: recipeValues({
-                username,
-                password,
-                document: record.clientDocument,
-                clientName: record.clientName,
-              }),
-              target,
-              allowedDomains: record.allowedDomains,
-            })
+      const agentLogin = () =>
+        runAgenticLogin({
+          values: agentValues({
+            username,
+            password,
+            document: record.clientDocument,
+            clientName: record.clientName,
+          }),
+          target,
+          autoSubmit: definition.autoSubmit,
+          onProgress: (stepIndex, total) => {
+            if (record.closed) return
+            record.statusMessage = `Acessando ${record.serviceName}... passo ${Math.min(stepIndex + 1, total)}/${total}`
+            this.emit()
+          },
+        }).then((agentResult) => ({
+          status: agentResult.status,
+          message: agentResult.message,
+          failedStep: null,
+          captchaDetected: agentResult.captchaDetected,
+          twoFactorDetected: agentResult.twoFactorDetected,
+          lastUrl: agentResult.lastUrl,
+          failureCode: null,
+        }))
+
+      const recipeLogin = () =>
+        runRecipe({
+          recipe: definition,
+          values: recipeValues({
+            username,
+            password,
+            document: record.clientDocument,
+            clientName: record.clientName,
+          }),
+          target,
+          allowedDomains: record.allowedDomains,
+        })
+
+      // D6/C7: a receita GRAVADA tem PRIORIDADE sobre o agente inteligente.
+      // O agente só assume quando a gravada falha no passo 0 com
+      // failureCode === 'element-not-found' (portal mudou desde a gravação);
+      // qualquer outra falha PAUSA para o humano — nunca "consertar" uma
+      // gravação que estava em captcha/2FA, nem double-submit.
+      const recorded = definition.origin === 'recorded' && definition.steps.length > 0
+      const preferRecipe = recorded || record.authMethod === 'certificate' || !username
+      let result = preferRecipe
+        ? await recipeLogin()
+        : await agentLogin()
+      if (
+        recorded &&
+        record.authMethod !== 'certificate' &&
+        username &&
+        shouldFallbackToAgent(result)
+      ) {
+        record.statusMessage = 'Automação reaprendendo a página...'
+        this.emit()
+        result = await agentLogin()
+      }
       username = ''
       password = ''
       if (record.closed) return

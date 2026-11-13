@@ -4,7 +4,6 @@ import type { AppSettings } from '../../../shared/types'
 import { BUILTIN_SERVICES } from '../../../shared/builtins'
 import { buildAutoRecipe } from '../../../shared/custom-service'
 import { stripVolatileQueryParams } from '../../../shared/custom-service'
-import type { RecipeDefinition } from '../../../shared/recipe'
 import { coerceSettings, DEFAULT_SETTINGS } from '../../../shared/settings'
 import type { AppDatabase } from './database'
 import { clients, recipes, services, settings } from './schema'
@@ -197,18 +196,9 @@ export function healCustomServiceRecipes(db: AppDatabase): number {
       if (existing.status === 'verified') continue
       // D10: receitas GRAVADAS pelo usuário (Gravação Assistida) jamais podem
       // ser sobrescritas pelo heal — o dano seria silencioso (o robô do
-      // usuário sumia no boot seguinte). Os campos `origin`/`source` chegam
-      // na Fase 1 (shared/recipe.ts, §4.1 do plano); até lá e como defesa
-      // em profundidade, usamos checagem estrutural.
-      const recorded = existing.definition as
-        | (RecipeDefinition & { origin?: unknown; steps?: Array<{ source?: unknown }> })
-        | undefined
-      if (recorded?.origin === 'recorded') continue
-      if (
-        Array.isArray(recorded?.steps) &&
-        recorded.steps.some((step) => step && (step as { source?: unknown }).source === 'recorded')
-      )
-        continue
+      // usuário sumia no boot seguinte).
+      if (existing.definition.origin === 'recorded') continue
+      if (existing.definition.steps.some((step) => step.source === 'recorded')) continue
       if (JSON.stringify(existing.definition) === JSON.stringify(expected)) continue
       try {
         db.update(recipes)
