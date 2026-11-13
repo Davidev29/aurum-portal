@@ -21,8 +21,8 @@ test('pagina de assinaturas renderiza e lista certificado elegivel', async () =>
     const certId = imported?.items?.[0]?.certificateId
     expect(certId).toBeTruthy()
 
-    // Navega para a secao Assinar documentos digitalmente pelo menu.
-    await page.getByRole('link', { name: 'Assinar documentos digitalmente' }).first().click()
+    // Navega para a secao Assinatura digital pelo menu.
+    await page.getByRole('link', { name: 'Assinatura digital' }).first().click()
     await expect(page.getByRole('heading', { name: 'Assinaturas digitais' })).toBeVisible()
     await expect(
       page.getByText('Assine PDFs com certificado ICP-Brasil A1 (PAdES-B-T)'),
