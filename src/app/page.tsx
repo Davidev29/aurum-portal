@@ -292,7 +292,10 @@ export default function AcessosPage() {
                   <div className="truncate text-sm font-semibold" title={session.clientName}>
                     {session.clientName}
                   </div>
-                  <div className="truncate text-xs text-[var(--pv-muted)]" title={session.serviceName}>
+                  <div
+                    className="truncate text-xs text-[var(--pv-muted)]"
+                    title={session.serviceName}
+                  >
                     {session.serviceName}
                   </div>
                 </div>
@@ -373,23 +376,23 @@ export default function AcessosPage() {
           </div>
           <div className="@container">
             <div className="grid gap-5 grid-cols-1 @min-[600px]:grid-cols-2 @min-[1080px]:grid-cols-3 pv-stagger">
-            {filtered.map((service) => (
-              <AccessCard
-              key={service.id}
-              service={service}
-              onOpen={() => setLaunchService(service)}
-              onEdit={() => {
-                setEditingService(service)
-                setServiceFormOpen(true)
-              }}
-              onFavorite={() => void toggleFavorite(service)}
-              onFetchLogo={() => void fetchLogo(service)}
-              onUploadLogo={() => void uploadLogo(service)}
-              onDuplicate={() => void duplicate(service)}
-              onDelete={() => setDeleting(service)}
-              onToggleEnabled={(enabled) => void update(service, { enabled })}
-              />
-            ))}
+              {filtered.map((service) => (
+                <AccessCard
+                  key={service.id}
+                  service={service}
+                  onOpen={() => setLaunchService(service)}
+                  onEdit={() => {
+                    setEditingService(service)
+                    setServiceFormOpen(true)
+                  }}
+                  onFavorite={() => void toggleFavorite(service)}
+                  onFetchLogo={() => void fetchLogo(service)}
+                  onUploadLogo={() => void uploadLogo(service)}
+                  onDuplicate={() => void duplicate(service)}
+                  onDelete={() => setDeleting(service)}
+                  onToggleEnabled={(enabled) => void update(service, { enabled })}
+                />
+              ))}
             </div>
           </div>
         </>
@@ -443,9 +446,9 @@ export default function AcessosPage() {
         title="Excluir acesso?"
         description={
           <>
-            O acesso <strong>{deleting?.name}</strong> será removido dos seus acessos. Credenciais
-            e eventos de auditoria já registrados são preservados; sessões abertas continuam até
-            serem fechadas.
+            O acesso <strong>{deleting?.name}</strong> será removido dos seus acessos. Credenciais e
+            eventos de auditoria já registrados são preservados; sessões abertas continuam até serem
+            fechadas.
           </>
         }
         confirmLabel="Excluir acesso"
@@ -538,12 +541,7 @@ function AccessCard({
           )}
         >
           {logoSrc ? (
-            <img
-              src={logoSrc}
-              alt=""
-              className="h-full w-full object-contain"
-              draggable={false}
-            />
+            <img src={logoSrc} alt="" className="h-full w-full object-contain" draggable={false} />
           ) : (
             initials(service.name)
           )}

@@ -133,7 +133,9 @@ export function AppShell({
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </span>
-                    <span className="hidden min-w-0 flex-1 leading-snug lg:block">{item.label}</span>
+                    <span className="hidden min-w-0 flex-1 leading-snug lg:block">
+                      {item.label}
+                    </span>
                     {item.href === '/sessions' && openSessions > 0 ? (
                       <>
                         <span className="pv-anim-check-pop hidden h-5 min-w-5 items-center justify-center rounded-full bg-[var(--pv-success-solid)] px-1.5 text-[10px] font-bold text-white lg:flex">

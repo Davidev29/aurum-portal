@@ -1566,7 +1566,11 @@ export default function AssinaturasPage() {
               <p className="max-w-md shrink-0 text-sm leading-relaxed text-[var(--pv-muted)]">
                 Escolha um arquivo PDF (até 50 MB). O original não será alterado.
               </p>
-              <Button onClick={() => void onPickFile()} disabled={loadingPreview} className="shrink-0">
+              <Button
+                onClick={() => void onPickFile()}
+                disabled={loadingPreview}
+                className="shrink-0"
+              >
                 {loadingPreview ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -1611,15 +1615,23 @@ export default function AssinaturasPage() {
               {/* Resumo do documento em tiles grandes */}
               <dl className="grid grid-cols-3 gap-2">
                 <div className="rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)]/50 px-3 py-1.5">
-                  <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--pv-faint)]">Páginas</dt>
+                  <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--pv-faint)]">
+                    Páginas
+                  </dt>
                   <dd className="mt-0.5 text-lg font-semibold tabular-nums">{picked.pageCount}</dd>
                 </div>
                 <div className="rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)]/50 px-3 py-1.5">
-                  <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--pv-faint)]">Tamanho</dt>
-                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">{formatBytes(picked.sizeBytes)}</dd>
+                  <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--pv-faint)]">
+                    Tamanho
+                  </dt>
+                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">
+                    {formatBytes(picked.sizeBytes)}
+                  </dd>
                 </div>
                 <div className="rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)]/50 px-3 py-1.5">
-                  <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--pv-faint)]">Sessão</dt>
+                  <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--pv-faint)]">
+                    Sessão
+                  </dt>
                   <dd className="mt-0.5 whitespace-nowrap text-[11px] font-semibold leading-6">
                     {picked.expiresAt ? `até ${formatDate(picked.expiresAt)}` : 'Sem expiração'}
                   </dd>
@@ -1990,7 +2002,9 @@ export default function AssinaturasPage() {
           {!picked ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto rounded-xl border border-dashed border-[var(--pv-border)] p-6 pv-scroll">
               <p className="shrink-0 text-sm text-[var(--pv-muted)]">Nenhum PDF selecionado.</p>
-              <Button className="shrink-0" onClick={() => setStep(1)}>Voltar ao documento</Button>
+              <Button className="shrink-0" onClick={() => setStep(1)}>
+                Voltar ao documento
+              </Button>
             </div>
           ) : (
             <>

@@ -317,7 +317,10 @@ export default function ClientsPage() {
                     {formatDocumentMasked(client.document)}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
-                    <div className="max-w-[240px] truncate text-xs" title={client.email ?? undefined}>
+                    <div
+                      className="max-w-[240px] truncate text-xs"
+                      title={client.email ?? undefined}
+                    >
                       {client.email ?? '—'}
                     </div>
                     <div className="text-xs text-[var(--pv-muted)]">{client.phone ?? ''}</div>

@@ -262,7 +262,9 @@ export default function AuditPage() {
                   <TableHead>Entidade</TableHead>
                   <TableHead className="hidden lg:table-cell">ID</TableHead>
                   <TableHead className="hidden xl:table-cell">Metadados</TableHead>
-                  <TableHead className="w-[72px] text-right"><span className="sr-only">Detalhes</span></TableHead>
+                  <TableHead className="w-[72px] text-right">
+                    <span className="sr-only">Detalhes</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

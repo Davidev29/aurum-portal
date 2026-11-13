@@ -100,7 +100,11 @@ export function StatCard({
         >
           {value}
         </div>
-        {hint ? <div className="mt-1 break-words text-[11px] text-[var(--pv-faint)] [overflow-wrap:anywhere]">{hint}</div> : null}
+        {hint ? (
+          <div className="mt-1 break-words text-[11px] text-[var(--pv-faint)] [overflow-wrap:anywhere]">
+            {hint}
+          </div>
+        ) : null}
       </div>
     </div>
   )

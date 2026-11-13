@@ -257,7 +257,9 @@ export default function SessionPage() {
                 ) : (
                   <KeyRound className="h-4 w-4" />
                 )}
-                <span className="hidden lg:inline">{manualOpen ? 'Ocultar credencial' : 'Credencial manual'}</span>
+                <span className="hidden lg:inline">
+                  {manualOpen ? 'Ocultar credencial' : 'Credencial manual'}
+                </span>
               </Button>
             ) : null}
             <Button

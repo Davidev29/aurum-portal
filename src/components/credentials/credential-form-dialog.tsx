@@ -276,7 +276,13 @@ export function CredentialFormDialog({
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Campo de login" hint="Nome do input no portal">
-              <Input value={loginField} onChange={(event) => setLoginField(event.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="off" />
+              <Input
+                value={loginField}
+                onChange={(event) => setLoginField(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                autoCapitalize="off"
+              />
             </Field>
             <Field label="Campo de senha" hint="Nome do input no portal">
               <Input
