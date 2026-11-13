@@ -206,25 +206,36 @@ Tela inicial ("Acessos", rota `/`). Mercury adaptado (ver §2). Regras do card:
 - `Nativo`/`Personalizado` e `sem automação`/`automação ativa` são **texto**,
   não badge — badges só para o que pede atenção.
 - Grid 1/2/3 colunas por **container query** (`@container` + `@min-[600px]`,
-  `@min-[1080px]` — a sidebar fixa de 264px invalida breakpoints de viewport);
-  gap 20px; `SkeletonGrid` permanece em sm/xl (estado de carga).
+  `@min-[1080px]` — a sidebar alterna 264px/76px, invalidando breakpoints de
+  viewport); gap 20px; `SkeletonGrid` permanece em sm/xl (estado de carga).
 - Logos: `loading="lazy"` removido — 8 ícones de ≤ 35 KB, eager evita frame
   vazio no primeiro paint.
 
 ### Navegação (`components/app-shell.tsx`)
-- Sidebar 264px, `--pv-panel`, borda direita hairline; seções: OPERAÇÃO / TRABALHO / SISTEMA
-  (eyebrow 10.5px faint).
-- Item: `pl-0`, ícone chip 32px (`--pv-panel-2`, borda, radius 6px), label 13.5px/500.
+- Sidebar **dois modos**: completa 264px (≥ `lg`, 1024px) e **rail de ícones 76px**
+  (< `lg`); `--pv-panel`, borda direita hairline; transição `width` 200ms.
+  Seções: OPERAÇÃO / TRABALHO / SISTEMA (eyebrow 10.5px faint, só no modo completo).
+- No rail: rótulos ocultos, `title` nativo + `aria-label` com o nome do item, ícone
+  32px centralizado (`justify-center`), seções ocultas, badge de sessões vira
+  bolinha absoluta no ícone (`aria-hidden`); contador no header fica só ícone+número.
+- Item: ícone chip 32px (`--pv-panel-2`, borda, radius 6px), label 13.5px/500;
+  rail centraliza (`px-2`), modo completo alinha à esquerda (`lg:px-3`).
   **Ativo:** `--pv-accent-soft` + inset ring `--pv-accent-soft-border` + rótulo e ícone
   em `--pv-accent` (fundo lavanda suave, sem barra lateral).
   **Hover:** `--pv-panel-2`, ícone sobe para `--pv-panel-3`.
 - Badge de sessões abertas: `--pv-success-solid` + texto branco, `pv-anim-check-pop`.
 - Header 64px: breadcrumb crumb + nome da tela (`pv-anim-slide-right` a cada rota),
-  relógio ao vivo ao centro (`xl+`), `NotificationCenter` + chip de sessões à direita.
+  relógio ao vivo ao centro (`xl+`), `NotificationCenter` + chip de sessões à direita
+  (chip: texto completo `xl+`, só ícone+contagem abaixo).
 
 ### Tabela (`ui/table.tsx`)
 - Header: **sem preenchimento**, label 11px CAPS `--pv-faint` tracking `.08em`,
   borda inferior hairline. Linhas: hairline, `pv-row-hover` (lavanda 60% no hover).
+- Wrapper `overflow-x-auto` (sempre) — scroll horizontal próprio, nunca da página.
+- Células `px-3 sm:px-5`; colunas secundárias por **prioridade de viewport**:
+  Clientes (Contato `lg+`, Tags/Criado `2xl+`) · Auditoria (ID `lg+`,
+  Metadados `xl+`, coluna Detalhes sempre visível) · Certificados (Origem `xl+`,
+  Clientes `2xl+`). Identidade (Nome/Titular) sempre visível.
 
 ### Feedback
 - Toasts (sonner): herdam `--pv-panel`, bordas/tint por tipo.
@@ -264,12 +275,17 @@ diferente não se aplica entre origens). Regras globais de elemento vivem em
 
 ## 5. Layout
 
-- Janela Electron: 1380×900 padrão, **mínimo 1024×680**.
-- Shell: sidebar 264px fixa + coluna principal; header 64px sticky dentro da coluna;
-  conteúdo com `max-width: 1440px`, padding 24–32px.
+- Janela Electron: 1380×900 padrão, **mínimo 768×680** (`minWidth` no main;
+  reduzido em 2026-11-13 de 1024).
+- Shell: sidebar 264px (≥`lg`) / **rail 76px** (<`lg`) + coluna principal; header
+  64px; conteúdo `max-width: 1440px`, padding `16/24/32px` (`p-4 sm:p-6 lg:p-8`).
 - Grid de cards: 2–3 colunas responsivas; stats em 3–4 col (`sm:grid-cols-2/3/4`).
   A grade de acessos usa **container queries** (`@container`, `@min-[600px]`/`@min-[1080px]`)
-  porque a sidebar fixa de 264px torna breakpoints de viewport mentirosos.
+  porque a sidebar tem dois modos — breakpoints de viewport seriam mentirosos.
+- Grids de conteúdo denso (forms da aba Aparência + letterhead 1fr/360px) vão a
+  2 colunas só em `xl`; pares simples (quickcards Acessos, cards de sessão,
+  dados do cliente + notas) permanecem `lg` (340px é suficiente); pares de
+  formulário só em `sm+`; toolbars de busca com `basis-full` (full row) abaixo de `sm`.
 - Páginas de formulário (settings): coluna `max-w-[980px]` centralizada.
 - Unit base 4px; gaps 12/16/24/32; paddings de seção 24–32.
 - Superfícies: canvas `--pv-bg` < painel `--pv-panel` < `--pv-panel-2` < `--pv-panel-3`.
@@ -317,12 +333,35 @@ diferente não se aplica entre origens). Regras globais de elemento vivem em
 
 ## 8. Responsividade
 
-- **Alvo real:** Electron desktop, largura mínima 1024px (janela 1380×900).
-  Telas fluidas até ultrawide (conteúdo limita em 1440px).
-- **1024×768:** grids 3→2 col; relógio da topbar oculto (`xl:flex`); sidebar mantida.
-- **≤768 / ≤390 (somente preview web):** o export estático registra overflow; o app
-  **não** é suportado abaixo de 1024px — não gastar esforço de otimização mobile nele.
-- Safe areas, zoom mínimo, touch 44px: não aplicáveis (janela desktop).
+- **Alvo real:** Electron desktop. Largura mínima **768px** (janela 768×680,
+  2026-11-13). Telas fluidas até ultrawide (conteúdo limita em 1440px).
+- **< 1024px (Compacto):** sidebar = **rail de ícones 76px** (rótulos ocultos,
+  `title`+`aria-label`, seção eyebrows ocultas, badge de sessões como bolinha
+  no ícone); relógio oculto; chip de sessões no header só ícone+contagem;
+  breadcrumb sem nome do app (`sm-`); padding de conteúdo 16px; PageHeader
+  compacto (padding 14px, ícone 36px, h1 17px); tabelas por prioridade de
+  coluna (seção 4); tabs de Obrigações com scroll horizontal
+  (`nowrap`+`overflow-x-auto`, antes `flex-wrap`); toolbars de busca full-row abaixo de `sm`.
+- **≥ 1024px (Padrão):** sidebar completa 264px; relógio segue oculto até `xl`;
+  padding 24px.
+- **≥ 1280px (Amplo):** relógio visível (`xl`); Contato/ID visíveis; padding 32px.
+- **≥ 1536px (Máximo) / ≥ 2xl:** Tags/Criado (Clientes), Clientes (Certificados)
+  visíveis.
+- **Em 1440×900:** grid de acessos = 2–3 colunas conforme a largura do
+  container (container query); stats 3–4 col.
+- **Diálogos:** `w-[calc(100vw-2rem)]` + `max-h-[92vh]` + footer empilhado
+  (`flex-col-reverse`) — intactos; funcionam em 768px (verificado com shots
+  reais em 768×640: Novo cliente, Novo acesso, Detalhes do evento).
+- **Sessões isoladas (`/session`):** header chrome (`overflow-x-auto`,
+  "Credencial manual" icon-only abaixo de `lg`), barra de URL e tiras com
+  scroll horizontal próprio; janelas ≥ 860px.
+- Safe areas, zoom mínimo, touch 44px: aplicáveis só como piso de robustez CSS
+  (Electron é desktop); item do rail = 52px de altura (py-2.5 + ícone 32px).
+- Console limpo em todas as rotas (768/1024/1280/1440) — verificado;
+  `prefers-reduced-motion` desabilita a transição `width` do rail.
+- Media queries do Tailwind medem a **área de conteúdo**, não o frame da janela
+  (a ~16px de moldura no Windows, uma janela de 1024px tem viewport ~1008px —
+  por isso "1024×680" exibe o rail; correto por design).
 
 ## 9. Prompt Guide (para agentes/devs)
 
@@ -341,10 +380,12 @@ Ao estender o sistema:
 6. **Novo asset de tema:** sincronizar `:root` e `.dark` — os dois temas são obrigatórios.
 7. **Ícones:** Lucide (`lucide-react`), 18–20px, `strokeWidth` padrão, `aria-hidden="true"`
    quando decorativos; `aria-label` em botões só-ícone.
-8. **Verificação:** `npm run build:renderer` → export em `out/`; screenshot real em
-   1440×900 (claro e escuro); `npx tsc --noEmit`; `npm test`; console limpo.
+8. **Verificação:** `npm run build` → `out/` + `dist-electron/`; screenshots em
+   768×640, 1024×680, 1280×800, 1440×900 (`.preview/responsive-shots.mjs`,
+   dados reais via IPC); `npm run typecheck`; `npm test`; console limpo.
 
 ---
 
-*Versão do sistema: 1.1.0 — revisado em 2026-11-13 (tela Acessos, Mercury adaptado).*
+*Versão do sistema: 1.2.0 — revisado em 2026-11-13 (responsividade total:
+rail de navegação, tabelas por prioridade, janela mínima 768×680).*
 *Referências de linguagem: Linear (awesome-design-md) + Mercury (awesome-design-md, só a tela Acessos). Sem afiliação a marcas.*
