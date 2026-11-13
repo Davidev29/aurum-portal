@@ -6,6 +6,9 @@ export interface RecipeValues {
   password: string
   document: string
   clientName: string
+  /** Valores dos campos nomeados do serviço (ex.: {{credential.codigo_empresa}}),
+   * descriptografados em memória a cada abertura de sessão. */
+  extraValues?: Record<string, string>
 }
 
 export interface RecipeActionResult {
@@ -118,12 +121,20 @@ export function buildActionScript(step: RecipeStep, values: RecipeValues): strin
     // LITERAIS JSON no momento da compilacao (com aspas): o script deve usar
     // `const PV_PASS = {{credential.password}};` — nunca entre aspas proprias.
     // Segredos nunca sao interpolados como texto cru (evita injecao).
-    const resolved = resolveRecipeTemplate(step.script ?? 'true', {
-      username: JSON.stringify(values.username ?? ''),
-      password: JSON.stringify(values.password ?? ''),
-      document: JSON.stringify(values.document ?? ''),
-      clientName: JSON.stringify(values.clientName ?? ''),
-    })
+    const resolved = resolveRecipeTemplate(
+      step.script ?? 'true',
+      {
+        username: JSON.stringify(values.username ?? ''),
+        password: JSON.stringify(values.password ?? ''),
+        document: JSON.stringify(values.document ?? ''),
+        clientName: JSON.stringify(values.clientName ?? ''),
+      },
+      values.extraValues
+        ? Object.fromEntries(
+            Object.entries(values.extraValues).map(([k, v]) => [k, JSON.stringify(v ?? '')]),
+          )
+        : undefined,
+    )
     return wrap(`
       try {
         const value = await (async () => { ${resolved} })();
@@ -160,7 +171,7 @@ export function buildActionScript(step: RecipeStep, values: RecipeValues): strin
     `)
   }
   if (step.action === 'fill') {
-    const resolved = resolveRecipeTemplate(step.value ?? '', values)
+    const resolved = resolveRecipeTemplate(step.value ?? '', values, values.extraValues)
     return wrap(`
       const el = __pvFind(${JSON.stringify(selectors)});
       if (!el) return { ok: false, selector: null, detail: 'campo nao encontrado' };
@@ -259,12 +270,14 @@ export function recipeValues(input: {
   password?: string
   document?: string
   clientName?: string
+  extraValues?: Record<string, string>
 }): RecipeValues {
   return {
     username: input.username ?? '',
     password: input.password ?? '',
     document: input.document ?? '',
     clientName: input.clientName ?? '',
+    extraValues: input.extraValues,
   }
 }
 

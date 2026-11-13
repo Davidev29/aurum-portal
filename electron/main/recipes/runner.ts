@@ -307,7 +307,7 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
     // em vez de falhar com campo vazio (ex.: abrir Redesim, cuja receita é
     // de senha, com certificado).
     if (step.action === 'fill') {
-      const resolved = resolveRecipeTemplate(step.value ?? '', values)
+      const resolved = resolveRecipeTemplate(step.value ?? '', values, values.extraValues)
       if (!resolved) continue
     }
 
