@@ -19,6 +19,7 @@ Itens de release verificados nesta entrega (2026-11-13). Os itens marcados
 ## Produto
 - [x] Gravação Assistida offline nos portais de teste (fixture local, 9 e2e)
 - [x] Campos aprendidos cifrados por credencial (AAD `credentials:{id}:field:{name}`); renderer nunca vê valores
+- [x] **Autofill por senha executado com eventos confiáveis do Chromium** (`sendInputEvent`): clique/digitação com cadência irregular, mouse em curva — hCaptcha comportamental recebe só o que um humano entregaria; testado e2e (veja build de teste autopilot 2/2)
 - [x] Telas pré-login gravadas (T1, T2...) — inclusive "tela anterior ao login"
 - [x] Fluxo com cliente e **sem cliente** (sessão descartável)
 - [x] Dois passes (certificado → senha) numa única receita
