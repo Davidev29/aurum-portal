@@ -271,7 +271,13 @@ body::before {
   pointer-events: none;
   z-index: -1;
   background:
-    linear-gradient(180deg, var(--pv-veil-top), transparent 15%, transparent 84%, var(--pv-veil-bottom)),
+    linear-gradient(
+      180deg,
+      var(--pv-veil-top),
+      transparent 15%,
+      transparent 84%,
+      var(--pv-veil-bottom)
+    ),
     linear-gradient(var(--pv-edge-specular), var(--pv-edge-specular)) 0 0 / 100% 1px no-repeat,
     var(--pv-mesh);
 }

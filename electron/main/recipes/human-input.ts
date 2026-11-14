@@ -124,10 +124,7 @@ function randBetween(random: () => number, min: number, max: number): number {
 const lastPointerPosition = new WeakMap<object, { x: number; y: number }>()
 const DEFAULT_POINTER = { x: 320, y: 240 }
 
-function pointerFor(
-  target: HumanInputTarget,
-  random: () => number,
-): { x: number; y: number } {
+function pointerFor(target: HumanInputTarget, random: () => number): { x: number; y: number } {
   let position = lastPointerPosition.get(target as unknown as object)
   if (!position) {
     position = {
@@ -168,18 +165,21 @@ function bezierPoints(
     const t = index / steps
     const oneMinus = 1 - t
     const x =
-      oneMinus ** 3 * from.x + 3 * oneMinus ** 2 * t * c1.x + 3 * oneMinus * t ** 2 * c2.x + t ** 3 * to.x
+      oneMinus ** 3 * from.x +
+      3 * oneMinus ** 2 * t * c1.x +
+      3 * oneMinus * t ** 2 * c2.x +
+      t ** 3 * to.x
     const y =
-      oneMinus ** 3 * from.y + 3 * oneMinus ** 2 * t * c1.y + 3 * oneMinus * t ** 2 * c2.y + t ** 3 * to.y
+      oneMinus ** 3 * from.y +
+      3 * oneMinus ** 2 * t * c1.y +
+      3 * oneMinus * t ** 2 * c2.y +
+      t ** 3 * to.y
     points.push({ x: Math.round(x), y: Math.round(y) })
   }
   return points
 }
 
-async function probeElement(
-  target: HumanInputTarget,
-  selectors: string[],
-): Promise<ProbeResult> {
+async function probeElement(target: HumanInputTarget, selectors: string[]): Promise<ProbeResult> {
   try {
     const result = (await target.executeJavaScript<ProbeResult | null>(
       buildProbeScript(selectors),
@@ -268,9 +268,7 @@ export interface PointInputProbe {
 }
 
 /** Encontra (via heurística de página) os campos de usuário/senha visíveis. */
-export async function probeLoginInputs(
-  target: HumanInputTarget,
-): Promise<PointInputProbe> {
+export async function probeLoginInputs(target: HumanInputTarget): Promise<PointInputProbe> {
   try {
     const result = (await target.executeJavaScript<PointInputProbe | null>(
       AGENT_PICK_INPUTS_SCRIPT,
@@ -357,8 +355,6 @@ export async function humanClickElement(
   selectors: string[],
   opts: HumanOptions = {},
 ): Promise<{ ok: boolean; detail: string }> {
-  const random = opts.random ?? Math.random
-  const sleep = opts.sleep ?? realSleep
   const send = target.sendInputEvent?.bind(target)
   if (!send) return { ok: false, detail: 'cíclico sem sendInputEvent' }
   const probe = await probeElement(target, selectors)

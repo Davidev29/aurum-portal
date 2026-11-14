@@ -984,9 +984,7 @@ export class SessionManager {
         try {
           const contents = record.view.webContents
           if (contents.isDestroyed()) return
-          contents.sendInputEvent(event as unknown as Parameters<
-            typeof contents.sendInputEvent
-          >[0])
+          contents.sendInputEvent(event as unknown as Parameters<typeof contents.sendInputEvent>[0])
         } catch {
           // view já destruída — ignore
         }

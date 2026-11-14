@@ -32,7 +32,9 @@ export function ThemeToggle() {
     media.addEventListener('change', apply)
     return () => media.removeEventListener('change', apply)
   }, [])
-  const isDark = (settings?.theme ?? 'system') === 'dark' || ((settings?.theme ?? 'system') === 'system' && systemDark)
+  const isDark =
+    (settings?.theme ?? 'system') === 'dark' ||
+    ((settings?.theme ?? 'system') === 'system' && systemDark)
 
   const toggle = async () => {
     if (!settings || saving) return

@@ -7,9 +7,11 @@ import {
   type HumanInputEvent,
   type HumanInputTarget,
 } from '../../electron/main/recipes/human-input'
-import type { RecipeTarget } from '../../electron/main/recipes/runner'
 
-function makeTarget(rect: Record<string, unknown> | null, input = true): HumanInputTarget & {
+function makeTarget(
+  rect: Record<string, unknown> | null,
+  input = true,
+): HumanInputTarget & {
   events: HumanInputEvent[]
 } {
   const events: HumanInputEvent[] = []
@@ -20,7 +22,7 @@ function makeTarget(rect: Record<string, unknown> | null, input = true): HumanIn
       calls += 1
       void calls
       if (code.includes('__huFind')) {
-        return ({ found: rect !== null, x: 200, y: 150, ...rect } as T)
+        return { found: rect !== null, x: 200, y: 150, ...rect } as T
       }
       return rect as T
     },
@@ -114,7 +116,11 @@ describe('human-input — pipeline de eventos confiáveis (hCaptcha)', () => {
       }
       return null as never
     })
-    const result = await humanFillLoginPair(target, { username: '52998224725', password: 'Secret!' }, opts)
+    const result = await humanFillLoginPair(
+      target,
+      { username: '52998224725', password: 'Secret!' },
+      opts,
+    )
     expect(result.ok).toBe(true)
     const chars = target.events.filter((e) => e.type === 'char').map((e) => e.keyCode)
     expect(chars.join('')).toBe('52998224725Secret!')
