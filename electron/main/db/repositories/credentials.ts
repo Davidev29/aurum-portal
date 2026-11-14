@@ -348,7 +348,15 @@ export function revealCredential(
   db: AppDatabase,
   vault: VaultService,
   id: string,
-): { username: string; password: string; extraValues: Record<string, string> } {
+): {
+  username: string
+  password: string
+  extraValues: Record<string, string>
+  /** Nome/papel de cada campo declarado na credencial (legenda → kind). O
+   * agente usa a legenda para localizar o input na página; os valores nunca
+   * vêm daqui. */
+  fieldSpecs: { name: string; kind: 'username' | 'password' | 'text' }[]
+} {
   const row = getCredentialRow(db, id)
   const extraValues: Record<string, string> = {}
   for (const field of row.fields ?? []) {
@@ -366,6 +374,7 @@ export function revealCredential(
     username: row.username,
     password: vault.openCredentialPassword(id, row.passwordEnc),
     extraValues,
+    fieldSpecs: (row.fields ?? []).map(({ name, kind }) => ({ name, kind })),
   }
 }
 

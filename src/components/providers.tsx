@@ -8,17 +8,50 @@ import { APP_DISPLAY_NAME } from '@shared/constants'
 import type { ImportProgressEvent } from '@shared/types'
 import { useSettings } from '@/lib/queries'
 
+// Antes da pintura no cliente (evita o "flash" de tema errado no 1º frame);
+// useEffect no SSR (Next hidrata client components também no servidor).
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect
+
+// View Transitions API (Chromium ≥111 / Electron): dissolução cross-fade da
+// janela inteira na troca de tema. Sem suporte → troca instantânea (fallback).
+type DocumentWithViewTransition = Document & {
+  startViewTransition?: (update: () => void) => { ready: Promise<void> }
+}
+
 function ThemeSync({ children }: { children: React.ReactNode }) {
   const { data } = useSettings()
   const theme = data?.theme ?? 'system'
+  const firstRun = React.useRef(true)
 
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const root = document.documentElement
     const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
     const apply = () => {
       const dark = theme === 'dark' || (theme === 'system' && media.matches)
-      root.classList.toggle('dark', dark)
+      const first = firstRun.current
+      firstRun.current = false
+      // Sem mudança efetiva (refetch com a mesma classe) → nunca anima.
+      if (root.classList.contains('dark') === dark) return
+
+      // Montagem, reduced-motion ou sem suporte → troca seca (comportamento atual).
+      if (
+        first ||
+        reducedMotion.matches ||
+        !(document as DocumentWithViewTransition).startViewTransition
+      ) {
+        root.classList.toggle('dark', dark)
+        return
+      }
+
+      // Troca de tema de fato: a janela dissolve (ver ::view-transition-* no globals.css).
+      ;(document as DocumentWithViewTransition).startViewTransition(() => {
+        root.classList.toggle('dark', dark)
+      })
     }
+
     apply()
     media.addEventListener('change', apply)
     return () => media.removeEventListener('change', apply)
@@ -47,6 +80,10 @@ function EventBridge() {
       }),
       api.events.onClientsChanged(() => {
         void queryClient.invalidateQueries({ queryKey: ['clients'] })
+        void queryClient.invalidateQueries({ queryKey: ['audit'] })
+      }),
+      api.events.onCredentialsChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: ['credentials'] })
         void queryClient.invalidateQueries({ queryKey: ['audit'] })
       }),
       api.events.onObligationsChanged(() => {

@@ -1,16 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { runAgenticLogin, agentValues } from '../../electron/main/recipes/agent'
+import { runAgenticLogin, agentValues, buildFieldRows } from '../../electron/main/recipes/agent'
 import type { RecipeTarget } from '../../electron/main/recipes/runner'
 
 interface FakeCall {
-  kind: 'observe' | 'click-cta' | 'fill' | 'advance' | 'submit' | 'unknown'
+  kind: 'observe' | 'click-cta' | 'fill' | 'field-fill' | 'advance' | 'submit' | 'unknown'
   detail: string
 }
 
-function makeFakeTarget(script: Array<Record<string, unknown>>) {
+function makeFakeTarget(
+  script: Array<Record<string, unknown>>,
+  fills?: Array<Record<string, unknown>>,
+) {
   const calls: FakeCall[] = []
   let index = 0
   const observeMap = new Map(script.entries())
+  const fillQueue = [...(fills ?? [])]
+  const fillOk = {
+    ok: true,
+    missing: [] as string[],
+    filled: [] as string[],
+    already: [] as string[],
+    coreReady: true,
+    detail: 'campos ja preenchidos',
+  }
   const target: RecipeTarget & { calls: FakeCall[] } = {
     calls,
     async executeJavaScript<T = unknown>(code: string): Promise<T> {
@@ -18,6 +30,11 @@ function makeFakeTarget(script: Array<Record<string, unknown>>) {
         // Observação: consumindo estados sequenciais.
         const state = observeMap.get(Math.min(index++, script.length - 1)) as T
         calls.push({ kind: 'observe', detail: `state ${Math.min(index, script.length) - 1}` })
+        return state
+      }
+      if (code.includes('field-match-fill')) {
+        const state = (fillQueue.shift() ?? fillOk) as unknown as T
+        calls.push({ kind: 'field-fill', detail: 'field-fill' })
         return state
       }
       if (code.includes('botao de avancar')) {
@@ -191,5 +208,191 @@ describe('runAgenticLogin', () => {
     const result = await runAgenticLogin({ values, target, sleep: noSleep, autoSubmit: false })
     expect(result.status).toBe('awaiting_login')
     expect(target.calls.map((c) => c.kind)).not.toContain('submit')
+  })
+
+  const fieldValues = agentValues({
+    username: '52998224725',
+    password: 'senha-secreta',
+    document: '52998224725',
+    clientName: 'Cliente X',
+    fields: [
+      { name: 'CPF', kind: 'username' },
+      { name: 'Senha', kind: 'password' },
+      { name: 'Código da empresa', kind: 'text' },
+    ],
+    extraValues: { 'Código da empresa': '123456' },
+  })
+
+  const emptyForm = {
+    href: 'https://portal.example.test/login',
+    userPresent: true,
+    passPresent: true,
+    userFilled: false,
+    passFilled: false,
+    inputs: 3,
+    buttons: ['entrar'],
+    captcha: false,
+    twoFactor: false,
+    loggedIn: false,
+  }
+  const filledForm = { ...emptyForm, userFilled: true, passFilled: true }
+
+  it('preenche por legenda (usuário+senha+extra) e envia; autentica', async () => {
+    const target = makeFakeTarget(
+      [
+        emptyForm,
+        filledForm,
+        {
+          href: 'https://portal.example.test/home',
+          userPresent: false,
+          passPresent: false,
+          userFilled: false,
+          passFilled: false,
+          inputs: 0,
+          buttons: ['sair'],
+          captcha: false,
+          twoFactor: false,
+          loggedIn: true,
+        },
+      ],
+      [
+        {
+          ok: true,
+          missing: [],
+          filled: ['CPF', 'Senha', 'Código da empresa'],
+          already: [],
+          coreReady: true,
+          detail: 'preenchido: CPF+Senha+Código da empresa',
+        },
+        {
+          ok: true,
+          missing: [],
+          filled: [],
+          already: ['CPF', 'Senha', 'Código da empresa'],
+          coreReady: true,
+          detail: 'campos ja preenchidos',
+        },
+      ],
+    )
+    const result = await runAgenticLogin({
+      values: fieldValues,
+      target,
+      sleep: noSleep,
+    })
+    expect(result.status).toBe('authenticated')
+    const kinds = target.calls.map((c) => c.kind)
+    expect(kinds).toContain('field-fill')
+    expect(kinds).toContain('submit')
+    expect(kinds).not.toContain('fill') // caminho legado não é usado
+  })
+
+  it('legenda não localizada → pausa manual com a legenda no recado (nunca chuta)', async () => {
+    const target = makeFakeTarget(
+      [emptyForm],
+      [
+        {
+          ok: false,
+          missing: ['Código da empresa'],
+          filled: ['CPF', 'Senha'],
+          already: [],
+          coreReady: true,
+          detail: 'preenchido: CPF+Senha',
+        },
+        {
+          ok: false,
+          missing: ['Código da empresa'],
+          filled: [],
+          already: ['CPF', 'Senha'],
+          coreReady: true,
+          detail: 'nada a preencher',
+        },
+        {
+          ok: false,
+          missing: ['Código da empresa'],
+          filled: [],
+          already: ['CPF', 'Senha'],
+          coreReady: true,
+          detail: 'nada a preencher',
+        },
+        {
+          ok: false,
+          missing: ['Código da empresa'],
+          filled: [],
+          already: ['CPF', 'Senha'],
+          coreReady: true,
+          detail: 'nada a preencher',
+        },
+        {
+          ok: false,
+          missing: ['Código da empresa'],
+          filled: [],
+          already: ['CPF', 'Senha'],
+          coreReady: true,
+          detail: 'nada a preencher',
+        },
+      ],
+    )
+    const result = await runAgenticLogin({
+      values: fieldValues,
+      target,
+      sleep: noSleep,
+    })
+    expect(result.status).toBe('manual')
+    expect(result.message).toContain('Código da empresa')
+    const kinds = target.calls.map((c) => c.kind)
+    expect(kinds).not.toContain('submit')
+  })
+
+  it('autoSubmit=false: preenche por legenda e espera o clique do usuário', async () => {
+    const target = makeFakeTarget(
+      [emptyForm, filledForm],
+      [
+        {
+          ok: true,
+          missing: [],
+          filled: ['CPF', 'Senha', 'Código da empresa'],
+          already: [],
+          coreReady: true,
+          detail: 'preenchido',
+        },
+        {
+          ok: true,
+          missing: [],
+          filled: [],
+          already: ['CPF', 'Senha', 'Código da empresa'],
+          coreReady: true,
+          detail: 'campos ja preenchidos',
+        },
+      ],
+    )
+    const result = await runAgenticLogin({
+      values: fieldValues,
+      target,
+      sleep: noSleep,
+      autoSubmit: false,
+    })
+    expect(result.status).toBe('awaiting_login')
+    expect(target.calls.map((c) => c.kind)).not.toContain('submit')
+  })
+
+  it('buildFieldRows: usuário/senha vêm das colunas; extras sem valor são descartados', () => {
+    const rows = buildFieldRows(
+      agentValues({
+        username: 'u@example.com',
+        password: 'segredo',
+        fields: [
+          { name: 'E-mail', kind: 'username' },
+          { name: 'Senha', kind: 'password' },
+          { name: 'Código', kind: 'text' },
+          { name: 'Vazio', kind: 'text' },
+        ],
+        extraValues: { Código: '999' },
+      }),
+    )
+    expect(rows).toEqual([
+      { name: 'E-mail', kind: 'username', value: 'u@example.com' },
+      { name: 'Senha', kind: 'password', value: 'segredo' },
+      { name: 'Código', kind: 'text', value: '999' },
+    ])
   })
 })

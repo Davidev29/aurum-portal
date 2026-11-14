@@ -8,22 +8,29 @@
 /* ==========================================================================
    AurumBit Portal — Design system "quiet luxury software"
    --------------------------------------------------------------------------
-   Linguagem derivada da referência Linear (catálogo awesome-design-md),
+   Linguagem derivada da referencia Linear (catalogo awesome-design-md),
    adaptada para app desktop de uso prolongado:
 
-   - Canvas dark #101014 (tinta quase-preta com viés índigo — nunca #000).
-     Ladder de superfícies panel < panel-2 < panel-3 carrega a hierarquia;
-     hairline 1px delimita, sem sombras pesadas.
-   - Light derivado dos inverse-* tokens: canvas #F6F6F8 frio, painéis
-     brancos, hairlines #E2E2E7.
-   - Um único acento cromático: lavanda Linear #5E6AD2 (CTA/foco/ativo).
-     Nada de segundo acento decorativo; semânticos só para estado.
-   - Radii enxutos: controles 8px, cards 12px, painéis 16px, pílula p/ status.
+   - Canvas dark ELEVADO #17171F (tinta indigo, nunca #000): o tom subiu ~7%
+     de luminancia para sessoes longas. Sobre ele, textura de filme (mesh
+     indigo + grain feTurbulence) e um veu de vidro iOS 26 "em repouso"
+     (especular de 1px no topo da janela). Sidebar/header viram superficies
+     translucidas (.pv-glass: backdrop-blur + saturate + especular interno).
+     Paineis, cards, dialogs e tabelas seguem opacos.
+   - Light derivado dos inverse-* tokens: canvas #F6F6F8 frio, paineis
+     brancos, hairlines #E2E2E7. Tokens de cor INTOCADOS (aprovados);
+     recebe os mesmos materiais (mesh + grain + veu) em tom aquarela.
+   - Um unico acento cromatico: lavanda Linear #5E6AD2 (CTA/foco/ativo).
+     Nada de segundo acento decorativo; semanticos so para estado.
+   - Radii enxutos: controles 8px, cards 12px, paineis 16px, pilula p/ status.
    - Tipografia: Inter (substitute aberta do Linear), tracking negativo em
-     títulos, eyebrow com tracking positivo. Corpo 14px, denso e legível.
-   - Texto AA: primário ≥ 7:1, secundário ≥ 4.5:1 nos dois temas.
-   - Cor de TEXTO ≠ fundo sólido: --pv-accent/--pv-success/... são texto;
-     fundo sólido com texto usa --pv-*-solid (champanhe descartado).
+     titulos, eyebrow com tracking positivo. Corpo 14px, denso e legivel.
+   - Texto AA: primario >= 7:1, secundario >= 4.5:1 nos dois temas.
+   - Cor de TEXTO != fundo solido: --pv-accent/--pv-success/... sao texto;
+     fundo solido com texto usa --pv-*-solid.
+
+   NOTA DE CODIFICACAO: comentarios antigos com acentacao dupla (mojibake)
+   foram preservados byte a byte; comentarios novos usam UTF-8 limpo.
    ========================================================================== */
 
 @theme {
@@ -118,28 +125,46 @@
   --pv-radius-control: 8px;
   --pv-radius-panel: 16px;
   --pv-overlay: rgba(16, 16, 20, 0.44);
+
+  /* Liquid glass (iOS 26 repouso) + textura do canvas. O claro mantem os
+   * tokens de cor intactos; recebe os mesmos materiais em tom de aquarela. */
+  --pv-mesh:
+    radial-gradient(1080px 540px at 82% -16%, rgba(94, 106, 210, 0.22), transparent 64%),
+    radial-gradient(840px 480px at -13% 112%, rgba(94, 106, 210, 0.15), transparent 62%),
+    radial-gradient(700px 560px at 47% 126%, rgba(130, 143, 255, 0.16), transparent 60%);
+  --pv-veil-top: rgba(255, 255, 255, 0.14);
+  --pv-veil-bottom: rgba(23, 24, 28, 0.05);
+  --pv-edge-specular: rgba(255, 255, 255, 0.9);
+  --pv-grain-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  --pv-grain-opacity: 0.06;
+  --pv-glass-fill: rgba(255, 255, 255, 0.68);
+  --pv-glass-fallback: rgba(255, 255, 255, 0.94);
+  --pv-glass-blur: 20px;
+  --pv-glass-saturate: 1.5;
+  --pv-glass-specular: rgba(255, 255, 255, 0.8);
 }
 
 .dark {
   color-scheme: dark;
 
-  /* Canvas — tinta quase-preta com viés índigo (nunca #000 puro) */
-  --pv-bg: #101014;
+  /* Canvas — tinta elevada com viés índigo (nunca #000 puro) */
+  --pv-bg: #17171f;
   /* Surface ladder 1..3 */
-  --pv-panel: #17171c;
-  --pv-panel-2: #1d1d24;
-  --pv-panel-3: #23232b;
-  --pv-inset: #0b0b0f;
+  --pv-panel: #1f1f27;
+  --pv-panel-2: #26262f;
+  --pv-panel-3: #2d2d38;
+  --pv-inset: #13131a;
 
   /* Hairlines — metálicas, sem "friagem" azul */
-  --pv-border: #25252d;
-  --pv-border-strong: #383845;
-  --pv-border-subtle: #1d1d24;
+  --pv-border: #2d2d36;
+  --pv-border-strong: #43434f;
+  --pv-border-subtle: #23232c;
 
   /* Texto — off-white aquecido */
   --pv-text: #f2f2f6;
   --pv-muted: #bec0ca;
-  --pv-faint: #8b8e99;
+  /* Levantado de #8b8e99: mantem AA 4.5:1 tambem no novo panel-3 (#2d2d38) */
+  --pv-faint: #9b9ea9;
 
   /* Acento — lavanda clara sobre escuro; o CTA mantém o primary Linear */
   --pv-accent: #a5adff;
@@ -186,6 +211,20 @@
   --pv-ring: 0 0 0 3px rgba(130, 143, 255, 0.38);
   --pv-ring-danger: 0 0 0 3px rgba(255, 99, 105, 0.32);
   --pv-overlay: rgba(5, 5, 8, 0.62);
+
+  /* Liquid glass + textura — versao noturna (mesh mais profundo, vidro fumê) */
+  --pv-mesh:
+    radial-gradient(1100px 560px at 82% -16%, rgba(133, 141, 255, 0.13), transparent 64%),
+    radial-gradient(880px 520px at -13% 112%, rgba(94, 106, 210, 0.11), transparent 62%),
+    radial-gradient(760px 560px at 46% 128%, rgba(130, 143, 255, 0.085), transparent 62%);
+  --pv-veil-top: rgba(226, 229, 255, 0.06);
+  --pv-veil-bottom: rgba(0, 0, 0, 0.3);
+  --pv-edge-specular: rgba(226, 229, 255, 0.14);
+  --pv-grain-opacity: 0.05;
+  --pv-glass-fill: rgba(31, 31, 41, 0.66);
+  --pv-glass-fallback: rgba(31, 31, 39, 0.94);
+  --pv-glass-saturate: 1.6;
+  --pv-glass-specular: rgba(255, 255, 255, 0.1);
 }
 
 @layer base {
@@ -218,22 +257,50 @@ body {
   letter-spacing: -0.011em;
 }
 
-/* Atmosfera — um único véu de índigo, quase imperceptível (nunca um arco-íris) */
+/* ==========================================================================
+   Canvas atmosphere — textura + liquid glass (ambos os temas)
+   1) body::before  — mesh (3 radiais por tema, cantos, so lavanda/indigo) +
+      veu vertical de vidro + especular de 1px no topo da janela.
+   2) body::after   — grain de filme (feTurbulence estatico, soft-light).
+   Ambos fixos, pointer-events:none, z-index -1 (atras do conteudo).
+   ========================================================================== */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(900px 420px at 78% -12%, rgba(94, 106, 210, 0.08), transparent 65%),
-    radial-gradient(720px 360px at -8% 112%, rgba(94, 106, 210, 0.06), transparent 62%);
   z-index: -1;
+  background:
+    linear-gradient(180deg, var(--pv-veil-top), transparent 15%, transparent 84%, var(--pv-veil-bottom)),
+    linear-gradient(var(--pv-edge-specular), var(--pv-edge-specular)) 0 0 / 100% 1px no-repeat,
+    var(--pv-mesh);
 }
 
-.dark body::before {
-  background:
-    radial-gradient(900px 420px at 78% -12%, rgba(130, 143, 255, 0.1), transparent 65%),
-    radial-gradient(720px 360px at -8% 112%, rgba(94, 106, 210, 0.09), transparent 62%);
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image: var(--pv-grain-image);
+  background-size: 180px 180px;
+  opacity: var(--pv-grain-opacity);
+  mix-blend-mode: soft-light;
+}
+
+/* Superficies de vidro — sidebar/header (liquid glass em repouso).
+ * Painéis, cards, dialogs e tabelas continuam opacos (AA + performance). */
+.pv-glass {
+  background: var(--pv-glass-fill);
+  -webkit-backdrop-filter: blur(var(--pv-glass-blur)) saturate(var(--pv-glass-saturate));
+  backdrop-filter: blur(var(--pv-glass-blur)) saturate(var(--pv-glass-saturate));
+  box-shadow: inset 0 1px 0 var(--pv-glass-specular);
+}
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .pv-glass {
+    background: var(--pv-glass-fallback);
+    box-shadow: none;
+  }
 }
 
 ::selection {
@@ -1118,6 +1185,28 @@ body::before {
   --info-text: var(--pv-info);
 }
 
+/* ==========================================================================
+   Transição de tema — dissolução suave via View Transitions (Chromium/Electron)
+   A janela inteira dissolve de uma paleta para a outra (~500ms, ease-in-out),
+   no espírito do gesto do macOS. Disparada apenas em troca EFETIVA de tema
+   (providers.tsx): montagem, reduced-motion e browsers sem suporte fazem
+   troca instantânea, nunca animada.
+   ========================================================================== */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.5s;
+  /* ease-in-out simétrica (quart-ish) — dissolução cinematográfica,
+   * meio-do-caminho visivelmente 50/50, sem "arranco" na abertura */
+  animation-timing-function: cubic-bezier(0.45, 0, 0.15, 1);
+  animation-fill-mode: both;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1125,5 +1214,9 @@ body::before {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
   }
 }

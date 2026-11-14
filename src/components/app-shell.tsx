@@ -20,6 +20,7 @@ import { useSessions } from '@/lib/queries'
 import { Badge } from './ui/badge'
 import { LiveClock } from './live-clock'
 import { NotificationCenter } from './notification-center'
+import { ThemeToggle } from './theme-toggle'
 
 const navigation = [
   {
@@ -68,14 +69,14 @@ export function AppShell({
   const current = allItems.find((item) => isActive(pathname, item.href))
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--pv-bg)]">
+    <div className="flex h-screen overflow-hidden bg-transparent">
       <a
         href="#app-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-[var(--pv-radius-control)] focus:border focus:border-[var(--pv-border)] focus:bg-[var(--pv-panel)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[var(--pv-text)] focus:shadow-lg"
       >
         Pular para o conteúdo
       </a>
-      <aside className="flex w-[76px] shrink-0 flex-col border-r border-[var(--pv-border)] bg-[var(--pv-panel)] transition-[width] duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] lg:w-[264px]">
+      <aside className="pv-glass flex w-[76px] shrink-0 flex-col border-r border-[var(--pv-border)] transition-[width] duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] lg:w-[264px]">
         <div className="flex h-[72px] shrink-0 items-center justify-center gap-3 border-b border-[var(--pv-border)] px-2 lg:justify-start lg:px-6">
           <div className="relative shrink-0">
             <img
@@ -162,7 +163,7 @@ export function AppShell({
         tabIndex={-1}
         className="flex min-w-0 flex-1 flex-col overflow-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pv-accent-solid)]"
       >
-        <div className="relative flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[var(--pv-border)] bg-[var(--pv-panel)]/85 px-3 backdrop-blur supports-[backdrop-filter]:bg-[var(--pv-panel)]/80 sm:gap-4 sm:px-6">
+        <div className="pv-glass relative flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[var(--pv-border)] px-3 sm:gap-4 sm:px-6">
           <nav
             className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--pv-muted)]"
             aria-label="Caminho"
@@ -180,6 +181,7 @@ export function AppShell({
             <LiveClock />
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <ThemeToggle />
             <NotificationCenter />
             {openSessions > 0 ? (
               <Link

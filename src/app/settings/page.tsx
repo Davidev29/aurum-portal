@@ -884,7 +884,7 @@ export default function SettingsPage() {
 
           {/* Barra de ações fixa — fácil de alcançar na rolagem */}
           <div className="sticky bottom-4 z-10 pb-1 pt-1">
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)]/90 px-4 py-3 shadow-[var(--pv-shadow-lg)] backdrop-blur">
+            <div className="pv-glass flex items-center justify-between gap-3 rounded-2xl border border-[var(--pv-border)] px-4 py-3 shadow-[var(--pv-shadow-lg)]">
               <p className="flex min-w-0 items-center gap-2 text-xs text-[var(--pv-muted)]">
                 <span
                   aria-hidden="true"

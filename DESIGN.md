@@ -12,10 +12,14 @@
 
 ## 1. Tema
 
-**Resumo em uma frase:** "quiet luxury software" — canvas tinta-quase-preta com
-viés índigo no escuro; canvas frio com painéis de folha branca no claro; um
-único acento cromático (lavanda Linear `#5E6AD2`); hairlines de 1px e ladder de
-superfícies carregam a hierarquia — nunca sombras pesadas nem arco-íris.
+**Resumo em uma frase:** "quiet luxury software" — canvas tinta-índigo
+**elevado** (`#17171F`) com textura de filme (mesh índigo + grain) e um véu de
+vidro "liquid glass" (iOS 26 em repouso: especular de 1px no topo da janela,
+sidebar/header translúcidos com `backdrop-blur`) no escuro; o mesmo sistema de
+textura/vidro em tom aquarela sobre o canvas frio no claro (tokens do claro
+intocáveis); um único acento cromático (lavanda Linear `#5E6AD2`); hairlines
+de 1px e ladder de superfícies carregam a hierarquia — nunca sombras pesadas
+nem arco-íris.
 
 - **Contexto:** app de gestão contábil/gov.br (kind: software), denso e técnico,
   para profissionais que usam o sistema o dia inteiro.
@@ -25,7 +29,8 @@ superfícies carregam a hierarquia — nunca sombras pesadas nem arco-íris.
 - **Adaptação da referência:** Linear é dark-first; aqui o **tema claro foi
   derivado** do `inverse-*` do Linear (canvas branco puro → substituído por um
   canvas frio `#F6F6F8` com painéis brancos) e o escuro parte de `surface-1`
-  `#0F1011`, elevado para `#101014` (menos fadiga em sessões longas).
+  `#0F1011`, elevado para `#101014` em 2026-11 e depois para `#17171F`
+  (menos fadiga em sessões longas; contraste re-medido e aprovado).
 - **Accent scarcity:** lavanda só em CTA primário, foco, item de navegação ativo,
   links e chips de identidade (gov.br). Semânticos (verde/âmbar/vermelho) só para
   estado. Nunca dois acentos decorativos.
@@ -43,18 +48,18 @@ superfícies carregam a hierarquia — nunca sombras pesadas nem arco-íris.
 
 | Token | Valor | Uso |
 |---|---|---|
-| `--pv-bg` | `#101014` | canvas da janela (nunca `#000`) |
-| `--pv-panel` | `#17171c` | surface-1: cards, sidebar, header, dialog |
-| `--pv-panel-2` | `#1d1d24` | surface-2: hover, chips, toolbar interna |
-| `--pv-panel-3` | `#23232b` | surface-3: ícone ativo de seção |
-| `--pv-inset` | `#0b0b0f` | poços e trilhos |
-| `--pv-border` | `#25252d` | hairline 1px padrão |
-| `--pv-border-strong` | `#383845` | hairline forte (inputs/hover) |
-| `--pv-border-subtle` | `#1d1d24` | divisores internos |
-| `--pv-text` | `#f2f2f6` | primário (≈14,8:1 no canvas) |
-| `--pv-muted` | `#bec0ca` | secundário (≥ 8:1) |
-| `--pv-faint` | `#8b8e99` | terciário/labels (≈4,6:1 no painel) |
-| `--pv-accent` | `#a5adff` | lavanda **texto** no escuro (9,1:1) |
+| `--pv-bg` | `#17171f` | canvas da janela (nunca `#000`) — elevado 2026-11-13 |
+| `--pv-panel` | `#1f1f27` | surface-1: cards, sidebar (vidro `.pv-glass` sobre o canvas), header, dialog |
+| `--pv-panel-2` | `#26262f` | surface-2: hover, chips, toolbar interna |
+| `--pv-panel-3` | `#2d2d38` | surface-3: ícone ativo de seção |
+| `--pv-inset` | `#13131a` | poços e trilhos |
+| `--pv-border` | `#2d2d36` | hairline 1px padrão |
+| `--pv-border-strong` | `#43434f` | hairline forte (inputs/hover) |
+| `--pv-border-subtle` | `#23232c` | divisores internos |
+| `--pv-text` | `#f2f2f6` | primário (15,9:1 no canvas) |
+| `--pv-muted` | `#bec0ca` | secundário (9,8:1) |
+| `--pv-faint` | `#9b9ea9` | terciário/labels (6,7:1 no canvas; 5,1:1 no panel-3) |
+| `--pv-accent` | `#a5adff` | lavanda **texto** no escuro (8,5:1) |
 | `--pv-accent-solid` | `#5e6ad2` | CTA sólido (branco sobre ele: 4,7:1 ✓ AA) |
 | `--pv-accent-solid-hover` | `#6e77de` | hover do CTA (branco sobre: 4,8:1 ✓) |
 | `--pv-accent-strong` | `#828fff` | lavanda clara ênfase |
@@ -107,6 +112,39 @@ superfícies carregam a hierarquia — nunca sombras pesadas nem arco-íris.
   (`rgba(94,106,210,.35)` / `rgba(130,143,255,.38)`).
 - Overlay de modais: `rgba(16,16,20,.44)` claro / `rgba(5,5,8,.62)` escuro + `backdrop-blur-sm`.
 - Skeleton shimmer: `rgba(255,255,255,.55)` claro / `.06` escuro.
+
+### Canvas — textura + liquid glass (ambos os temas, 2026-11-13)
+
+O canvas deixou de ser cor chapada: recebe **grain de filme** + **mesh** índigo
+e veste um **véu de vidro** ("liquid glass" iOS 26 em repouso). Tudo fixo,
+`pointer-events:none`, `z-index:-1` (atrás de todo conteúdo); nada anima.
+
+| Camada | Token | Claro | Escuro |
+|---|---|---|---|
+| Mesh (3 radiais nos cantos, só lavanda→índigo) | `--pv-mesh` | α .22/.15/.16 sobre `#f6f6f8` | α .13/.11/.085 sobre `#17171f` |
+| Véu vertical + especular 1px no topo | `--pv-veil-top` | `rgba(255,255,255,.14)` | `rgba(226,229,255,.06)` |
+| | `--pv-veil-bottom` | `rgba(23,24,28,.05)` | `rgba(0,0,0,.3)` |
+| | `--pv-edge-specular` | `rgba(255,255,255,.9)` | `rgba(226,229,255,.14)` |
+| Grain (SVG `feTurbulence`, soft-light) | `--pv-grain-image` | `url("data:image/svg+xml,…")` (compartilhado) | idem |
+| | `--pv-grain-opacity` | `.06` | `.05` |
+| Vidro — fill | `--pv-glass-fill` | `rgba(255,255,255,.68)` | `rgba(31,31,41,.66)` |
+| Vidro — fallback (sem `backdrop-filter`, via `@supports`) | `--pv-glass-fallback` | `rgba(255,255,255,.94)` | `rgba(31,31,39,.94)` |
+| Vidro — blur / saturação / especular interno | `--pv-glass-blur` / `--pv-glass-saturate` / `--pv-glass-specular` | `20px` / `1.5` / `rgba(255,255,255,.8)` | `20px` (herdado) / `1.6` / `rgba(255,255,255,.1)` |
+
+**`.pv-glass`** (superfícies reais de vidro — sidebar, header da shell, header
+da sessão isolada, barra de ações fixa das Configurações): fill translúcido
+(light `rgba(255,255,255,.68)` / dark `rgba(31,31,41,.66)`) +
+`backdrop-filter: blur(20px) saturate(1.5/1.6)` + especular interno no topo
+(`box-shadow: inset 0 1px 0`). Fallback sem suporte: `@supports not
+(backdrop-filter)` → fill sobe para α `.94` (vidro vira painel quase opaco).
+
+**Nunca em painéis/cards/tabelas/dialogs** (AA + performance); blur só nas
+superfícies de função. Painéis seguem opacos.
+**Sombreado de seleção/foco/overlay:** inalterados.
+
+Contraste re-medido (`.preview/contrast.mjs` + medição na build): text 15,9 ·
+muted 9,8 · faint 6,7 (canvas) / 5,1 (panel-3) · accent 8,5 — todos AA.
+Texturas são estáticas: `prefers-reduced-motion` respeitado por construção.
 
 ### Escala `brand` (Tailwind, mapeada ao lavanda)
 
@@ -213,7 +251,9 @@ Tela inicial ("Acessos", rota `/`). Mercury adaptado (ver §2). Regras do card:
 
 ### Navegação (`components/app-shell.tsx`)
 - Sidebar **dois modos**: completa 264px (≥ `lg`, 1024px) e **rail de ícones 76px**
-  (< `lg`); `--pv-panel`, borda direita hairline; transição `width` 200ms.
+  (< `lg`); **superfície de vidro** (`.pv-glass` — fill translúcido +
+  backdrop-blur + especular no topo) sobre o canvas texturizado, borda
+  direita hairline; transição `width` 200ms.
   Seções: OPERAÇÃO / TRABALHO / SISTEMA (eyebrow 10.5px faint, só no modo completo).
 - No rail: rótulos ocultos, `title` nativo + `aria-label` com o nome do item, ícone
   32px centralizado (`justify-center`), seções ocultas, badge de sessões vira
@@ -224,9 +264,15 @@ Tela inicial ("Acessos", rota `/`). Mercury adaptado (ver §2). Regras do card:
   em `--pv-accent` (fundo lavanda suave, sem barra lateral).
   **Hover:** `--pv-panel-2`, ícone sobe para `--pv-panel-3`.
 - Badge de sessões abertas: `--pv-success-solid` + texto branco, `pv-anim-check-pop`.
-- Header 64px: breadcrumb crumb + nome da tela (`pv-anim-slide-right` a cada rota),
-  relógio ao vivo ao centro (`xl+`), `NotificationCenter` + chip de sessões à direita
+- Header 64px: **superfície de vidro** (`.pv-glass`), borda inferior hairline;
+  breadcrumb crumb + nome da tela (`pv-anim-slide-right` a cada rota),
+  relógio ao vivo ao centro (`xl+`), `ThemeToggle` (`components/theme-toggle.tsx`:
+  lua/sol, ao lado do sininho; binário claro↔escuro, grava o tema explícito
+  via `settings.set` e invalida o cache — o "Seguir o Windows" segue no select
+  de Configurações) + `NotificationCenter` + chip de sessões à direita
   (chip: texto completo `xl+`, só ícone+contagem abaixo).
+- Sessão isolada (`/session`) e barra de ações fixa das Configurações usam a
+  mesma `.pv-glass` (nunca painéis opacos duplicando o vidro).
 
 ### Tabela (`ui/table.tsx`)
 - Header: **sem preenchimento**, label 11px CAPS `--pv-faint` tracking `.08em`,
@@ -254,6 +300,15 @@ Tela inicial ("Acessos", rota `/`). Mercury adaptado (ver §2). Regras do card:
 - Padrões: press `scale .96/.97`; listas com `pv-stagger`; entradas `pv-fade-up`;
   ícones `pv-anim-check-pop`; favoritos `pv-star-pop`; "ao vivo" `pv-live-dot`;
   páginas `pv-page-transition` na troca de rota (via `key={pathname}`).
+- **Troca de tema (2026-11-13):** dissolução ("cross-fade") da janela inteira
+  via View Transitions API (Chromium ≥111 / Electron) — `::view-transition-old/new(root)`
+  com `animation-duration .5s` e curva ease-in-out `cubic-bezier(.45,0,.15,1)`
+  (dissolução cinematográfica, meio 50/50). Disparo **só em troca efetiva** de
+  tema, em `components/providers.tsx` (`ThemeSync`): montagem,
+  `prefers-reduced-motion: reduce` e engines sem suporte fazem a troca
+  instantânea. `useLayoutEffect` isomórfico aplica a classe `.dark` antes da
+  primeira pintura (acabou o "flash" de tema errado no boot). Seletor de tema
+  da página Configurações e `ThemeToggle` (header) compartilham o mesmo caminho.
 - Cena de autenticação (`components/session/boot-loader.tsx` + `boot-loader.css`):
   "cofre" escuro índigo (#0e0e13→#0a0a0f), grade `rgba(133,141,255,.05)`,
   spinner duplo lavanda — tela única de espera para TODAS as autenticações.
@@ -294,13 +349,17 @@ diferente não se aplica entre origens). Regras globais de elemento vivem em
 
 | Nível | Claro | Escuro |
 |---|---|---|
-| 0 — canvas | `#f6f6f8` (sem sombra) | `#101014` (sem sombra) |
-| 1 — card | `#ffffff` + `--pv-shadow-sm` | `#17171c` + hairline |
-| 2 — raised/hover | `--pv-shadow-md` | `#1d1d24` + hairline forte |
-| 3 — overlay/top | `--pv-shadow-lg` | `#23232b` + `--pv-shadow-lg` |
+| 0 — canvas | `#f6f6f8` (sem sombra) | `#17171f` (sem sombra) |
+| 1 — card | `#ffffff` + `--pv-shadow-sm` | `#1f1f27` + hairline |
+| 2 — raised/hover | `--pv-shadow-md` | `#26262f` + hairline forte |
+| 3 — overlay/top | `--pv-shadow-lg` | `#2d2d38` + `--pv-shadow-lg` |
 | Focus | `outline 2px accent + offset 2px` | idem |
 
-- No escuro a profundidade vem da **ladder**, não de sombras (bordas metálicas).
+- No escuro a profundidade vem da **ladder**, não de sombras (bordas metálicas);
+  o canvas carrega profundidade própria (mesh + grain + véu de vidro com
+  especular de 1px no topo) — nunca replicar isso em área interna de conteúdo.
+- O vidro (`.pv-glass`) é reservado às superfícies de **função** (navegação e
+  barras de ação fixas): logo acima do canvas texturizado, abaixo dos painéis.
 - No claro, sombras de baixa opacidade (≤ 0,13) em camadas (`--pv-shadow[...]`).
 - Cards elevam **só** sombra/borda — nunca `translateY` permanente. O card de
   acesso (`pv-access-card`) nem sequer usa isso: a elevação é **tonal**
@@ -330,6 +389,10 @@ diferente não se aplica entre origens). Regras globais de elemento vivem em
   ações sólidas, nunca nome de portal em peso ≥ 600, nunca badge para o que é
   texto quiet (origem/automação).
 - Não usar branco sobre `--pv-accent` translúcido — sempre `--pv-on-accent` sobre `--pv-accent-solid`.
+- Não dar `backdrop-filter` a painéis, cards, tabelas ou dialogs (vidro só nas
+  superfícies de função via `.pv-glass`); não usar mesh fora de lavanda→índigo;
+  não animar grain/mesh/véu (sempre estáticos); não remover o hairline estrutural
+  da sidebar/header (o especular é enfeite, não fronteira).
 
 ## 8. Responsividade
 
@@ -378,14 +441,24 @@ Ao estender o sistema:
 5. **Animação nova:** declarar keyframes no `globals.css` com `prefers-reduced-motion`
    respeitado; usar `pv-anim-*` existentes antes de criar novos.
 6. **Novo asset de tema:** sincronizar `:root` e `.dark` — os dois temas são obrigatórios.
-7. **Ícones:** Lucide (`lucide-react`), 18–20px, `strokeWidth` padrão, `aria-hidden="true"`
+7. **Canvas/vidro:** nunca adicionar `backdrop-filter` a painéis, cards, tabelas
+   ou dialogs; vidro só nas superfícies de função (sidebar/header/barras fixas)
+   via `.pv-glass`. Grain/mesh são estáticos — não animar. Hex literais de
+   textura vivem só em `globals.css` (tokens `--pv-mesh`, `--pv-veil-*`,
+   `--pv-grain-*`, `--pv-glass-*`); nunca `#000` no canvas nem mesh fora de
+   lavanda→índigo (um único acento cromático).
+8. **Ícones:** Lucide (`lucide-react`), 18–20px, `strokeWidth` padrão, `aria-hidden="true"`
    quando decorativos; `aria-label` em botões só-ícone.
-8. **Verificação:** `npm run build` → `out/` + `dist-electron/`; screenshots em
+9. **Verificação:** `npm run build` → `out/` + `dist-electron/`; screenshots em
    768×640, 1024×680, 1280×800, 1440×900 (`.preview/responsive-shots.mjs`,
    dados reais via IPC); `npm run typecheck`; `npm test`; console limpo.
 
 ---
 
-*Versão do sistema: 1.2.0 — revisado em 2026-11-13 (responsividade total:
-rail de navegação, tabelas por prioridade, janela mínima 768×680).*
+*Versão do sistema: 1.5.0 — revisado em 2026-11-13 (canvas: dark elevado
+`#17171F` + ladder re-medida; textura mesh+grain nos dois temas; líquido
+"liquid glass" iOS 26 em repouso — véu + especular de 1px; `.pv-glass`
+(backdrop-blur) na sidebar/header/sessão/barra fixa; paleta clara intacta;
+`ThemeToggle` no header, ao lado do sininho; troca de tema com dissolução
+via View Transitions, sem flash de tema no boot).*
 *Referências de linguagem: Linear (awesome-design-md) + Mercury (awesome-design-md, só a tela Acessos). Sem afiliação a marcas.*

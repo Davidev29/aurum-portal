@@ -24,6 +24,7 @@ import type {
   Credential,
   CredentialCreateInput,
   CredentialFilter,
+  CredentialRevealResult,
   CredentialUpdateInput,
   CnpjLookupResult,
   Department,
@@ -214,6 +215,7 @@ export const IPC = {
     clientsChanged: 'clients:changed',
     clientsRefreshProgress: 'clients:refreshProgress',
     servicesChanged: 'services:changed',
+    credentialsChanged: 'credentials:changed',
     importProgress: 'import:progress',
     downloadProgress: 'download:progress',
     appLocked: 'app:locked',
@@ -860,6 +862,7 @@ export interface AurumBitPortalEvents {
   onSessionsChanged(callback: (sessions: PortalSession[]) => void): () => void
   onCertificatesChanged(callback: () => void): () => void
   onClientsChanged(callback: () => void): () => void
+  onCredentialsChanged(callback: () => void): () => void
   onClientsRefreshProgress(callback: (progress: ClientBrasilApiRefreshProgress) => void): () => void
   onServicesChanged(callback: () => void): () => void
   onImportProgress(callback: (progress: ImportProgressEvent) => void): () => void
@@ -900,8 +903,13 @@ export interface AurumBitPortalApi {
     create(input: CredentialCreateInput): Promise<Credential>
     update(id: string, input: CredentialUpdateInput): Promise<Credential>
     delete(id: string): Promise<void>
-    reveal(id: string): Promise<{ password: string; expiresAt: string }>
-    copy(id: string): Promise<{ expiresAt: string }>
+    /** Todos os campos declarados, resolvidos em memória (extras já
+     * descriptografados). Nada persiste. */
+    reveal(id: string): Promise<CredentialRevealResult>
+    /** Copia um campo para a área de transferência (limpeza automática).
+     * Sem `field`, copia a senha principal. O texto claro não passa pelo
+     * renderer — a cópia acontece no processo principal. */
+    copy(id: string, field?: string): Promise<{ expiresAt: string }>
     generate(options: Partial<PasswordGeneratorOptions>): Promise<GeneratedPassword>
     setDefault(id: string): Promise<Credential>
   }

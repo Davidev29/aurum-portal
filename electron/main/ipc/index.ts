@@ -704,6 +704,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       clientId: credential.clientId,
       serviceId: credential.serviceId,
     })
+    broadcast(IPC.events.credentialsChanged, null)
     return credential
   })
   handle(IPC.credentials.update, idInputSchema, ({ id, input }) => {
@@ -711,6 +712,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     audit('credential.updated', 'credential', id, {
       passwordChanged: input.password !== undefined,
     })
+    broadcast(IPC.events.credentialsChanged, null)
     return credential
   })
   handle(IPC.credentials.delete, idPayloadSchema, ({ id }) => {
@@ -720,23 +722,59 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       clientId: row.clientId,
       serviceId: row.serviceId,
     })
+    broadcast(IPC.events.credentialsChanged, null)
     return undefined
   })
   handle(IPC.credentials.reveal, idPayloadSchema, ({ id }) => {
     throttled(`reveal:${id}`, 800)
     const secret = revealCredential(db, vault, id)
     const settings = getSettings(db)
-    audit('credential.revealed', 'credential', id, { reason: 'manual-reveal' })
+    audit('credential.revealed', 'credential', id, {
+      reason: 'manual-reveal',
+      extras: secret.fieldSpecs.filter((field) => field.kind === 'text').map((f) => f.name),
+    })
+    const fields = secret.fieldSpecs.map((spec) => ({
+      name: spec.name,
+      kind: spec.kind,
+      value:
+        spec.kind === 'username'
+          ? secret.username
+          : spec.kind === 'password'
+            ? secret.password
+            : (secret.extraValues[spec.name] ?? null),
+    }))
     return {
+      username: secret.username,
       password: secret.password,
+      fields,
       expiresAt: new Date(Date.now() + settings.passwordRevealSeconds * 1000).toISOString(),
     }
   })
-  handle(IPC.credentials.copy, idPayloadSchema, ({ id }) => {
+  const credentialCopyPayloadSchema = z.object({
+    id: idSchema,
+    /** Legenda exata do campo; ausente = senha principal. */
+    field: z.string().trim().min(1).max(100).optional(),
+  })
+  handle(IPC.credentials.copy, credentialCopyPayloadSchema, ({ id, field }) => {
     throttled(`copy:${id}`, 800)
     const secret = revealCredential(db, vault, id)
     const settings = getSettings(db)
-    const copied = secret.password
+    let copied: string
+    if (!field) {
+      copied = secret.password
+    } else {
+      const spec = secret.fieldSpecs.find((item) => item.name === field)
+      if (!spec) throw new AppError('NOT_FOUND', `Campo "${field}" não existe nesta credencial`)
+      if (spec.kind === 'username') copied = secret.username
+      else if (spec.kind === 'password') copied = secret.password
+      else {
+        const value = secret.extraValues[spec.name]
+        if (value === undefined) {
+          throw new AppError('NOT_FOUND', `Campo "${field}" não tem valor salvo`)
+        }
+        copied = value
+      }
+    }
     void clipboard.writeText(copied)
     setTimeout(() => {
       void clipboard
@@ -750,6 +788,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     }, settings.clipboardClearSeconds * 1000).unref()
     audit('credential.copied', 'credential', id, {
       clearAfterSeconds: settings.clipboardClearSeconds,
+      field: field ?? 'password',
     })
     return {
       expiresAt: new Date(Date.now() + settings.clipboardClearSeconds * 1000).toISOString(),
@@ -765,6 +804,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
   handle(IPC.credentials.setDefault, idPayloadSchema, ({ id }) => {
     const credential = setDefaultCredential(db, id)
     audit('credential.default_changed', 'credential', id, { clientId: credential.clientId })
+    broadcast(IPC.events.credentialsChanged, null)
     return credential
   })
 

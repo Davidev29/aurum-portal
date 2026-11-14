@@ -147,6 +147,26 @@ export interface CredentialField {
   enc?: 'aes-256-gcm'
 }
 
+/** Valor revelado de um campo da credencial — só existe em memória, durante a
+ * revelação manual no “olhinho”. Nunca é persistido nem registrado em log. */
+export interface CredentialFieldReveal {
+  /** Legenda/nome salvo (ex.: 'CPF', 'Senha', 'Código da empresa'). */
+  name: string
+  kind: 'username' | 'password' | 'text'
+  /** Texto claro — `null` quando o campo foi salvo sem valor ou o envelope
+   * não pôde ser aberto. */
+  value: string | null
+}
+
+/** Resposta de `credentials:reveal` — todos os campos declarados de uma vez. */
+export interface CredentialRevealResult {
+  username: string
+  password: string
+  fields: CredentialFieldReveal[]
+  /** Instante em que a exibição expira (a mesma janela vale para todos). */
+  expiresAt: string
+}
+
 export interface RecipeSummary {
   id: string
   serviceId: string

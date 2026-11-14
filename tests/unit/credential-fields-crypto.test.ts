@@ -87,6 +87,8 @@ describe('credential fields — cifragem AAD e preservação', () => {
       const revealed = revealCredential(db, vault, created.id)
       expect(revealed.extraValues['f_codigo_empresa']).toBe('CODIGO-123')
       expect(revealed.password).toBe('p@ssw0rd!')
+      // Agente/gestor recebe o mapa legenda→papel (sem valores):
+      expect(revealed.fieldSpecs).toEqual([{ name: 'f_codigo_empresa', kind: 'text' }])
     } finally {
       close()
     }

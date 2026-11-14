@@ -15,11 +15,7 @@
  */
 import { safeExecute, type RecipeTarget } from './runner'
 import { probeReadiness, type ReadinessProbeSample } from './readiness'
-import {
-  humanClickElement,
-  humanFillLoginPair,
-  type HumanInputTarget,
-} from './human-input'
+import { humanClickElement, humanFillLoginPair, type HumanInputTarget } from './human-input'
 
 /** Teto de parede do ciclo do agente (uma sessão de login). */
 const AGENT_WALL_BUDGET_MS = 120_000
@@ -646,12 +642,7 @@ export async function runAgenticLogin(options: AgentOptions): Promise<AgentResul
       if (typeof humanTarget?.sendInputEvent === 'function') {
         const clicked = await clickFirstHuman(
           humanTarget,
-          [
-            'input[type="image"]',
-            'button[type="submit"]',
-            'input[type="submit"]',
-            `text=${cta}`,
-          ],
+          ['input[type="image"]', 'button[type="submit"]', 'input[type="submit"]', `text=${cta}`],
           sleep,
         )
         if (clicked.ok) {
