@@ -922,28 +922,33 @@ Escopo entregue (além do previsto): schema aditivo completo (`origin`/`recorded
 (portais **nascem visíveis**, nunca rodam o robô), IPC `wizard:*` + guarda de fechamento + teto 15 min + `before-quit`, assistente no modal (etapas 1–4: dados → ensinar → gravar → revisão → salvo), chrome do portal com barra "Concluir gravação", "Reconfigurar robô" para acessos existentes, robô gravado tem prioridade sobre o agente (`fallback.ts` + `failureCode` no runner), IP-host fix na allowlist, `docs/robot-wizard/*`, e2e `wizard-recording.spec.ts`.
 **Decisões de produto desta fase:** ensinar sem cliente permitido para senha; certificado exige cliente/A1 (o certificado é do cliente).
 
-### Fase 2 — Telemetria (E2) → `readiness.ts` — ✅ TELEMETRIA COLETADA / IMPLEMENTAÇÃO EM CURSO
-1. **Probe medição (feito via browser, páginas públicas)**: e-CAC / gov.br SSO / gov.br-empresas-e-negócios com `performance.getEntriesByType` — ver tabela acima. Isenção de polling mantida com nomes reais observados: `heartbeat|poll|refresh|ping|status|events|notification`; janelas: `readyState==='complete'` + janela quieta 800 ms + URL estável; `timeoutMs` 12 000 (cap 30 000); budget global 120 s; pausa→humano com `statusMessage` humano e portal revelado.
-2. **Implementação**: `readiness.ts` (sonda in-page: readyState + busy + janela quieta com isenção + URL estável), integrado no `runner` (antes de cada passo, 1 re-espera), `agent.ts` (budget de parede 120 s), `expectedAfter` automatizado. Testes: `readiness.test.ts` + `runner-integration.test.ts`.
-3. **Nota honesta (E2)**: medição pública coletada; **medição pós-autenticação exige credenciais de staging — operadores devem rodar** o probe nos 3 portais-alvo e substituir/calibrar `quietMs` se a mediana real > 5 s (regra no §5.3). Sem isso, a heurística é mantida como medida nos portais públicos.
+### Fase 2 — Telemetria (E2) → `readiness.ts` — ✅ CONCLUÍDA (2026-11-13)
+1. **Probe de medição (feito via browser, páginas públicas)**: e-CAC (2,8 s, 23 recursos), gov.br SSO (1,7 s, 59 recursos), gov.br-empresas-e-negócios/Redesim (5,2 s, 34 recursos); todas `readyState: complete`, 0 elementos `[aria-busy]/[role=progressbar]/.spinner/.loading` em repouso; zero tráfego eterno nas páginas públicas de login. `quietMs` mantido em **800 ms** (mediana < 3 s); isenção de polling preservada com os nomes reais observados (`poll|refresh|heartbeat|ping|status|events|notification`).
+2. **Implementação entregue**: `readiness.ts` (sonda in-page: readyState complete + ausência de ocupadores visíveis + janela quieta com isenção + URL estável), integrado no `runner` (antes de cada passo, 1 re-espera pré-condição não muda) e no `agent.ts` (probe mínima + **budget de 120 s** que pausa com mensagem humana). Cobertura: `readiness.test.ts` (23 testes), `runner-integration.test.ts` (11), `agent-wall-budget.test.ts` (2). `readiness.ts` com **98% linhas / 91% branches**.
+   - **Nota honesta (E2)**: medição pós-auth exige credenciais de staging — o operador deve rodar; se mediana > 5 s, aumentar `quietMs` (§5.3). A heurística é a decidida com os dados públicos acima.
+   - **Compat fail-open**: sonda não-reconhecida (fakes legados) ⇒ prossegue sem prontidão; documento morto ⇒ `ReadinessProbeError` ⇒ PAUSE (fail-closed). Ver `readiness.ts` (registrado em OWASP_REVIEW.md).
 
-### Fase 3 — "Reconfigurar robô" + ritual de verificação + e2e completo — PARCIALMENTE CONCLUÍDA → EM CONCLUSÃO
-Entregue: `recipes:reRecord` (botão "Reconfigurar robô", apenas custom), ritual "Testar agora/depois" com nudge §14-C e auditoria `origin: 'verify-test'`, e2e `wizard-recording.spec.ts` (criar → ensinar → concluir no chrome → revisar → salvar → `origin: 'recorded'`).
-Falta (em execução): **autopilot de e2e** (`electron/main/recipes/__test__/autopilot.ts` incluído **somente em build `NODE_ENV=test`**, `define` no `tsup.config.ts` elimina totalmente do bundle de produção), e2e de bota-roundtrip (receita gravada sobrevive ao boot), variante negativa `/wizard-broken` (spinner eterno → pausa → portal revelado), verificação `recipe.record_interrupted` no próximo boot, release check `grep -ri autopilot dist-electron/ = 0`.
+### Fase 3 — "Reconfigurar robô" + ritual de verificação + e2e completo — ✅ CONCLUÍDA (2026-11-13)
+Entregue: `recipes:reRecord` (botão "Reconfigurar robô", apenas custom), ritual "Testar agora/depois" com nudge §14-C e auditoria `origin: 'verify-test'`, e2e `wizard-recording.spec.ts` (criar → ensinar → concluir no chrome → revisar → salvar → `origin: 'recorded'`) + **boot roundtrip** no mesmo spec (relança com o mesmo userData; receita permanece `recorded`), `wizard-negative.spec.ts` (página que nunca estabiliza ⇒ salva robô e `wizard:finish` retorna em tempo razoável; caso autopilot verificado com `NODE_ENV=test` build, inclui `recipe.status === 'verified'` após "Testar agora"), **autopilot** restrito a `NODE_ENV=test` via `define` no `tsup.config.ts` (o bundle de produção literalmente não contém o código — `verify-release.mjs` lista 0 ocorrências), `scripts/verify-release.mjs` como gate N4.
+
+**Bugs pré-existentes de produção encontrados e corrigidos nesta fase** (relatório do especialista, revisados pelo orquestrador):
+1. **A sessão de gravação nunca armava o recorder** — `armRecorder` só era chamado por sessões normais (o `did-finish-load` da janela de gravação não era registrado) ⇒ toda gravação produzia receita vazia. Corrigido em `openRecorder` (ramo `record.recording`, nunca `startRecipe`).
+2. **`interruptedRecordingIds` ressuscitava wizards fechados** ao iterar o audit em DESC (started sobrescrevia closed) ⇒ modal bloqueante no boot. Corrigido com guard + extraído para função pura `interrupted.ts` com teste unitário dedicado.
+3. **"Entrar sozinho" ignorado no merge de dois passes** — o merge sempre mandava `autoSubmit: true` herdado do passo (serviço que caiu) independendo do toggle da revisão. Corrigido: o toggle da revisão manda no merge.
 
 ### Fase 4 — Shadow DOM / `pierce:` — ✅ DECIDIDO: CORTAR (2026-11-13)
 Checagem nos 3 portais-alvo via browser (ao vivo, 2026-11-13): e-CAC login → shadow roots só em `div#vlibras-access-wrapper` (VLibras); gov.br SSO → nenhum; Redesim → `barra-govbr#barraGovBr` + VLibras. **Nenhum dos fluxos de login usa light DOM + shadow aberto no próprio formulário** ⇒ `pierce:` e `__pvFindDeep` **CORTADOS do MVP**. `core.ts` permanece inalterado. Documentado aqui e em §3.2/§4.3.
 
-### Fase 5 — Polimento e hardening — PENDENTE (em curso)
-Checklist vivo: `docs/robot-wizard/RECORDING_GUIDE.md` ✅ · `docs/SECURITY.md` menciona a Gravação Assistida ✅ · release `grep autopilot` = 0 (a entregar com o autopilot) · OWASP review final do diff ✅ (rastreada no relatório) · `format`/`lint`/`typecheck`/`test`/`test:e2e` verdes (estado atual: 548 unit + 9 e2e) · portais reais em staging (operador) · changelog.
+### Fase 5 — Polimento e hardening — ✅ CONCLUÍDA (2026-11-13)
+Checklist vivo: `docs/robot-wizard/RECORDING_GUIDE.md` ✅ · `docs/SECURITY.md` menciona a Gravação Assistida ✅ · **release `grep autopilot` = 0** (verificado: `verify-release.mjs` exit 0 após build de produção) ✅ · OWASP review do diff completo (`docs/robot-wizard/OWASP_REVIEW.md`) ✅ · `format`/`lint`/`typecheck`/`test`/`test:e2e` verdes (estado: **595 unit + 9 e2e passed, 1 skipped**, 0 erros lint) ✅ · `DELIVERY_REPORT.md` / `RELEASE_CHECKLIST.md` ✅ · portais reais em staging (operador — fora do escopo desta máquina) ⏳.
 
 **Total investimento efetivo: etapas 0–3 ≈ implementadas; Fase 2/5 finalização em curso.**
 
 ### Gates
 
 - **G1 (fim Fase 1):** ✅ `npm test` verde; criar → gravar → salvar → reusar funcional (e2e `wizard-recording.spec.ts` verde).
-- **G2 (fim Fase 3):** e2e completo verde (`wizard-recording.spec.ts` ✅ + bota-roundtrip + variante negativa); heal provado ✅; `no-credential-bound` ✅ (unit C2/N2); sonda do wizard ✅ (§6.4, unit); fechar janela pede confirmação ✅; `stepCapReached`/`recording-max-duration` auto-finalizam ✅; `shouldFallbackToAgent` puro ✅.
-- **G3 (fim Fase 5):** 3 portais-alvo medidos (browser público ✅) e autenticados em staging (operador); `SECURITY.md` ✅; **§14 fechada** ✅; **grep autopilot = 0** (a verificar com o autopilot de teste).
+- **G2 (fim Fase 3):** ✅ e2e completo verde (`wizard-recording.spec.ts` + boot roundtrip + `wizard-negative`); heal provado ✅; `no-credential-bound` ✅ (unit C2/N2); sonda do wizard ✅ (§6.4, unit); fechar janela pede confirmação ✅; `stepCapReached`/`recording-max-duration` ✅ (auto-finaliza draft parcial); `shouldFallbackToAgent` puro ✅.
+- **G3 (fim Fase 5):** ✅ 3 portais-alvo medidos (browser público ✅); autenticação em staging é do operador; `SECURITY.md` ✅; **§14 fechada** ✅; **`grep autopilot` = 0 em bundle de produção** ✅ (`verify-release.mjs`).
 
 ### Arquivos tocados — mapa completo (atualizado 2026-11-13)
 

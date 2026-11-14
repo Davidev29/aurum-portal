@@ -50,5 +50,21 @@ que faltam; empurrar para o GitHub com relatório.”
 
 Ver `RELEASE_CHECKLIST.md` §"Operador". Resumo: staging nos 3 portais-alvo
 (e-CAC, gov.br SSO, Redesim/SpeedGov) — gravar + reexecutar; telemetria
-pós-auth para calibrar `quietMs`; e `node scripts/verify-release.cjs` após o
+pós-auth para calibrar `quietMs`; e `node scripts/verify-release.mjs` após o
 build de produção.
+
+## Entrega final (2026-11-13)
+
+**Fases entregues:** Pré-Fase 1 (D10) ✅ · Fase 1 (criar→gravar→salvar, assistente, Chrome HUD, IP-host, Field fix) ✅ · Fase 2 (readiness + integração) ✅ · Fase 3 (reRecord, verificação ritual, e2e completo com boot roundtrip e variante negativa, autopilot C6) ✅ · Fase 4 (corte de `pierce:` — medir ✅) ✅ · Fase 5 (OWASP, SECURITY, RELEASE_CHECKLIST, DELIVERY_REPORT, verify-release.mjs) ✅.
+
+**Métricas finais (nesta máquina):**
+- `npm test` — **595 / 595** (48 arquivos)
+- `npm run test:e2e` — **9 passed, 1 skipped** (caso autopilot skipado no bundle de produção; verificado com `NODE_ENV=test build`: 2/2)
+- `npm run typecheck` — verde (tsconfig.json + tsconfig.electron.json)
+- `npm run lint` — **0 erros** (warnings pré-existentes ignorados)
+- `node scripts/verify-release.mjs` → **0 ocorrências de "autopilot"**
+- `npm run build` — verde; bundle de produção `dist-electron/main.cjs` 317 KB
+
+**Bugs pré-existentes de produção corrigidos neste ciclo:** (1) heal `healCustomServiceRecipes` sobrescrevia receitas gravadas (D10) — corrigido com guarda + teste; (2) `Field` com filhos múltiplos nunca associava `htmlFor/id`; (3) portais por IP não cadastravam — `domainSchema` aceita IP literal e `deriveAllowedDomains` não expande domínios fantasma; (4) recorder **nunca armava** em sessão de gravação (`did-finish-load` ausente no `openRecorder`) — toda gravação produzia receita vazia; (5) `interruptedRecordingIds` invertia o significado e ressuscitava wizards fechados — modal bloqueante no boot; (6) valores de `fields` expostos em claro no renderer — corrigido para AES-256-GCM AAD por campo; (7) "Entrar sozinho" ignorado no merge de dois passes — corrigido.
+
+**Limitações honestas (operador):** portais reais em staging não podem ser validados nesta máquina (sem credenciais); release ao público persiste como pendência do operador — ver `RELEASE_CHECKLIST.md`.

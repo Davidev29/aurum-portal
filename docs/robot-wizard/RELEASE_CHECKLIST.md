@@ -12,7 +12,7 @@ Itens de release verificados nesta entrega (2026-11-13). Os itens marcados
 - [x] `npm run test:e2e` — **9 specs verdes** (após Fase 3: +bota-roundtrip +wizard-negative)
 
 ## Segurança do bundle (N4/C6)
-- [ ] `node scripts/verify-release.cjs` → **0 ocorrências de "autopilot"** em `dist-electron/` e `out/` (rodar após cada build de produção)
+- [x] `node scripts/verify-release.mjs` → **0 ocorrências de "autopilot"** em `dist-electron/` e `out/` (verificado em 2026-11-13 após build de produção)
 - [x] Autopilot existe apenas em `electron/main/recipes/__test__/autopilot.ts`, incluído **somente em build `NODE_ENV=test`**; produção não contém o código
 - [x] `SECURITY.md` menciona a Gravação Assistida (seção "Gravação Assistida do robô de login")
 
