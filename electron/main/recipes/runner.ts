@@ -9,6 +9,13 @@ import {
   buildPostLoginScript,
   buildWaitScript,
 } from './core'
+import {
+  humanClickElement,
+  humanFillElement,
+  humanPressKey,
+  type HumanInputEvent,
+  type HumanInputTarget,
+} from './human-input'
 import { redactUrl } from '../security/redaction'
 import { logger } from '../logger'
 import { waitForReady, ReadinessProbeError, type ReadinessReport } from './readiness'
@@ -25,6 +32,11 @@ export interface RecipeTarget {
    * disparam o evento `load` e a avaliação ficaria suspensa para sempre).
    */
   stop?(): void
+  /**
+   * Eventos CONFIÁVEIS do pipeline de input do Chromium (quando a view existe
+   * e tem bounds/foco). Ausente em targets de teste com fakes.
+   */
+  sendInputEvent?(event: HumanInputEvent): void
 }
 
 export type RecipeRunStatus = 'authenticated' | 'awaiting_login' | 'manual' | 'error'
@@ -360,12 +372,53 @@ export async function runRecipe(options: RunRecipeOptions): Promise<RecipeRunRes
     }
 
     // Sessão por certificado não tem credencial para preencher. Pular o passo
-    // em vez de falhar com campo vazio (ex.: abrir Redesim, cuja receita é
-    // de senha, com certificado).
+    // em vez de falhar com campo vazio.
     if (step.action === 'fill') {
       const resolved = resolveRecipeTemplate(step.value ?? '', values, values.extraValues)
       if (!resolved) continue
     }
+
+    // Entrada humana: quando o target expõe sendInputEvent (view visível),
+    // os passos de interação vão pelo pipeline de input do Chromium. Se o
+    // probe visualmente encontra o elemento, usamos a CADEIA humana; se não,
+    // caímos para o caminho legado (views ocultas 0×0 — fluxo de certificado
+    // que depende de evaluate JS para cliques socket-level).
+    let humanUsed = false
+    if (typeof (target as HumanInputTarget).sendInputEvent === 'function') {
+      const human =
+        step.action === 'click'
+          ? await humanClickElement(target as HumanInputTarget, step.selectors ?? [], { sleep })
+          : step.action === 'fill'
+            ? await humanFillElement(
+                target as HumanInputTarget,
+                step.selectors ?? [],
+                resolveRecipeTemplate(step.value ?? '', values, values.extraValues),
+                { sleep },
+              )
+            : step.action === 'press'
+              ? await humanPressKey(target as HumanInputTarget, step.key ?? 'Enter', { sleep })
+              : null
+      if (human && human.ok) {
+        humanUsed = true
+        currentUrl = target.getURL()
+        if (step.expectedAfter) {
+          const check = await verifyExpectedAfter(step, target, sleep)
+          if (!check.ok) {
+            if (step.optional) continue
+            return {
+              status: 'manual',
+              message: `Após '${step.label ?? 'ação'}' o portal não chegou onde esperávamos. Pausamos para você.`,
+              failedStep: index,
+              captchaDetected: false,
+              twoFactorDetected: false,
+              lastUrl: target.getURL(),
+              failureCode: 'post-condition-failed',
+            }
+          }
+        }
+      }
+    }
+    if (humanUsed) continue
 
     const beforeUrl = target.getURL()
     const script = buildActionScript(step, values)
