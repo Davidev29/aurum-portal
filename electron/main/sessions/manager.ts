@@ -258,23 +258,7 @@ export class SessionManager {
     if (!service.authMethods.includes(request.authMethod)) {
       throw new AppError('VALIDATION', 'Metodo de autenticacao nao aceito pelo servico')
     }
-    // Senha + receita interativa (com passos que carregam credenciais): o
-    // portal fica oculto e a animação é exibida enquanto a automação
-    // preenche/envia — igual ao fluxo de certificado. Se o usuário precisar
-    // intervir (2FA/captcha), o portal é revelado na hora.
-    const interactiveRecipe = (() => {
-      if (request.authMethod !== 'password') return false
-      try {
-        const row = getRecipeByService(this.deps.db, service.id)
-        if (!row || row.status === 'disabled') return false
-        // Só esconde quando a automação vai até o fim (Entrar sozinho).
-        // No modo "revisar antes de enviar", o usuário precisa ver a tela.
-        if (!row.definition.autoSubmit) return false
-        return row.definition.steps.some((step) => stepCarriesCredentials(step))
-      } catch {
-        return false
-      }
-    })()
+    // Senha: o portal SEMPRE nasce visível.
     const client = getClient(this.deps.db, request.clientId)
     if (!client) throw new AppError('NOT_FOUND', 'Cliente nao encontrado')
     if (client.status === 'archived') {
@@ -517,7 +501,7 @@ export class SessionManager {
       title: service.name,
       loading: true,
       closed: false,
-      portalHidden: request.authMethod === 'certificate' || interactiveRecipe,
+      portalHidden: request.authMethod === 'certificate',
       requiresHumanAction: false,
       bootSafetyTimer: null,
       recording: null,
@@ -775,6 +759,15 @@ export class SessionManager {
 
   private configureRemoteContents(contents: WebContents, record: ManagedSession): void {
     contents.setUserAgent(CHROME_UA)
+    contents.on('dom-ready', () => {
+      // Remove a marca mais óbvia de automação: navigator.webdriver.
+      // Seguindo a forma de qualquer navegador comum.
+      void contents
+        .executeJavaScript(
+          'try{Object.defineProperty(navigator,"webdriver",{get:()=>undefined,configurable:true})}catch(e){}',
+        )
+        .catch(() => undefined)
+    })
     contents.on('will-attach-webview', (event) => event.preventDefault())
     contents.on('will-navigate', (event, url) => {
       // Portais do governo redirecionam por varios dominios (SSO, CDN, etc.).
@@ -985,6 +978,19 @@ export class SessionManager {
       getURL: () => record.view.webContents.getURL(),
       isDestroyed: () => record.closed || record.view.webContents.isDestroyed(),
       stop: () => record.view.webContents.stop(),
+      // Eventos CONFIÁVEIS do pipeline de input do Chromium — o robô só os
+      // usa quando a janela não está oculta (precisa de bounds + foco).
+      sendInputEvent: (event) => {
+        try {
+          const contents = record.view.webContents
+          if (contents.isDestroyed()) return
+          contents.sendInputEvent(event as unknown as Parameters<
+            typeof contents.sendInputEvent
+          >[0])
+        } catch {
+          // view já destruída — ignore
+        }
+      },
     }
   }
 
@@ -1052,12 +1058,14 @@ export class SessionManager {
     let username = ''
     let password = ''
     let extraValues: Record<string, string> | undefined
+    let fieldSpecs: { name: string; kind: 'username' | 'password' | 'text' }[] | undefined
     if (record.authMethod === 'password' && record.credentialId) {
       try {
         const secret = revealCredential(this.deps.db, this.deps.vault, record.credentialId)
         username = secret.username
         password = secret.password
         extraValues = secret.extraValues
+        fieldSpecs = secret.fieldSpecs
         markCredentialUsed(this.deps.db, record.credentialId)
       } catch {
         record.recipeRunning = false
@@ -1097,6 +1105,8 @@ export class SessionManager {
             password,
             document: record.clientDocument,
             clientName: record.clientName,
+            extraValues,
+            fields: fieldSpecs,
           }),
           target,
           autoSubmit: definition.autoSubmit,
