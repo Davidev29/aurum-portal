@@ -76,7 +76,21 @@ test.describe('Gravação Assistida — criar → ensinar → salvar', () => {
       })
       expect(recipe?.definition?.origin).toBe('recorded')
 
+      // Boot roundtrip: fecha o app e reabre uma nova instância com o mesmo
+      // userData — o heal do boot NÃO pode reescrever a receita gravada.
       await app.close()
+      const relaunched = await launchAurumBitPortal({ userData })
+      try {
+        const bootRecipe = await relaunched.page.evaluate(async () => {
+          const api = (globalThis as unknown as { aurumBitPortal: any }).aurumBitPortal
+          const list = await api.services.list()
+          const service = list.find((item: { name: string }) => item.name === 'Portal Gravação E2E')
+          return api.recipes.get(service.id)
+        })
+        expect(bootRecipe?.definition?.origin).toBe('recorded')
+      } finally {
+        await relaunched.app.close()
+      }
     } finally {
       await portal.close().catch(() => undefined)
       removeUserDataDir(userData)

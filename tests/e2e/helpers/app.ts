@@ -9,6 +9,8 @@ import type { RecipeDefinition, RecipeStep } from '../../../shared/recipe'
 
 export interface LaunchOptions {
   userData: string
+  /** Env extra fundido ao ambiente do app lançado (ex.: build/gatilhos de teste). */
+  extraEnv?: Record<string, string>
 }
 
 export interface LaunchedApp {
@@ -34,12 +36,17 @@ export function removeUserDataDir(directory: string): void {
   }
 }
 
-function childEnv(root: string, userData: string): Record<string, string> {
+function childEnv(
+  root: string,
+  userData: string,
+  extraEnv?: Record<string, string>,
+): Record<string, string> {
   const env = Object.fromEntries(
     Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1])),
   )
   return {
     ...env,
+    ...extraEnv,
     AURUMBIT_WEB_ROOT: path.join(root, 'out'),
     AURUMBIT_USER_DATA: userData,
     AURUMBIT_E2E_ALLOW_LOCAL_TLS: '1',
@@ -52,7 +59,7 @@ export async function launchAurumBitPortal(options: LaunchOptions): Promise<Laun
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${options.userData}`],
     cwd: root,
-    env: childEnv(root, options.userData),
+    env: childEnv(root, options.userData, options.extraEnv),
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')

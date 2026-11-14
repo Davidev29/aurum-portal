@@ -80,6 +80,74 @@ function panelPage(): string {
 </html>`
 }
 
+function wizardLoginPage(): string {
+  return `<!doctype html>
+<html lang="pt-BR">
+  <head><meta charset="utf-8"><title>Portal Gravação - Entrar</title></head>
+  <body>
+    <h1>Portal Gravação</h1>
+    <div id="wizard-spinner" class="loading">Carregando…</div>
+    <form id="wizard-form" method="post" action="/wizard-login">
+      <label for="wuser">Usuario</label>
+      <input id="wuser" name="username" autocomplete="username">
+      <label for="wpass">Senha</label>
+      <input id="wpass" name="password" type="password" autocomplete="current-password">
+      <button id="entrar" type="submit">Entrar</button>
+    </form>
+    <script>
+      // SPA legítimo (fetch + pushState): o login não derruba o frame. Um
+      // submit de frame destruiria o contexto JS (e o recorder/drains junto)
+      // antes de o clique ser drenado — o mesmo vale para o runner de receita.
+      document.getElementById('wizard-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        var form = event.target;
+        var body = new URLSearchParams(new FormData(form)).toString();
+        fetch('/wizard-login', {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: body,
+          credentials: 'same-origin',
+        }).then(function (response) {
+          return response.text().then(function (html) {
+            var ok = response.url.indexOf('/wizard-painel') !== -1;
+            document.body.innerHTML = html;
+            if (ok) history.pushState({}, '', '/wizard-painel');
+          });
+        });
+      });
+      // Spinner falso: some após 1,2 s (simula portal lento); sem fetch externo.
+      setTimeout(function () {
+        var spinner = document.getElementById('wizard-spinner')
+        if (spinner) spinner.style.display = 'none'
+      }, 1200)
+    </script>
+  </body>
+</html>`
+}
+
+function wizardPainelPage(): string {
+  return `<!doctype html>
+<html lang="pt-BR">
+  <head><meta charset="utf-8"><title>Portal Gravação - Painel</title></head>
+  <body>
+    <h1>Painel Gravação</h1>
+    <p id="welcome">Bem-vindo</p>
+    <button id="sair" type="button">Sair</button>
+  </body>
+</html>`
+}
+
+function wizardBrokenPage(): string {
+  return `<!doctype html>
+<html lang="pt-BR">
+  <head><meta charset="utf-8"><title>Portal Gravação - Indisponivel</title></head>
+  <body>
+    <h1>Portal Gravação</h1>
+    <div class="loading">Carregando…</div>
+  </body>
+</html>`
+}
+
 function readBody(request: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
@@ -141,6 +209,49 @@ export async function startTestPortal(): Promise<TestPortalServer> {
           userAgent: request.headers['user-agent'] ?? null,
         }),
       )
+      return
+    }
+
+    if (method === 'GET' && pathname === '/wizard-login') {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+      response.end(wizardLoginPage())
+      return
+    }
+
+    if (method === 'POST' && pathname === '/wizard-login') {
+      void readBody(request).then((body) => {
+        const form = new URLSearchParams(body)
+        const valid = form.get('username') === TEST_USER && form.get('password') === TEST_PASSWORD
+        if (!valid) {
+          response.writeHead(401, { 'content-type': 'text/html; charset=utf-8' })
+          response.end('<h1>Credenciais invalidas</h1>')
+          return
+        }
+        response.writeHead(302, {
+          'set-cookie': 'pv_wizard_e2e=ok; Path=/; HttpOnly; SameSite=Lax',
+          location: '/wizard-painel',
+        })
+        response.end()
+      })
+      return
+    }
+
+    if (method === 'GET' && pathname === '/wizard-painel') {
+      const authenticated = (request.headers.cookie ?? '').includes('pv_wizard_e2e=ok')
+      if (!authenticated) {
+        response.writeHead(302, { location: '/wizard-login' })
+        response.end()
+        return
+      }
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+      response.end(wizardPainelPage())
+      return
+    }
+
+    if (method === 'GET' && pathname === '/wizard-broken') {
+      // SPA que nunca estabiliza: o spinner falso nunca some.
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+      response.end(wizardBrokenPage())
       return
     }
 

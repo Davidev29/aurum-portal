@@ -57,6 +57,7 @@ import { buildPartition, sessionReuseKey } from './partition'
 import type { SessionContext, SessionContextRegistry } from './context-registry'
 import { shouldFallbackToAgent } from '../recipes/fallback'
 import { checkPostLogin, runRecipe, safeExecute, type RecipeTarget } from '../recipes/runner'
+import { interruptedRecordingIdsForEvents } from '../recipes/interrupted'
 import { runAgenticLogin, agentValues } from '../recipes/agent'
 import {
   buildDrainScript,
@@ -149,6 +150,9 @@ interface ManagedSession {
   bootSafetyTimer: NodeJS.Timeout | null
   /** Gravação Assistida (Fase 1). Só preenchido em sessões de gravação. */
   recording: RecordingState | null
+  /** E2E (build de teste): autopilot já injetado nesta sessão. Só existe/é usado
+   * atrás do ramo eliminado em produção (ver armRecorder). */
+  autopilotDone?: boolean
   /** Sessão descartável sem cliente — não persiste em `sessions`/`partitionUsage`. */
   adhoc?: boolean
 }
@@ -1662,25 +1666,7 @@ export class SessionManager {
   interruptedRecordingIds(): string[] {
     try {
       const events = allAuditEvents(this.deps.db, {})
-      const state = new Map<string, 'open' | 'closed'>()
-      for (const event of events) {
-        const id = event.entityId ?? ''
-        if (!id) continue
-        switch (event.type) {
-          case 'recipe.record_started':
-            state.set(id, 'open')
-            break
-          case 'recipe.record_finished':
-          case 'recipe.record_discarded':
-          case 'recipe.recorded':
-          case 'recipe.record_interrupted':
-            state.set(id, 'closed')
-            break
-          default:
-            break
-        }
-      }
-      return [...state.entries()].filter(([, value]) => value === 'open').map(([id]) => id)
+      return interruptedRecordingIdsForEvents(events)
     } catch {
       return []
     }
@@ -1731,11 +1717,7 @@ export class SessionManager {
         throw new AppError('VALIDATION', 'Vincule um cliente para usar uma credencial')
       }
       const credential = getCredentialRow(this.deps.db, input.credentialId)
-      if (
-        !credential ||
-        credential.clientId !== client.id ||
-        credential.serviceId !== service.id
-      ) {
+      if (!credential || credential.clientId !== client.id || credential.serviceId !== service.id) {
         throw new AppError('FORBIDDEN', 'Credencial nao pertence ao cliente/servico selecionado')
       }
       credentialId = credential.id
@@ -2015,6 +1997,40 @@ export class SessionManager {
       this.emit()
     })
 
+    // Sessão de gravação: registra os mesmos handlers de ciclo de vida da view
+    // que open() registra para sessões normais (a criação da janela de gravação
+    // é um caminho separado). Sem isso o recorder NUNCA arma (nenhum evento é
+    // capturado), nenhuma navegação é registrada e o autopilot de e2e não roda.
+    // Nunca roda startRecipe — a sessão é do usuário.
+    view.webContents.on('did-finish-load', () => {
+      if (record.closed) return
+      record.loading = false
+      record.currentUrl = view.webContents.getURL()
+      if (record.recording) {
+        void this.armRecorder(record)
+      }
+      this.emit()
+    })
+    view.webContents.on('did-stop-loading', () => {
+      record.loading = false
+      record.currentUrl = view.webContents.getURL()
+      this.emit()
+    })
+    view.webContents.on('did-navigate', (_event, url) => {
+      record.currentUrl = url
+      if (record.recording) {
+        record.recording.navigations.push({ at: Date.now(), toUrl: url })
+      }
+      this.emit()
+    })
+    view.webContents.on('did-navigate-in-page', (_event, url) => {
+      record.currentUrl = url
+      if (record.recording) {
+        record.recording.navigations.push({ at: Date.now(), toUrl: url })
+      }
+      this.emit()
+    })
+
     // did-navigate / did-navigate-in-page / did-finish-load já registram a
     // sessão; o branch de gravação entra neles.
     const rec = record.recording
@@ -2101,6 +2117,23 @@ export class SessionManager {
       rec.drainTimer = setInterval(() => {
         void this.drainRecorder(record)
       }, 250)
+    }
+    // E2E (C6) — INJEÇÃO ÚNICA: em builds de teste, o autopilot simula o "usuário"
+    // no portal (preenche/clica) UMA vez por sessão. O ramo inteiro é eliminado
+    // pelo define+minify do tsup quando NODE_ENV !== 'test'; em produção nem a
+    // importação dinâmica (e portanto o módulo) existe no bundle.
+    if (
+      process.env.NODE_ENV === 'test' &&
+      process.env.AURUMBIT_E2E_RECORD_AUTOPILOT === '1' &&
+      !record.autopilotDone
+    ) {
+      record.autopilotDone = true
+      try {
+        const mod = await import('../recipes/__test__/autopilot.js')
+        await safeExecute(target, mod.buildAutopilotScript(), 5_000)
+      } catch {
+        // Autopilot é best-effort: a sessão de gravação segue mesmo se falhar.
+      }
     }
   }
 
