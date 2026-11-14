@@ -19,6 +19,7 @@
     "start": "electron .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
     "lint": "eslint .",
+    "ci:watch": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-watch.ps1",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
