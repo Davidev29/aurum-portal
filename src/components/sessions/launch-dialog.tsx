@@ -2,7 +2,15 @@
 
 import * as React from 'react'
 import { toast } from 'sonner'
-import { ArrowRight, KeyRound, Search, ShieldCheck, Sparkles } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowRight,
+  KeyRound,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react'
 import type { AuthMethod } from '@shared/constants'
 import type { Certificate, Credential, Service } from '@shared/types'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
@@ -89,9 +97,16 @@ export function LaunchDialog({
   presetClientId?: string
 }) {
   const invalidate = useInvalidate()
-  const { data: clients } = useClients({ status: 'active' })
-  const { data: certificates } = useCertificates()
-  const { data: credentials } = useCredentials(service ? { serviceId: service.id } : undefined)
+  // includeHistory: um certificado renovado (mesmo CPF/CNPJ) não pode ocultar o
+  // anterior vinculado ao cliente — a colapse de renovação da listagem padrão
+  // apagava o vínculo e o cliente sumia do fluxo mesmo com credencial/certificado válido.
+  const clientsQuery = useClients({ status: 'active' })
+  const certificatesQuery = useCertificates({ includeHistory: true })
+  // Credenciais só fazem sentido com um serviço aberto; sem serviço o diálogo
+  // fica montado mas desabilitado (nunca busca o cofre inteiro).
+  const credentialsQuery = useCredentials(service ? { serviceId: service.id } : undefined, {
+    enabled: Boolean(service),
+  })
   const { data: sessions } = useSessions()
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -105,10 +120,16 @@ export function LaunchDialog({
   React.useEffect(() => {
     if (!open || !service) return
     const last = readLastChoice(service.id)
+    // Prefere o método lembrado se o serviço o aceita; senão usa o padrão do
+    // serviço, e por fim o primeiro método aceito — nunca um método que o
+    // serviço não oferece.
+    const rememberedMethod =
+      last.method && service.authMethods.includes(last.method) ? last.method : null
     const nextMethod =
-      presetClientId && last.method && service.authMethods.includes(last.method)
-        ? last.method
-        : service.defaultAuth
+      rememberedMethod ??
+      (service.authMethods.includes(service.defaultAuth)
+        ? service.defaultAuth
+        : (service.authMethods[0] ?? 'certificate'))
     setMethod(nextMethod)
     setSearch('')
     setError(null)
@@ -119,9 +140,56 @@ export function LaunchDialog({
     setCredentialId(last.credentialId ?? '')
   }, [open, service, presetClientId])
 
+  const clients = clientsQuery.data
+  const certificates = certificatesQuery.data
+  const credentials = credentialsQuery.data
+
+  const isLoading =
+    Boolean(service) &&
+    (clientsQuery.isPending ||
+      certificatesQuery.isPending ||
+      (Boolean(service) && credentialsQuery.isPending))
+  const loadError = clientsQuery.error ?? certificatesQuery.error ?? credentialsQuery.error ?? null
+  const isError = Boolean(loadError)
+  const isRefetching =
+    clientsQuery.isFetching || certificatesQuery.isFetching || credentialsQuery.isFetching
+  const retryAll = () => {
+    void Promise.all([
+      clientsQuery.refetch(),
+      certificatesQuery.refetch(),
+      credentialsQuery.refetch(),
+    ])
+  }
+
   const allCertificates = React.useMemo(() => certificates ?? [], [certificates])
   const allCredentials = React.useMemo(() => credentials ?? [], [credentials])
   const activeClients = React.useMemo(() => clients ?? [], [clients])
+
+  // Seleção lembrada (ou pré-selecionada) que aponta para um cliente que não
+  // está mais ativo (arquivado/excluído) é descartada em silêncio, em vez de
+  // travar o diálogo com um cliente invisível selecionado.
+  React.useEffect(() => {
+    if (!open || clientsQuery.isPending || !clientId) return
+    if (activeClients.some((client) => client.id === clientId)) return
+    setClientId('')
+    setCertificateId('')
+    setCredentialId('')
+  }, [open, clientsQuery.isPending, clientId, activeClients])
+
+  // Clientes que têm certificado vinculado, mas nenhum utilizável agora
+  // (vencido, ausente no Windows ou cadeia incompleta) — explica o estado
+  // vazio sem depender de o usuário abrir a lista de certificados.
+  const blockedLinkedCount = React.useMemo(() => {
+    if (method !== 'certificate') return 0
+    return activeClients.filter((client) => {
+      const hasLinked = allCertificates.some(
+        (certificate) =>
+          certificate.clientId === client.id ||
+          certificate.clients.some((link) => link.id === client.id),
+      )
+      return hasLinked && eligibleCertificates(allCertificates, client.id).length === 0
+    }).length
+  }, [activeClients, allCertificates, method])
 
   const eligibleClientIds = React.useMemo(() => {
     const ids = new Set<string>()
@@ -192,13 +260,17 @@ export function LaunchDialog({
     if (!open || !clientId) return
     if (method !== 'password') return
     if (clientCredentials.some((credential) => credential.id === credentialId)) return
-    const remembered = clientCredentials.find((credential) => credential.id === credentialId)
+    // Prefere a credencial lembrada para este serviço (paridade com o efeito
+    // de certificado); antes, o "remembered" buscava por `credentialId` — um
+    // id que acabara de ser invalidado — e nunca encontrava nada.
+    const last = service ? readLastChoice(service.id) : {}
+    const remembered = clientCredentials.find((credential) => credential.id === last.credentialId)
     const preferred =
       remembered ??
       clientCredentials.find((credential) => credential.isDefault) ??
       clientCredentials[0]
     setCredentialId(preferred?.id ?? '')
-  }, [open, clientId, method, clientCredentials, credentialId])
+  }, [open, clientId, method, clientCredentials, credentialId, service])
 
   const selectedClient = activeClients.find((client) => client.id === clientId) ?? null
   const selectedCertificate = clientCertificates.find((cert) => cert.id === certificateId) ?? null
@@ -324,62 +396,119 @@ export function LaunchDialog({
               />
             </div>
 
-            <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-[var(--pv-border)] p-2 pv-scroll">
-              {filteredClients.length === 0 ? (
-                <div className="p-6 text-center text-sm text-[var(--pv-muted)]">
-                  {method === 'certificate'
-                    ? 'Nenhum cliente ativo possui certificado valido vinculado.'
-                    : 'Nenhum cliente ativo possui credencial para este serviço.'}{' '}
-                  {method === 'certificate'
-                    ? 'Importe um certificado A1 e vincule ao cliente.'
-                    : 'Cadastre uma credencial.'}
-                </div>
-              ) : (
-                filteredClients.map((client) => {
-                  const selected = client.id === clientId
-                  const certCount =
-                    method === 'certificate'
-                      ? eligibleCertificates(allCertificates, client.id).length
-                      : 0
-                  const credCount =
-                    method === 'password'
-                      ? allCredentials.filter((credential) => credential.clientId === client.id)
-                          .length
-                      : 0
-                  return (
-                    <button
-                      key={client.id}
-                      type="button"
-                      onClick={() => {
-                        setClientId(client.id)
-                        setCertificateId('')
-                        setCredentialId('')
-                      }}
-                      className={cn(
-                        'pv-pressable flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left',
-                        selected
-                          ? 'border-brand-600 bg-[var(--pv-accent-soft)] ring-2 ring-brand-500/40'
-                          : 'border-transparent hover:border-[var(--pv-border)] hover:bg-[var(--pv-accent-soft)] dark:hover:bg-[var(--pv-accent-soft)]',
-                      )}
-                      aria-pressed={selected}
-                    >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--pv-panel-2)] text-xs font-semibold text-[var(--pv-muted)] dark:bg-[var(--pv-panel-2)] dark:text-[var(--pv-text)]">
-                        {initials(client.name)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{client.name}</div>
-                        <div className="text-xs text-[var(--pv-muted)]">
-                          {clientTypeLabel(client.type)} • {client.document}
+            {isLoading ? (
+              <div
+                className="space-y-1.5 rounded-lg border border-[var(--pv-border)] p-2"
+                aria-busy="true"
+                aria-label="Carregando clientes, certificados e credenciais"
+              >
+                {[0, 1, 2, 3].map((index) => (
+                  <div
+                    key={index}
+                    className="flex animate-pulse items-center gap-3 rounded-xl px-3 py-3"
+                  >
+                    <div className="h-9 w-9 shrink-0 rounded-full bg-[var(--pv-panel-2)]" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="h-3.5 w-2/5 rounded bg-[var(--pv-panel-2)]" />
+                      <div className="h-3 w-3/5 rounded bg-[var(--pv-panel-2)]" />
+                    </div>
+                    <div className="h-5 w-14 shrink-0 rounded-full bg-[var(--pv-panel-2)]" />
+                  </div>
+                ))}
+              </div>
+            ) : isError ? (
+              <div
+                className="rounded-xl border border-[var(--pv-danger-border)] bg-[var(--pv-danger-soft)] p-5 text-center"
+                role="alert"
+              >
+                <AlertTriangle
+                  className="mx-auto h-5 w-5 text-[var(--pv-danger)]"
+                  aria-hidden="true"
+                />
+                <p className="mt-2 text-sm font-semibold">
+                  Não foi possível carregar os dados do cofre
+                </p>
+                <p className="mx-auto mt-1 max-w-md text-xs text-[var(--pv-muted)]">
+                  {loadError ? errorMessage(loadError) : 'Falha desconhecida.'} Tente novamente —
+                  nenhuma credencial foi alterada.
+                </p>
+                <Button
+                  variant="secondary"
+                  className="mt-3"
+                  onClick={retryAll}
+                  disabled={isRefetching}
+                >
+                  <RefreshCw
+                    className={cn('h-4 w-4', isRefetching && 'animate-spin')}
+                    aria-hidden="true"
+                  />
+                  {isRefetching ? 'Tentando novamente…' : 'Tentar novamente'}
+                </Button>
+              </div>
+            ) : (
+              <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-[var(--pv-border)] p-2 pv-scroll">
+                {filteredClients.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-[var(--pv-muted)]">
+                    {search.trim() ? (
+                      <>Nenhum cliente corresponde à busca “{search.trim()}”.</>
+                    ) : method === 'certificate' ? (
+                      <>
+                        Nenhum cliente ativo possui certificado válido vinculado.{' '}
+                        {blockedLinkedCount > 0
+                          ? `${blockedLinkedCount} cliente(s) têm certificado vinculado, mas vencido, ausente no Windows ou com cadeia incompleta. Renove o certificado ou reinstale-o.`
+                          : 'Importe um certificado A1 e vincule ao cliente.'}
+                      </>
+                    ) : (
+                      'Nenhum cliente ativo possui credencial cadastrada para este serviço. Cadastre uma credencial.'
+                    )}
+                  </div>
+                ) : (
+                  filteredClients.map((client) => {
+                    const selected = client.id === clientId
+                    const certCount =
+                      method === 'certificate'
+                        ? eligibleCertificates(allCertificates, client.id).length
+                        : 0
+                    const credCount =
+                      method === 'password'
+                        ? allCredentials.filter((credential) => credential.clientId === client.id)
+                            .length
+                        : 0
+                    return (
+                      <button
+                        key={client.id}
+                        type="button"
+                        onClick={() => {
+                          setClientId(client.id)
+                          setCertificateId('')
+                          setCredentialId('')
+                        }}
+                        className={cn(
+                          'pv-pressable flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left',
+                          selected
+                            ? 'border-brand-600 bg-[var(--pv-accent-soft)] ring-2 ring-brand-500/40'
+                            : 'border-transparent hover:border-[var(--pv-border)] hover:bg-[var(--pv-accent-soft)] dark:hover:bg-[var(--pv-accent-soft)]',
+                        )}
+                        aria-pressed={selected}
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--pv-panel-2)] text-xs font-semibold text-[var(--pv-muted)] dark:bg-[var(--pv-panel-2)] dark:text-[var(--pv-text)]">
+                          {initials(client.name)}
                         </div>
-                      </div>
-                      <Badge variant="outline">
-                        {method === 'certificate' ? `${certCount} cert.` : `${credCount} cred.`}
-                      </Badge>
-                    </button>
-                  )
-                })
-              )}
-            </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium">{client.name}</div>
+                          <div className="text-xs text-[var(--pv-muted)]">
+                            {clientTypeLabel(client.type)} • {client.document}
+                          </div>
+                        </div>
+                        <Badge variant="outline">
+                          {method === 'certificate' ? `${certCount} cert.` : `${credCount} cred.`}
+                        </Badge>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            )}
 
             {selectedClient && method === 'certificate' && clientCertificates.length > 0 ? (
               <div className="space-y-2">

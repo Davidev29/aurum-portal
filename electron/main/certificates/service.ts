@@ -555,7 +555,7 @@ export class CertificateService {
       }
     }
 
-    const row = createPfxCertificate(this.deps.db, this.deps.vault, {
+    const { row, inheritedClientIds } = createPfxCertificate(this.deps.db, this.deps.vault, {
       parsed,
       pfx: buffer,
       password,
@@ -564,6 +564,12 @@ export class CertificateService {
       install: options.install,
       installed,
     })
+    if (inheritedClientIds.length > 0) {
+      this.record('certificate.renewal_inherited', row.id, {
+        clientIds: inheritedClientIds,
+        source: 'pfx',
+      })
+    }
     this.record('certificate.imported', row.id, {
       holderName: parsed.holderName,
       document: parsed.document ? maskDocument(parsed.document) : null,
@@ -911,7 +917,19 @@ export class CertificateService {
             alreadyImported: false,
             certificateId: null,
           }
-          const row = createWindowsCertificate(this.deps.db, view, clientId, input.consent === true)
+          const { row, inheritedClientIds } = createWindowsCertificate(
+            this.deps.db,
+            view,
+            clientId,
+            input.consent === true,
+          )
+          if (inheritedClientIds.length > 0) {
+            this.record('certificate.renewal_inherited', row.id, {
+              clientIds: inheritedClientIds,
+              source: 'windows',
+              jobId,
+            })
+          }
           if (!touched.includes(row.id)) touched.push(row.id)
           imported += 1
           const isExpired = new Date(record.notAfter).getTime() <= Date.now()

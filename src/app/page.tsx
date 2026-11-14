@@ -82,7 +82,9 @@ export default function AcessosPage() {
   const router = useRouter()
   const invalidate = useInvalidate()
   const editParam = useSearchParam('serviceId')
-  const { data: services, isLoading } = useServices()
+  const servicesQuery = useServices()
+  const { data: services, isLoading } = servicesQuery
+  const servicesError = servicesQuery.error
   const { data: sessions } = useSessions()
   const { data: certificates } = useCertificates()
   const [query, setQuery] = React.useState('')
@@ -342,6 +344,18 @@ export default function AcessosPage() {
 
       {isLoading ? (
         <SkeletonGrid count={6} />
+      ) : servicesError ? (
+        <Alert
+          variant="danger"
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void servicesQuery.refetch()}>
+              <RefreshCw className="h-4 w-4" />
+              Tentar novamente
+            </Button>
+          }
+        >
+          Não foi possível carregar os acessos: {errorMessage(servicesError)}
+        </Alert>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Vault className="h-6 w-6" />}

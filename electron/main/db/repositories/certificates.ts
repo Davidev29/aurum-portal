@@ -15,6 +15,7 @@ import {
   collapseToCurrentCertificates,
   computeRenewalInfo,
   getEffectiveExpiryInfo,
+  renewalDocumentKey,
   renewalHistoryFor,
   toRenewalEntry,
 } from '../../../../shared/certificate-renewal'
@@ -76,6 +77,134 @@ export function mapCertificate(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
+}
+
+export interface CreatedCertificate {
+  row: CertificateRow
+  /**
+   * Clientes herdados de certificados anteriores da MESMA cadeia de renovação
+   * (mesmo CPF/CNPJ — ou mesmo titular quando não há documento). A herança só
+   * copia vínculos com consentimento registrado; ver inheritRenewalClientLinks.
+   */
+  inheritedClientIds: string[]
+}
+
+/**
+ * Herança de vínculos na cadeia de renovação.
+ *
+ * Quando um certificado chega sem cliente explícito, os vínculos CONSENTIDOS
+ * dos certificados anteriores da mesma cadeia (mesmo documento, ou mesmo
+ * titular na ausência de documento) são copiados para ele — preservando a
+ * data original do consentimento. Sem isso, o certificado renovado aparecia
+ * sem vínculo e o anterior ficava oculto pela colapse de renovação da
+ * listagem: o cliente sumia do fluxo de Acessos mesmo tendo certificado
+ * válido e autorização já registrada.
+ *
+ * Regras de segurança:
+ * - Só herda vínculos com `consentAt` preenchido (prova de consentimento).
+ * - Clientes arquivados (ou removidos) não recebem vínculo.
+ * - Vínculo explícito do próprio import nunca é duplicado nem sobrescrito.
+ * - O `consentAt` herdado preserva a data original do consentimento.
+ */
+function inheritRenewalClientLinks(
+  db: AppDatabase,
+  created: CertificateRow,
+  now: string,
+): string[] {
+  const key = renewalDocumentKey({
+    id: created.id,
+    holderName: created.holderName,
+    document: created.document,
+    documentType: created.documentType,
+    validFrom: created.validFrom,
+    validTo: created.validTo,
+    createdAt: created.createdAt,
+  })
+  const universe = db.select().from(certificates).all()
+  const predecessors = universe.filter(
+    (row) => row.id !== created.id && renewalDocumentKey(row) === key,
+  )
+  if (predecessors.length === 0) return []
+
+  const predecessorIds = predecessors.map((row) => row.id)
+  const consented = db
+    .select({
+      clientId: certificateClients.clientId,
+      consentAt: certificateClients.consentAt,
+    })
+    .from(certificateClients)
+    .where(inArray(certificateClients.certificateId, predecessorIds))
+    .all()
+    .filter((link) => Boolean(link.consentAt))
+
+  if (consented.length === 0) return []
+
+  // Consentimento mais antigo registrado por cliente (preserva a data real).
+  const consentByClient = new Map<string, string>()
+  for (const link of consented) {
+    const consentAt = link.consentAt as string
+    const current = consentByClient.get(link.clientId)
+    if (!current || consentAt < current) consentByClient.set(link.clientId, consentAt)
+  }
+
+  // Ignora clientes arquivados ou inexistentes (não recebem novos vínculos).
+  const clientIds = [...consentByClient.keys()]
+  const statusRows = db
+    .select({ id: clients.id, status: clients.status })
+    .from(clients)
+    .where(inArray(clients.id, clientIds))
+    .all()
+  const allowed = new Set(
+    statusRows.filter((row) => row.status !== 'archived').map((row) => row.id),
+  )
+
+  // Nunca duplica vínculo explícito existente neste certificado.
+  const alreadyLinked = new Set(
+    db
+      .select({ clientId: certificateClients.clientId })
+      .from(certificateClients)
+      .where(eq(certificateClients.certificateId, created.id))
+      .all()
+      .map((row) => row.clientId),
+  )
+
+  const frequency = new Map<string, number>()
+  for (const link of consented) {
+    if (allowed.has(link.clientId)) {
+      frequency.set(link.clientId, (frequency.get(link.clientId) ?? 0) + 1)
+    }
+  }
+
+  const inherited: string[] = []
+  for (const clientId of clientIds) {
+    if (!allowed.has(clientId) || alreadyLinked.has(clientId)) continue
+    db.insert(certificateClients)
+      .values({
+        certificateId: created.id,
+        clientId,
+        consentAt: consentByClient.get(clientId) ?? now,
+        createdAt: now,
+      })
+      .onConflictDoNothing()
+      .run()
+    inherited.push(clientId)
+  }
+
+  // Define o vínculo "primário" legado (certificates.client_id) quando ainda
+  // não há um: vence o cliente mais vezes vinculado na cadeia (empate: id).
+  if (inherited.length > 0 && !created.clientId) {
+    const winner = [...inherited].sort(
+      (a, b) => (frequency.get(b) ?? 0) - (frequency.get(a) ?? 0) || a.localeCompare(b),
+    )[0]
+    const resolved = winner ?? null
+    db.update(certificates)
+      .set({ clientId: resolved, updatedAt: now })
+      .where(eq(certificates.id, created.id))
+      .run()
+    // Mantém o objeto retornado em sincronia com o banco.
+    created.clientId = resolved
+  }
+  return inherited
 }
 
 export function getCertificateRow(db: AppDatabase, id: string): CertificateRow {
@@ -280,7 +409,7 @@ export function createPfxCertificate(
   db: AppDatabase,
   vault: VaultService,
   input: CreatePfxCertificateInput,
-): CertificateRow {
+): CreatedCertificate {
   const existing = findCertificateByThumbprint(db, input.parsed.thumbprintSha256)
   if (existing) {
     if (input.clientId)
@@ -342,7 +471,9 @@ export function createPfxCertificate(
         .run()
     }
   })
-  return row
+  // Renovação sem cliente explícito: herda os vínculos consentidos da cadeia.
+  const inheritedClientIds = inheritRenewalClientLinks(db, row, now)
+  return { row, inheritedClientIds }
 }
 
 export function createWindowsCertificate(
@@ -350,11 +481,12 @@ export function createWindowsCertificate(
   record: WindowsCertificate,
   clientId?: string | null,
   consent = false,
-): CertificateRow {
+): CreatedCertificate {
   const existing = findCertificateByThumbprint(db, record.thumbprintSha256 ?? '')
   if (existing) {
     if (clientId) linkClientToCertificate(db, existing.id, clientId, consent)
-    return existing
+    const inheritedClientIds = inheritRenewalClientLinks(db, existing, new Date().toISOString())
+    return { row: existing, inheritedClientIds }
   }
   if (clientId && !consent) {
     throw new AppError(
@@ -411,7 +543,9 @@ export function createWindowsCertificate(
         .run()
     }
   })
-  return row
+  // Renovação sem cliente explícito: herda os vínculos consentidos da cadeia.
+  const inheritedClientIds = inheritRenewalClientLinks(db, row, now)
+  return { row, inheritedClientIds }
 }
 
 export function linkClientToCertificate(
