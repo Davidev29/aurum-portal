@@ -353,7 +353,7 @@ export function ServiceFormDialog({
       window.clearInterval(timer)
       unsubscribe()
     }
-  }, [stage, wizardId])
+  }, [stage, wizardId, teachAuthMethod])
 
   const startRecording = async (): Promise<void> => {
     if (!createdService) return
@@ -475,6 +475,9 @@ export function ServiceFormDialog({
           certificateSteps: certDef?.steps,
           passwordSteps: passwordDef.steps,
           fields: dedupeFieldSpecs([...(passwordDef.fields ?? []), ...(certDef?.fields ?? [])]),
+          // O toggle "Entrar sozinho" da revisão vale para a receita final,
+          // independente do autoSubmit do passo (que é herdado do auto).
+          autoSubmit: reviewAutoSubmit,
         }
         await aurumBitPortal().recipes.save({
           serviceId: createdService.id,

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { Buffer } from 'node:buffer'
-import { eq } from 'drizzle-orm'
 import { createDatabase } from '../../electron/main/db/database'
 import {
   createCredential,
