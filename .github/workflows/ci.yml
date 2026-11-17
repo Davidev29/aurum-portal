@@ -55,5 +55,58 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Stress tests
+        run: npm run test:stress
+
       - name: Build
         run: npm run build
+
+  package:
+    name: Package (electron-builder --dir)
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+      electron_config_cache: ${{ github.workspace }}/.electron-cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Restore Electron binary cache
+        uses: actions/cache@v4
+        with:
+          path: .electron-cache
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Electron binary
+        run: node node_modules/electron/install.js
+
+      - name: Build
+        run: npm run build
+
+      # Empacota sem instalador: valida asar, asarUnpack do better-sqlite3,
+      # protocolo app:// e recursos nativos antes de qualquer dist.
+      - name: Package directory build
+        run: npx electron-builder --dir
+
+      # Gate N4: o bundle de produção não pode conter "autopilot".
+      - name: Verify release gate
+        run: node scripts/verify-release.mjs
+
+      - name: Upload packaged app
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurumbit-portal-win-x64-dir
+          path: dist/win-unpacked/**/*
+          if-no-files-found: error
+          retention-days: 14
