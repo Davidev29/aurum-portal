@@ -533,8 +533,6 @@ export interface AppSettings {
   passwordRevealSeconds: number
   confirmOpenExternal: boolean
   sessionLimit: number
-  autoCheckUpdates: boolean
-  autoUpdateChannel: 'stable' | 'beta'
   idleLockMinutes: number
   retainAuditDays: number
   externalCnpjLookup: boolean

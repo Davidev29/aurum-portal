@@ -15,7 +15,9 @@ export function initLogger(): void {
   log.errorHandler.startCatching({
     showDialog: false,
     onError: ({ error }) => {
-      log.error('uncaught', errorToast(error))
+      // A mensagem/stack de uma exceção não tratada pode carregar trechos de
+      // valores sensíveis — passa pelo mesmo funil de redação do resto.
+      log.error('uncaught', redactRecord(asRecord(errorToast(error))))
     },
   })
   log.info('logger.initialized', {
@@ -29,7 +31,14 @@ function errorToast(error: unknown): unknown {
   if (error instanceof Error) {
     return { name: error.name, message: error.message, stack: error.stack?.slice(0, 4000) }
   }
-  return String(error)
+  return { name: 'Error', message: String(error) }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>
+  }
+  return { value: String(value) }
 }
 
 export const logger = {

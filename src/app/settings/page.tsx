@@ -58,8 +58,30 @@ export default function SettingsPage() {
   const [testPdfBusy, setTestPdfBusy] = React.useState(false)
   const logoInputRef = React.useRef<HTMLInputElement>(null)
 
+  // Semeia o rascunho na primeira carga e, depois, faz merge a cada mudança
+  // externa: chaves que o usuário editou localmente são preservadas; chaves
+  // não tocadas refletem o servidor (ex.: tema alterado pelo botão do app).
+  const lastServerRef = React.useRef<AppSettings | null>(null)
   React.useEffect(() => {
-    if (settings) setDraft(settings)
+    if (!settings) return
+    const server = settings
+    setDraft((current) => {
+      const last = lastServerRef.current
+      if (!current || !last) {
+        lastServerRef.current = server
+        return server
+      }
+      const merged = { ...server } as AppSettings
+      for (const key of Object.keys(server) as Array<keyof AppSettings>) {
+        const userChanged = JSON.stringify(current[key]) !== JSON.stringify(last[key])
+        const serverChanged = JSON.stringify(last[key]) !== JSON.stringify(server[key])
+        if (userChanged && !serverChanged) {
+          ;(merged as unknown as Record<string, unknown>)[key] = current[key]
+        }
+      }
+      return merged
+    })
+    lastServerRef.current = server
   }, [settings])
 
   const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
@@ -738,28 +760,7 @@ export default function SettingsPage() {
             title="Atualizações"
             subtitle="A verificação consulta metadados públicos, sem enviar dados do cofre."
           >
-            <ToggleRow
-              title="Verificar automaticamente"
-              description="Recomendado apenas em máquinas com política de atualização."
-              checked={draft.autoCheckUpdates}
-              onCheckedChange={(checked) => patch('autoCheckUpdates', checked)}
-            />
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <Field label="Canal" className="flex-1">
-                <Select
-                  value={draft.autoUpdateChannel}
-                  onChange={(event) =>
-                    patch(
-                      'autoUpdateChannel',
-                      event.target.value as AppSettings['autoUpdateChannel'],
-                    )
-                  }
-                >
-                  <option value="stable">Estável</option>
-                  <option value="beta">Beta</option>
-                </Select>
-              </Field>
+            <div className="flex flex-wrap items-center gap-3">
               <Button variant="secondary" onClick={() => void checkUpdates()} disabled={checking}>
                 <RefreshCw
                   className={checking ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}

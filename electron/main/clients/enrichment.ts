@@ -1,4 +1,4 @@
-import { onlyDigits } from '../../../shared/validation'
+import { maskDocument, onlyDigits } from '../../../shared/validation'
 import type {
   Client,
   ClientBrasilApiRefreshItem,
@@ -148,11 +148,9 @@ export async function fetchCompanyByCnpj(
   }
 }
 
+/** Delega ao mascarador central (maskDocument): nunca vaza a raiz do CNPJ. */
 function maskDocumentDigits(document: string): string {
-  const digits = onlyDigits(document ?? '')
-  if (digits.length === 11) return `***.***.***-${digits.slice(-2)}`
-  if (digits.length === 14) return `**.***.***/${digits.slice(0, 4)}-*`
-  return '***'
+  return maskDocument(document)
 }
 
 /**
@@ -222,7 +220,7 @@ export async function refreshAllClientsFromBrasilApi(
           status: 'error',
           message: 'CNPJ não encontrado ou Brasil API indisponível.',
         })
-        emitProgress(index + 1, client.id, client.document, client.name, 'updating')
+        emitProgress(index + 1, client.id, maskDocument(client.document), client.name, 'updating')
         continue
       }
 
@@ -254,7 +252,7 @@ export async function refreshAllClientsFromBrasilApi(
           message: error instanceof Error ? error.message : 'Falha ao atualizar o cadastro.',
         })
       }
-      emitProgress(index + 1, client.id, client.document, client.name, 'updating')
+      emitProgress(index + 1, client.id, maskDocument(client.document), client.name, 'updating')
       // Sequencial por design: evita rajada contra a API gratuita.
       await new Promise<void>((resolve) => setImmediate(resolve))
       continue
@@ -296,7 +294,7 @@ export async function refreshAllClientsFromBrasilApi(
           message: error instanceof Error ? error.message : 'Falha ao atualizar o cadastro do CPF.',
         })
       }
-      emitProgress(index + 1, client.id, client.document, client.name, 'updating')
+      emitProgress(index + 1, client.id, maskDocument(client.document), client.name, 'updating')
       continue
     }
 
@@ -308,7 +306,7 @@ export async function refreshAllClientsFromBrasilApi(
       status: 'skipped',
       message: 'Documento com tamanho inválido.',
     })
-    emitProgress(index + 1, client.id, client.document, client.name, 'updating')
+    emitProgress(index + 1, client.id, maskDocument(client.document), client.name, 'updating')
   }
 
   emitProgress(total, null, null, null, 'done')

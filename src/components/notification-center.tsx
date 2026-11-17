@@ -20,25 +20,37 @@ export function NotificationCenter() {
   const [open, setOpen] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const rootRef = React.useRef<HTMLDivElement>(null)
+  const panelRef = React.useRef<HTMLDivElement>(null)
+  const triggerRef = React.useRef<HTMLButtonElement>(null)
 
   const notifications = data?.notifications ?? []
   const unreadCount = data?.unreadCount ?? 0
 
   React.useEffect(() => {
     if (!open) return
+    // Move o foco para dentro do painel ao abrir.
+    const first = panelRef.current?.querySelector<HTMLElement>(
+      'button, a[href], input, [tabindex]:not([tabindex="-1"])',
+    )
+    first?.focus()
     const onPointerDown = (event: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
         setOpen(false)
       }
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
     }
     document.addEventListener('mousedown', onPointerDown)
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('mousedown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
+      // Devolve o foco ao gatilho ao fechar.
+      triggerRef.current?.focus()
     }
   }, [open])
 
@@ -79,6 +91,7 @@ export function NotificationCenter() {
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-label={
@@ -99,6 +112,7 @@ export function NotificationCenter() {
 
       {open ? (
         <div
+          ref={panelRef}
           role="dialog"
           aria-label="Central de avisos"
           className="absolute right-0 z-50 mt-2 flex w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[var(--pv-radius-panel)] border border-[var(--pv-border)] bg-[var(--pv-panel)] shadow-[var(--pv-shadow-lg)]"

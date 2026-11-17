@@ -127,24 +127,24 @@ describe('chaos: assinatura de PDF', () => {
     ).rejects.toThrow(/vazio/)
   })
 
-  it('URL de TSA invalida assina offline sem carimbo', async () => {
+  it('URL de TSA invalida cancela a assinatura (fail-closed)', async () => {
     const doc = await PDFDocument.create()
     doc.addPage([300, 400])
     const pdfBytes = Buffer.from(await doc.save())
-    const result = await signPdfDocument({
-      fileName: 'x.pdf',
-      pdfBytes,
-      certificate: material,
-      page: 1,
-      xPct: 0.1,
-      yPct: 0.1,
-      size: 'small',
-      reason: 'r',
-      tsaUrl: 'not-a-url',
-    })
-    expect(result.pdf.length).toBeGreaterThan(0)
-    expect(result.tsaHost).toBe('offline')
-  })
+    await expect(
+      signPdfDocument({
+        fileName: 'x.pdf',
+        pdfBytes,
+        certificate: material,
+        page: 1,
+        xPct: 0.1,
+        yPct: 0.1,
+        size: 'small',
+        reason: 'r',
+        tsaUrl: 'not-a-url',
+      }),
+    ).rejects.toThrow(/TSA/)
+  }, 20_000)
 
   it('clamp de coordenadas no carimbo', () => {
     const fakePage = { getSize: () => ({ width: 300, height: 400 }) } as any
@@ -155,7 +155,7 @@ describe('chaos: assinatura de PDF', () => {
     expect(rect.y).toBeGreaterThanOrEqual(0)
   })
 
-  it('TSA indisponivel assina offline sem carimbo (PAdES-B)', async () => {
+  it('TSA indisponivel cancela a assinatura (fail-closed)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
@@ -165,18 +165,18 @@ describe('chaos: assinatura de PDF', () => {
     const doc = await PDFDocument.create()
     doc.addPage([300, 400])
     const pdfBytes = Buffer.from(await doc.save())
-    const result = await signPdfDocument({
-      fileName: 'x.pdf',
-      pdfBytes,
-      certificate: material,
-      page: 1,
-      xPct: 0.1,
-      yPct: 0.1,
-      size: 'small',
-      reason: 'r',
-      tsaUrl: 'https://tsa.example',
-    })
-    expect(result.pdf.length).toBeGreaterThan(0)
-    expect(result.tsaHost).toBe('offline')
+    await expect(
+      signPdfDocument({
+        fileName: 'x.pdf',
+        pdfBytes,
+        certificate: material,
+        page: 1,
+        xPct: 0.1,
+        yPct: 0.1,
+        size: 'small',
+        reason: 'r',
+        tsaUrl: 'https://tsa.example',
+      }),
+    ).rejects.toThrow(/Carimbo de tempo indisponível/)
   })
 })

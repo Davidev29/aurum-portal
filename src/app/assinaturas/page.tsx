@@ -123,6 +123,15 @@ function isEligibleCert(cert: Certificate, now = Date.now()): boolean {
   return Number.isFinite(validToMs) && validToMs > now
 }
 
+/** Motivo de inelegibilidade, para exibir junto do certificado oculto. */
+function ineligibleReason(cert: Certificate): string {
+  if (cert.status === 'expired' || new Date(cert.validTo).getTime() <= Date.now()) {
+    return 'Vencido'
+  }
+  if (!cert.hasPfx && !cert.installed) return 'Sem PFX e fora do Windows'
+  return 'Não elegível'
+}
+
 function certClientIds(cert: Certificate): Set<string> {
   const ids = new Set<string>()
   if (cert.clientId) ids.add(cert.clientId)
@@ -158,6 +167,7 @@ export default function AssinaturasPage() {
   const debouncedSearch = useDebouncedValue(search)
   const [clientFilter, setClientFilter] = React.useState<string>('all')
   const [selectedCertId, setSelectedCertId] = React.useState<string | null>(null)
+  const [showIneligible, setShowIneligible] = React.useState(false)
   const [certPage, setCertPage] = React.useState(1)
   const [certPageSize, setCertPageSize] = React.useState(10)
   const [importOpen, setImportOpen] = React.useState(false)
@@ -368,6 +378,7 @@ export default function AssinaturasPage() {
   const totalCerts = certs.length
   const totalEligible = eligibleCerts.length
   const hiddenCount = totalCerts - totalEligible
+  const ineligibleCerts = React.useMemo(() => certs.filter((c) => !isEligibleCert(c)), [certs])
 
   const visibleCerts = React.useMemo(() => {
     const query = debouncedSearch.trim().toLowerCase()
@@ -622,9 +633,18 @@ export default function AssinaturasPage() {
           // ignore
         }
       })()
+      const token = pdfDocTokenRef.current ?? preview?.token ?? null
+      if (token) {
+        // Devolve o PDF ao garbage collector imediatamente, sem esperar o TTL.
+        void aurumBitPortal()
+          .pdf.release(token)
+          .catch(() => undefined)
+      }
       pdfDocRef.current = null
       pdfDocTokenRef.current = null
     }
+    // O token vive na ref atual no unmount — preview/state não são dependências.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const zoomIn = React.useCallback(() => {
@@ -1843,6 +1863,20 @@ export default function AssinaturasPage() {
                     </strong>
                     {' • '}
                     {formatCpfCnpj(selectedCert.document, selectedCert.documentType)}
+                    {selectedCert.status === 'expiring' ? (
+                      <>
+                        {' • '}
+                        <strong
+                          className={
+                            selectedCert.daysUntilExpiry <= 7
+                              ? 'font-semibold text-[var(--pv-danger)]'
+                              : 'font-semibold text-[var(--pv-warning)]'
+                          }
+                        >
+                          vence em {selectedCert.daysUntilExpiry}d
+                        </strong>
+                      </>
+                    ) : null}
                     {!paginatedCerts.some((cert) => cert.id === selectedCert.id)
                       ? ' • fora desta página'
                       : ''}
@@ -1906,6 +1940,18 @@ export default function AssinaturasPage() {
                           <option value="50">50 por página</option>
                         </Select>
                       </label>
+                      {hiddenCount > 0 ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setShowIneligible((current) => !current)}
+                          aria-expanded={showIneligible}
+                        >
+                          {showIneligible
+                            ? `Ocultar não elegíveis (${hiddenCount})`
+                            : `Ver não elegíveis (${hiddenCount})`}
+                        </Button>
+                      ) : null}
                     </div>
                     {certTotalPages > 1 ? (
                       <nav
@@ -1957,6 +2003,35 @@ export default function AssinaturasPage() {
                       </nav>
                     ) : null}
                   </div>
+                  {showIneligible && ineligibleCerts.length > 0 ? (
+                    <div className="shrink-0 rounded-xl border border-[var(--pv-border)] bg-[var(--pv-panel-2)] p-3">
+                      <p className="mb-2 text-xs font-semibold text-[var(--pv-text)]">
+                        Não elegíveis para assinar ({ineligibleCerts.length})
+                      </p>
+                      <ul className="max-h-40 space-y-1 overflow-y-auto pv-scroll">
+                        {ineligibleCerts.map((cert) => (
+                          <li
+                            key={cert.id}
+                            className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-[var(--pv-panel)]"
+                          >
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-medium">{cert.holderName}</span>
+                              <span className="block truncate text-[var(--pv-muted)]">
+                                {cert.label} · vence{' '}
+                                {formatDate(certificateEffectiveValidToOf(cert))}
+                              </span>
+                            </span>
+                            <Badge variant="danger" className="shrink-0">
+                              {ineligibleReason(cert)}
+                            </Badge>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-[11px] text-[var(--pv-muted)]">
+                        Para tornar elegível, importe o PFX em Certificados ou instale no Windows.
+                      </p>
+                    </div>
+                  ) : null}
                 </>
               )}
             </div>

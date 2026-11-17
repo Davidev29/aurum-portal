@@ -21,9 +21,10 @@ import type {
   Client,
   ClientBrasilApiRefreshProgress,
   ClientBrasilApiRefreshReport,
+  Certificate,
 } from '@shared/types'
 import { aurumBitPortal, errorMessage } from '@/lib/api'
-import { useClients, useInvalidate } from '@/lib/queries'
+import { useClients, useInvalidate, useCertificates } from '@/lib/queries'
 import { useDebouncedValue as useDebounce } from '@/lib/hooks'
 import { formatDocumentMasked, formatDate, initials } from '@/lib/utils'
 import { AppShell } from '@/components/app-shell'
@@ -55,13 +56,87 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
+/**
+ * Resumo do pior caso dos certificados vinculados ao cliente, para a coluna
+ * da lista. `undefined` = nenhum certificado vinculado (a célula mostra "—").
+ */
+function certSummaryFor(
+  certificates: Certificate[],
+): { variant: 'success' | 'warning' | 'danger'; label: string; title: string } | null {
+  if (certificates.length === 0) return null
+  const expiring = certificates
+    .filter((certificate) => certificate.status === 'expiring')
+    .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
+  if (expiring.length > 0) {
+    const worst = expiring[0]!
+    return {
+      variant: 'warning',
+      label: `A vencer ${Math.max(worst.daysUntilExpiry, 0)}d${expiring.length > 1 ? ` (+${expiring.length - 1})` : ''}`,
+      title: expiring.map((certificate) => certificate.holderName).join(', '),
+    }
+  }
+  const usable = certificates.filter(
+    (certificate) => certificate.status === 'valid' || certificate.status === 'in_vault',
+  )
+  if (usable.length > 0) {
+    return {
+      variant: 'success',
+      label: usable.length > 1 ? `${usable.length} A1 ok` : 'A1 ok',
+      title: usable.map((certificate) => certificate.holderName).join(', '),
+    }
+  }
+  const chain = certificates.filter((certificate) => certificate.status === 'chain_incomplete')
+  if (chain.length > 0) {
+    return {
+      variant: 'warning',
+      label: 'Cadeia incompleta',
+      title: chain.map((certificate) => certificate.holderName).join(', '),
+    }
+  }
+  const missing = certificates.filter((certificate) => certificate.status === 'missing_windows')
+  if (missing.length > 0) {
+    return {
+      variant: 'danger',
+      label: 'Ausente no Windows',
+      title: missing.map((certificate) => certificate.holderName).join(', '),
+    }
+  }
+  return {
+    variant: 'danger',
+    label: 'A1 vencido',
+    title: certificates.map((certificate) => certificate.holderName).join(', '),
+  }
+}
+
 export default function ClientsPage() {
   const invalidate = useInvalidate()
   const router = useRouter()
   const [search, setSearch] = React.useState('')
   const debouncedSearch = useDebounce(search)
   const [status, setStatus] = React.useState<'active' | 'archived' | 'all'>('active')
-  const { data: clients, isLoading } = useClients({ search: debouncedSearch || undefined, status })
+  const {
+    data: clients,
+    isLoading,
+    isError,
+    error: clientsError,
+    refetch,
+  } = useClients({ search: debouncedSearch || undefined, status })
+  // Um certificado por linha da lista: consultas únicas, agrupadas por cliente.
+  const { data: certificates } = useCertificates({ includeHistory: false })
+  const certsByClient = React.useMemo(() => {
+    const map = new Map<string, Certificate[]>()
+    for (const certificate of certificates ?? []) {
+      const clientIds = new Set<string>()
+      if (certificate.clientId) clientIds.add(certificate.clientId)
+      for (const client of certificate.clients) clientIds.add(client.id)
+      for (const clientId of clientIds) {
+        const list = map.get(clientId) ?? []
+        list.push(certificate)
+        map.set(clientId, list)
+      }
+    }
+    return map
+  }, [certificates])
   const [formOpen, setFormOpen] = React.useState(false)
   const [reportOpen, setReportOpen] = React.useState(false)
   const [archiving, setArchiving] = React.useState<Client | null>(null)
@@ -260,6 +335,20 @@ export default function ClientsPage() {
 
       {isLoading ? (
         <div className="h-64 animate-pulse rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)]" />
+      ) : isError ? (
+        <div
+          className="rounded-2xl border border-[var(--pv-danger-border)] bg-[var(--pv-danger-soft)] p-6 text-center"
+          role="alert"
+        >
+          <p className="text-sm font-semibold">Não foi possível carregar os clientes</p>
+          <p className="mx-auto mt-1 max-w-md text-xs text-[var(--pv-muted)]">
+            {clientsError ? errorMessage(clientsError) : 'Falha desconhecida.'} Tente novamente.
+          </p>
+          <Button variant="secondary" className="mt-3" onClick={() => void refetch()}>
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+            Tentar novamente
+          </Button>
+        </div>
       ) : !clients || clients.length === 0 ? (
         <EmptyState
           icon={<Users className="h-5 w-5" />}
@@ -289,6 +378,7 @@ export default function ClientsPage() {
                 <TableHead>Documento</TableHead>
                 <TableHead className="hidden lg:table-cell">Contato</TableHead>
                 <TableHead className="hidden 2xl:table-cell">Tags</TableHead>
+                <TableHead className="hidden lg:table-cell">Certificado</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden 2xl:table-cell">Criado</TableHead>
                 <TableHead className="w-[104px] text-right">Ações</TableHead>
@@ -336,6 +426,17 @@ export default function ClientsPage() {
                         <Badge variant="outline">+{client.tags.length - 3}</Badge>
                       ) : null}
                     </div>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    {(() => {
+                      const summary = certSummaryFor(certsByClient.get(client.id) ?? [])
+                      if (!summary) return <span className="text-xs text-[var(--pv-muted)]">—</span>
+                      return (
+                        <Badge variant={summary.variant} title={`Certificado: ${summary.title}`}>
+                          {summary.label}
+                        </Badge>
+                      )
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Badge variant={client.status === 'active' ? 'success' : 'secondary'}>

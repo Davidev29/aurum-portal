@@ -36,25 +36,55 @@ const select = (
 describe('caos: formato real do Electron em select-client-certificate', () => {
   // Regressão do incidente "O portal tentou autenticar fora da allowlist":
   // o Electron entrega a URL como "host:porta", sem esquema.
-  const govCases = [
+  // Certificado A1 só é injetado nos endpoints gov.br de identidade +
+  // allowlist do serviço. Um host gov.br ARBITRÁRIO não recebe o A1.
+  const ssoCases = [
     'certificado.sso.acesso.gov.br:443',
     'sso.acesso.gov.br:443',
     'sso.acesso.gov.br',
-    'cav.receita.fazenda.gov.br:443',
-    'portalservicos.jucec.ce.gov.br:443',
-    'assinador.iti.gov.br:443',
-    'ecacontribuintes.receita.fazenda.gov.br:443',
     'HTTPS://SSO.ACESSO.GOV.BR:443/path',
     'certificado.sso.acesso.gov.br.:443',
     '//sso.acesso.gov.br/login',
     'sso.acesso.gov.br:443/path/consulta?q=1',
+    'acesso.gov.br:443',
+    'contas.acesso.gov.br:443',
+    'login.gov.br:443',
   ]
 
-  for (const url of govCases) {
-    it(`injeta certificado em host governamental: ${url}`, () => {
+  for (const url of ssoCases) {
+    it(`injeta certificado em host SSO gov.br: ${url}`, () => {
       expect(select(url).kind).toBe('selected')
     })
   }
+
+  const arbitraryGovCases = [
+    'cav.receita.fazenda.gov.br:443',
+    'portalservicos.jucec.ce.gov.br:443',
+    'assinador.iti.gov.br:443',
+    'ecacontribuintes.receita.fazenda.gov.br:443',
+    'intranet.gov.br:443',
+  ]
+
+  for (const url of arbitraryGovCases) {
+    it(`NÃO injeta em host gov.br fora da allowlist: ${url}`, () => {
+      expect(select(url).kind).toBe('host-not-allowed')
+    })
+  }
+
+  it('injeta em host gov.br explicitamente na allowlist do serviço', () => {
+    const context: CertificateSelectionContext = {
+      ...baseContext,
+      allowedDomains: ['cav.receita.fazenda.gov.br', 'assinador.iti.gov.br'],
+    }
+    expect(select('cav.receita.fazenda.gov.br:443', context).kind).toBe('selected')
+    expect(select('assinador.iti.gov.br:443', context).kind).toBe('selected')
+    // Curinga de subdomínio continua valendo apenas para a allowlist.
+    const wildcard: CertificateSelectionContext = {
+      ...baseContext,
+      allowedDomains: ['*.iti.gov.br'],
+    }
+    expect(select('assinador.iti.gov.br:443', wildcard).kind).toBe('selected')
+  })
 
   it('rejeita HTTP mesmo para hosts governamentais', () => {
     expect(select('http://sso.acesso.gov.br/').kind).toBe('host-not-allowed')
@@ -244,9 +274,14 @@ describe('caos: encadeamento de redirecionamentos de SSO', () => {
     'https://sso.acesso.gov.br/callback?state=xyz',
   ]
 
-  it('toda a cadeia gov.br é aceita para certificado', () => {
+  it('a cadeia SSO gov.br é aceita para certificado; a landing não recebe o A1', () => {
     for (const url of chain) {
-      expect(select(url).kind).toBe('selected')
+      if (/empresas-e-negocios\/login_cidadao/.test(url)) {
+        // A landing pública Redesim nunca dispara o handshake mTLS.
+        expect(select(url).kind).toBe('host-not-allowed')
+      } else {
+        expect(select(url).kind).toBe('selected')
+      }
     }
   })
 

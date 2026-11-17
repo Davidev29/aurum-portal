@@ -48,16 +48,6 @@ export const BUILTIN_SERVICE_IDS = {
   simplesNacional: 'builtin-simples-nacional',
   registrato: 'builtin-registrato',
   dteSefazCe: 'builtin-dte-sefaz-ce',
-  speedgovTiangua: 'builtin-speedgov-tiangua',
-  speedgovJuazeiroDoNorte: 'builtin-speedgov-juazeiro-do-norte',
-  speedgovTaua: 'builtin-speedgov-taua',
-  speedgovItarema: 'builtin-speedgov-itarema',
-  speedgovPindoretama: 'builtin-speedgov-pindoretama',
-  speedgovLimoeiroDoNorte: 'builtin-speedgov-limoeiro-do-norte',
-  speedgovSobral: 'builtin-speedgov-sobral',
-  speedgovCrateus: 'builtin-speedgov-crateus',
-  speedgovIcapui: 'builtin-speedgov-icapui',
-  speedgovParacuru: 'builtin-speedgov-paracuru',
 } as const
 
 export const AUDIT_TYPES = [

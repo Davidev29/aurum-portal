@@ -47,6 +47,17 @@ import {
 
 const PAGE_SIZE = 50
 
+/** "AAAA-MM-DD" (input[type=date]) → ISO do instante local (início ou fim do dia). */
+function localDayToIso(value: string, edge: 'start' | 'end'): string | undefined {
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return undefined
+  const date =
+    edge === 'start'
+      ? new Date(year, month - 1, day, 0, 0, 0, 0)
+      : new Date(year, month - 1, day, 23, 59, 59, 999)
+  return date.toISOString()
+}
+
 export default function AuditPage() {
   const invalidate = useInvalidate()
   const [type, setType] = React.useState('')
@@ -62,19 +73,25 @@ export default function AuditPage() {
     metadata: Record<string, unknown>
   } | null>(null)
 
+  // <Input type="date"> entrega "AAAA-MM-DD" — converte para ISO UTC do
+  // instante local (meia-noite / 23:59:59.999 no fuso do operador), senão o
+  // `auditFilterSchema` (z.string().datetime()) recusa e a lista quebra.
+  const fromIso = React.useMemo(() => (from ? localDayToIso(from, 'start') : undefined), [from])
+  const toIso = React.useMemo(() => (to ? localDayToIso(to, 'end') : undefined), [to])
+
   const filter = React.useMemo<AuditFilter>(
     () => ({
       types: type ? [type] : undefined,
       entity: debouncedEntity || undefined,
-      from: from || undefined,
-      to: to ? `${to}T23:59:59.999Z` : undefined,
+      from: fromIso,
+      to: toIso,
       limit: PAGE_SIZE,
       offset: page * PAGE_SIZE,
     }),
-    [type, debouncedEntity, from, to, page],
+    [type, debouncedEntity, fromIso, toIso, page],
   )
 
-  const { data, isLoading, isFetching, refetch } = useAudit(filter)
+  const { data, isLoading, isFetching, refetch, isError, error } = useAudit(filter)
   const { data: settings } = useSettings()
   const [pdfBusy, setPdfBusy] = React.useState(false)
 
@@ -87,8 +104,8 @@ export default function AuditPage() {
       const result = await aurumBitPortal().audit.export(format, {
         types: type ? [type] : undefined,
         entity: debouncedEntity || undefined,
-        from: from || undefined,
-        to: to ? `${to}T23:59:59.999Z` : undefined,
+        from: fromIso,
+        to: toIso,
       })
       if (result.count === 0) {
         toast.info('Nenhum evento corresponde ao filtro; nenhum arquivo foi criado.')
@@ -108,8 +125,8 @@ export default function AuditPage() {
       const events = await aurumBitPortal().audit.list({
         types: type ? [type] : undefined,
         entity: debouncedEntity || undefined,
-        from: from || undefined,
-        to: to ? `${to}T23:59:59.999Z` : undefined,
+        from: fromIso,
+        to: toIso,
         limit: 500,
         offset: 0,
       })
@@ -245,6 +262,21 @@ export default function AuditPage() {
 
       {isLoading ? (
         <div className="h-64 animate-pulse rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)]" />
+      ) : isError ? (
+        <div
+          className="rounded-2xl border border-[var(--pv-danger-border)] bg-[var(--pv-danger-soft)] p-6 text-center"
+          role="alert"
+        >
+          <p className="text-sm font-semibold">Não foi possível carregar a auditoria</p>
+          <p className="mx-auto mt-1 max-w-md text-xs text-[var(--pv-muted)]">
+            {error ? errorMessage(error) : 'Falha desconhecida.'} Verifique o filtro de período e
+            tente de novo.
+          </p>
+          <Button variant="secondary" className="mt-3" onClick={() => void refetch()}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Tentar novamente
+          </Button>
+        </div>
       ) : !data || data.events.length === 0 ? (
         <EmptyState
           icon={<FileClock className="h-5 w-5" />}

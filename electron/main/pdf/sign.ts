@@ -151,8 +151,8 @@ export async function signPdfDocument(input: SignPdfDocumentInput): Promise<Sign
   ) {
     throw new CmsError('Posicao do carimbo invalida')
   }
-  // Offline-first: URL vazia/invalida ou TSA indisponivel nao aborta —
-  // o CMS assina como PAdES-B (sem carimbo). Nenhuma rede e exigida.
+  // Fail-closed: sem uma TSA válida a assinatura é CANCELADA — nenhuma rede
+  // pode ser opcional. Ver ADR-0008 e os documentos de segurança.
   const validTo = new Date(certificate.validTo)
   if (Number.isNaN(validTo.getTime()) || validTo.getTime() <= Date.now()) {
     throw new CmsError('Certificado vencido — renove na AC e importe novamente')

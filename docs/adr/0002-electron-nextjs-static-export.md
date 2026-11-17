@@ -16,7 +16,7 @@ Usar **Electron** como shell desktop e **Next.js 16 (App Router)** como renderer
 
 - O Next.js gera arquivos estáticos em `out/`.
 - Em produção, o processo principal serve esses arquivos pelo protocolo próprio `app://aurumbit-portal`.
-- Em desenvolvimento, o Electron carrega `http://localhost:3000`.
+- Em desenvolvimento, o Electron carrega `http://localhost:3002`.
 - O preload expõe uma API tipada via `contextBridge`; o renderer nunca importa módulos Node.js.
 - O processo principal e o preload são compilados com `tsup` para CommonJS, com `electron` e `better-sqlite3` como externos.
 - A janela principal e as janelas de sessão usam `sandbox: true`, `contextIsolation: true`, `nodeIntegration: false` e `webSecurity: true`.

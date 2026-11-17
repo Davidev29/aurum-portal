@@ -345,7 +345,10 @@ export const notifications = sqliteTable(
   (table) => [
     index('notifications_read_idx').on(table.read),
     index('notifications_created_idx').on(table.createdAt),
-    index('notifications_dedupe_idx').on(
+    // Espelho do índice único parcial criado pela migração v11 (dedupe de
+    // avisos de vencimento). Constraint real no banco é parcial; aqui fica a
+    // documentação do contrato.
+    uniqueIndex('notifications_dedupe_unique').on(
       table.type,
       table.obligationId,
       table.clientId,

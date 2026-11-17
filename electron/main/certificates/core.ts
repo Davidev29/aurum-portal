@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import {
   isAllowedHost,
-  isGovernmentHost,
+  isGovernmentCertificateHost,
   normalizeHostname,
   parseHttpUrl,
 } from '../../../shared/network'
@@ -225,10 +225,12 @@ export function selectCertificateByThumbprint(
       if (score >= 95) break
     }
   }
-  // Somente correspondências de alta confiança entram no mTLS. Serial/DN
-  // (score 40-70) são usados apenas como desempate quando fingerprint/DER
-  // não estão disponíveis na entrega do Chromium.
-  return chosenScore >= 50 ? chosen : null
+  // Somente correspondências de alta confiança entram no mTLS: fingerprint/
+  // DER (85-100) ou serial+issuer (70). O match por sujeito+emissor (50)
+  // NÃO é suficiente para seleção automática — um certificado renovado com
+  // outra chave passaria como o "mesmo". Sem prova, cancela e pede vínculo
+  // explícito (auditado como certificate.not_offered).
+  return chosenScore >= 70 ? chosen : null
 }
 
 export function resolveCertificateSelection(
@@ -272,12 +274,10 @@ export function resolveCertificateSelection(
 
   const host = normalizeHostname(parsedUrl.hostname)
 
-  // Portais do governo redirecionam por dominios SSO/auxiliares variados
-  // (sso.acesso.gov.br, certificado.sso.acesso.gov.br, cav.receita.fazenda.gov.br).
-  // Todos ficam sob .gov.br e sao aceitos automaticamente para que o
-  // certificado seja injetado sem prompt. Qualquer outra origem precisa
-  // estar explicitamente na allowlist do servico.
-  if (!isGovernmentHost(host) && !isAllowedHost(host, context.allowedDomains)) {
+  // Injeção de certificado é restrita aos endpoints gov.br de identidade/
+  // certificado + à allowlist explícita do serviço. Um portal gov.br
+  // QUALQUER (mesmo um comprometido) não recebe o A1 do cliente.
+  if (!isGovernmentCertificateHost(host) && !isAllowedHost(host, context.allowedDomains)) {
     return {
       kind: 'host-not-allowed',
       certificate: null,

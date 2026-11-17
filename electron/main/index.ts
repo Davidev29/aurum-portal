@@ -10,6 +10,7 @@ import { seedBuiltins, getSettings, healCustomServiceRecipes } from './db/seed'
 import { closeOrphanedSessions, countOpenSessionRows } from './db/repositories/sessions'
 import { appendAuditEvent } from './db/repositories/audit'
 import { SafeStorageKeyStore } from './vault/key-store'
+import { verifyVaultIntegrity } from './vault/integrity'
 import { VaultService } from './vault/service'
 import { CertificateService } from './certificates/service'
 import { SessionContextRegistry } from './sessions/context-registry'
@@ -236,6 +237,22 @@ if (!singleInstance) {
         return
       }
       const vault = new VaultService(masterKey)
+      // Verificação de integridade do cofre: se a chave não corresponde aos
+      // segredos já armazenados, o app não abre (fail-closed com orientação).
+      try {
+        verifyVaultIntegrity(database.db, vault)
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Nao foi possivel validar o cofre local.'
+        dialog.showErrorBox('AurumBit Portal - cofre indisponivel', message)
+        logger.error('vault.integrity_blocked_boot', {
+          message: error instanceof Error ? error.message : String(error),
+        })
+        database?.close()
+        database = null
+        app.quit()
+        return
+      }
       const registry = new SessionContextRegistry()
       const db = database.db
 

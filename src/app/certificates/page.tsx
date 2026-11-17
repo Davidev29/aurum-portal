@@ -31,11 +31,11 @@ import { useCertificates, useCertificateStats, useInvalidate, useSettings } from
 import { generateReportPdf } from '@/lib/pdf/report-document'
 import { saveReportPdf } from '@/lib/pdf/save-report'
 import { useDebouncedValue, useSearchParam } from '@/lib/hooks'
-import { formatDate, formatDateTime, initials } from '@/lib/utils'
+import { cn, formatDate, formatDateTime, initials } from '@/lib/utils'
 import { AppShell } from '@/components/app-shell'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { CardContent } from '@/components/ui/card'
 import { Input, Field } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import {
@@ -134,6 +134,9 @@ export default function CertificatesPage() {
     data: certificates,
     isLoading,
     isFetching,
+    isError: certificatesError,
+    error: certificatesLoadError,
+    refetch: refetchCertificates,
   } = useCertificates({
     search: debouncedSearch || undefined,
     status: (status === 'all' ? undefined : status) as
@@ -154,8 +157,12 @@ export default function CertificatesPage() {
   // Revarredura completa: atualiza a presença no Windows e recalcula o status
   // de vencimento/renovação de todos os certificados sobre o universo completo.
   const refreshAllCertificates = React.useCallback(async () => {
-    await aurumBitPortal().certificates.refreshAll()
-    await Promise.all([invalidate.certificates(), invalidate.certificateStats()])
+    try {
+      await aurumBitPortal().certificates.refreshAll()
+      await Promise.all([invalidate.certificates(), invalidate.certificateStats()])
+    } catch (error) {
+      toast.error(errorMessage(error))
+    }
   }, [invalidate])
 
   // Paginação client-side sobre o resultado já filtrado (busca/status no servidor).
@@ -175,6 +182,10 @@ export default function CertificatesPage() {
   const clearFilters = React.useCallback(() => {
     setSearch('')
     setStatus('all')
+  }, [])
+  // Cards de resumo: clicar aplica (ou, se já ativo, remove) o filtro de status.
+  const toggleStatusFilter = React.useCallback((value: string) => {
+    setStatus((current) => (value === 'all' ? 'all' : current === value ? 'all' : value))
   }, [])
 
   // Volta para a primeira página quando busca, filtro ou tamanho mudam;
@@ -426,24 +437,32 @@ export default function CertificatesPage() {
           label="Total no cofre"
           value={stats?.total ?? 0}
           icon={<ShieldCheck className="h-4 w-4" />}
+          active={status === 'all'}
+          onClick={() => toggleStatusFilter('all')}
         />
         <StatCard
           label="A vencer"
           value={stats?.expiring ?? 0}
           tone="warning"
           icon={<AlertTriangle className="h-4 w-4" />}
+          active={status === 'expiring'}
+          onClick={() => toggleStatusFilter('expiring')}
         />
         <StatCard
           label="Vencidos"
           value={stats?.expired ?? 0}
           tone="danger"
           icon={<XCircle className="h-4 w-4" />}
+          active={status === 'expired'}
+          onClick={() => toggleStatusFilter('expired')}
         />
         <StatCard
           label="Ausentes no Windows"
           value={stats?.missingWindows ?? 0}
           tone="danger"
           icon={<ShieldOff className="h-4 w-4" />}
+          active={status === 'missing_windows'}
+          onClick={() => toggleStatusFilter('missing_windows')}
         />
       </div>
 
@@ -505,6 +524,21 @@ export default function CertificatesPage() {
 
       {isLoading ? (
         <div className="h-64 animate-pulse rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)]" />
+      ) : certificatesError ? (
+        <div
+          className="rounded-2xl border border-[var(--pv-danger-border)] bg-[var(--pv-danger-soft)] p-6 text-center"
+          role="alert"
+        >
+          <p className="text-sm font-semibold">Não foi possível carregar os certificados</p>
+          <p className="mx-auto mt-1 max-w-md text-xs text-[var(--pv-muted)]">
+            {certificatesLoadError ? errorMessage(certificatesLoadError) : 'Falha desconhecida.'}{' '}
+            Tente novamente.
+          </p>
+          <Button variant="secondary" className="mt-3" onClick={() => void refetchCertificates()}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Tentar novamente
+          </Button>
+        </div>
       ) : !certificates || certificates.length === 0 ? (
         <EmptyState
           icon={<ShieldCheck className="h-5 w-5" />}
@@ -950,7 +984,13 @@ export default function CertificatesPage() {
             </Alert>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setBackupCertificate(null)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setBackupCertificate(null)
+                setPassphrase('')
+              }}
+            >
               Cancelar
             </Button>
             <Button onClick={() => void backup()} disabled={busy || passphrase.length < 12}>
@@ -989,7 +1029,13 @@ export default function CertificatesPage() {
             </Field>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setUninstallCertificate(null)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setUninstallCertificate(null)
+                setUninstallConfirm('')
+              }}
+            >
               Cancelar
             </Button>
             <Button
@@ -1053,11 +1099,15 @@ function StatCard({
   value,
   icon,
   tone,
+  active,
+  onClick,
 }: {
   label: string
   value: number
   icon: React.ReactNode
   tone?: 'warning' | 'danger'
+  active?: boolean
+  onClick?: () => void
 }) {
   const color =
     tone === 'warning'
@@ -1066,7 +1116,18 @@ function StatCard({
         ? 'text-[var(--pv-danger)]'
         : 'text-[var(--pv-text)]'
   return (
-    <Card>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={active ? 'Clique para limpar o filtro de status' : `Filtrar por: ${label}`}
+      className={cn(
+        'pv-lift rounded-[var(--pv-radius)] border bg-[var(--pv-panel)] text-left shadow-[var(--pv-shadow)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pv-accent)]',
+        active
+          ? 'border-[var(--pv-accent)] ring-2 ring-[var(--pv-accent)]'
+          : 'border-[var(--pv-border)] hover:border-[var(--pv-accent)]',
+      )}
+    >
       <CardContent className="flex items-center gap-3 p-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300">
           {icon}
@@ -1076,6 +1137,6 @@ function StatCard({
           <div className={`text-xl font-semibold ${color}`}>{value}</div>
         </div>
       </CardContent>
-    </Card>
+    </button>
   )
 }

@@ -306,4 +306,98 @@ ALTER TABLE extra_holidays ADD COLUMN icon TEXT;
 ALTER TABLE extra_holidays ADD COLUMN color TEXT;
 `,
   },
+  {
+    version: 9,
+    name: 'remove_speedgov_builtin_services',
+    sql: `
+-- Remove os 10 portais municipais SpeedGov embutidos (decisão de produto:
+-- portais de prefeitura passam a ser cadastrados pelo operador, um a um, como
+-- sites personalizados). Apaga também dependências históricas (sessões com
+-- ON DELETE RESTRICT precisam vir primeiro; credenciais e receitas caem em
+-- cascata com o serviço, mas são apagadas explicitamente para clareza).
+DELETE FROM sessions
+WHERE service_id IN (
+  'builtin-speedgov-tiangua',
+  'builtin-speedgov-juazeiro-do-norte',
+  'builtin-speedgov-taua',
+  'builtin-speedgov-itarema',
+  'builtin-speedgov-pindoretama',
+  'builtin-speedgov-limoeiro-do-norte',
+  'builtin-speedgov-sobral',
+  'builtin-speedgov-crateus',
+  'builtin-speedgov-icapui',
+  'builtin-speedgov-paracuru'
+);
+DELETE FROM recipes
+WHERE service_id IN (
+  'builtin-speedgov-tiangua',
+  'builtin-speedgov-juazeiro-do-norte',
+  'builtin-speedgov-taua',
+  'builtin-speedgov-itarema',
+  'builtin-speedgov-pindoretama',
+  'builtin-speedgov-limoeiro-do-norte',
+  'builtin-speedgov-sobral',
+  'builtin-speedgov-crateus',
+  'builtin-speedgov-icapui',
+  'builtin-speedgov-paracuru'
+);
+DELETE FROM credentials
+WHERE service_id IN (
+  'builtin-speedgov-tiangua',
+  'builtin-speedgov-juazeiro-do-norte',
+  'builtin-speedgov-taua',
+  'builtin-speedgov-itarema',
+  'builtin-speedgov-pindoretama',
+  'builtin-speedgov-limoeiro-do-norte',
+  'builtin-speedgov-sobral',
+  'builtin-speedgov-crateus',
+  'builtin-speedgov-icapui',
+  'builtin-speedgov-paracuru'
+);
+DELETE FROM services
+WHERE id IN (
+  'builtin-speedgov-tiangua',
+  'builtin-speedgov-juazeiro-do-norte',
+  'builtin-speedgov-taua',
+  'builtin-speedgov-itarema',
+  'builtin-speedgov-pindoretama',
+  'builtin-speedgov-limoeiro-do-norte',
+  'builtin-speedgov-sobral',
+  'builtin-speedgov-crateus',
+  'builtin-speedgov-icapui',
+  'builtin-speedgov-paracuru'
+);
+`,
+  },
+  {
+    version: 10,
+    name: 'remove_robot_knowledge_graph_tables',
+    sql: `
+-- A feature "robot knowledge graph" (tabelas kg_nodes/kg_edges, migração v8)
+-- foi removida do código a pedido do dono; as tabelas ficaram órfãs no
+-- banco vivo. Remove o resíduo de forma irreversível e definitiva.
+DROP TABLE IF EXISTS kg_edges;
+DROP TABLE IF EXISTS kg_nodes;
+`,
+  },
+  {
+    version: 11,
+    name: 'notifications_dedupe_unique',
+    sql: `
+-- Deduplica avisos de vencimento exatos (mantém a inserção mais antiga)
+-- e transforma o índice de deduplicação em único: sem índice único, o
+-- agendador pode inserir o mesmo aviso duas vezes na mesma corrida.
+DELETE FROM notifications
+WHERE obligation_id IS NOT NULL
+  AND rowid NOT IN (
+    SELECT MIN(rowid) FROM notifications
+    WHERE obligation_id IS NOT NULL
+    GROUP BY type, obligation_id, client_id, due_date
+  );
+DROP INDEX IF EXISTS notifications_dedupe_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS notifications_dedupe_unique
+  ON notifications(type, obligation_id, client_id, due_date)
+  WHERE obligation_id IS NOT NULL;
+`,
+  },
 ]

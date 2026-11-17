@@ -143,12 +143,13 @@ padrão **certificado**):
 | SIGA SEFAZ-CE | Governo Estadual |
 | DTE SEFAZ-CE | Governo Estadual |
 
-Também embutidos: **10 portais municipais SpeedGov (ISS/NFS-e)** — Tianguá, Juazeiro do
-Norte, Tauá, Itarema, Pindoretama, Limoeiro do Norte, Sobral, Crateús, Icapuí e Paracuru
-(categoria **Prefeituras**, autenticação por **senha do município**, "Entrar sozinho"
-ativo).
+**Portais de prefeitura (ISS/NFS-e) não são mais embutidos** — cada município deve ser
+cadastrado pelo operador em **Configurações › Novo site** (ou na Store, **Novo site**),
+um a um, com URL HTTPS e domínios permitidos (a automação de login é gerada
+sozinha). É assim que o **ISS Fortaleza** e demais portais municipais são
+configurados.
 
-No total, **22 serviços embutidos**. Novos portais podem ser cadastrados em
+No total, **12 serviços embutidos**. Novos portais podem ser cadastrados em
 **Configurações › Novo site** (URL HTTPS + domínios permitidos + receita de login).
 
 ---
@@ -176,7 +177,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` sobe o renderer Next.js na porta **3000**, recompila o processo principal com
+`npm run dev` sobe o renderer Next.js na porta **3002**, recompila o processo principal com
 `tsup --watch` e abre o Electron quando ambos estiverem prontos.
 
 **Versão compilada:**
@@ -200,7 +201,7 @@ substituída antes de distribuir.
 | `npm run build` / `start` | Compila renderer (export estático) + main, e abre o artefato. |
 | `npm run typecheck` | `tsc --noEmit` nos dois `tsconfig`. |
 | `npm run lint` | ESLint. |
-| `npm test` | 497 testes unitários (Vitest). |
+| `npm test` | 618 testes unitários (Vitest). |
 | `npm run test:stress` | Suíte de stress/carga (`tests/stress/`) — fora do `npm test`. Ver [fluxo agêntico](docs/qa/QA-STRESS-AGENTIC-FLOW.md) e [relatório](docs/qa/QA-STRESS-REPORT.md). |
 | `npm run test:coverage` | Cobertura de testes. |
 | `npm run test:e2e` | Compila e executa os testes Playwright/Electron. |
@@ -271,7 +272,7 @@ Leia [docs/SECURITY.md](docs/SECURITY.md) e [docs/PRIVACY.md](docs/PRIVACY.md) a
 ```powershell
 npm run typecheck
 npm run lint
-npm test                # 497/497 unitários
+npm test                # 618/618 unitários
 npm run test:stress     # 15/15 — carga e fluxo pesado
 npm run test:e2e        # build + Playwright/Electron
 ```

@@ -75,7 +75,13 @@ export default function ClientDetailPage() {
   const editParam = useSearchParam('edit')
   const [tab, setTab] = React.useState('overview')
   const invalidate = useInvalidate()
-  const { data: client, isLoading } = useClient(id)
+  const {
+    data: client,
+    isLoading,
+    isError: clientError,
+    error: clientLoadError,
+    refetch: refetchClient,
+  } = useClient(id)
   const { data: certificates } = useCertificates(id ? { clientId: id } : undefined)
   const validCertificates = (certificates ?? []).filter(
     (certificate) => certificate.status !== 'expired',
@@ -85,6 +91,9 @@ export default function ClientDetailPage() {
   )
   const { data: credentials } = useCredentials(id ? { clientId: id } : undefined)
   const { data: services } = useServices({ enabledOnly: true })
+  // Eventos do cliente: filtragem client-side (o IPC filtra por um único
+  // entity/entityId; eventos de certificado/credencial do cliente chegam com
+  // metadata.clientId). Limitado a 500 — suficiente para a aba.
   const { data: auditPage } = useAudit({ limit: 500 })
 
   const [editingBasics, setEditingBasics] = React.useState(false)
@@ -184,16 +193,32 @@ export default function ClientDetailPage() {
   if (!client) {
     return (
       <AppShell>
-        <EmptyState
-          icon={<Users className="h-5 w-5" />}
-          title="Cliente não encontrado"
-          description="Ele pode ter sido removido ou o link está incorreto."
-          action={
-            <Link href="/clients" className="text-sm font-medium text-brand-600 hover:underline">
-              Voltar para clientes
-            </Link>
-          }
-        />
+        {clientError ? (
+          <div
+            className="rounded-2xl border border-[var(--pv-danger-border)] bg-[var(--pv-danger-soft)] p-6 text-center"
+            role="alert"
+          >
+            <p className="text-sm font-semibold">Não foi possível carregar o cliente</p>
+            <p className="mx-auto mt-1 max-w-md text-xs text-[var(--pv-muted)]">
+              {clientLoadError ? errorMessage(clientLoadError) : 'Falha desconhecida.'} Tente
+              novamente.
+            </p>
+            <Button variant="secondary" className="mt-3" onClick={() => void refetchClient()}>
+              Tentar novamente
+            </Button>
+          </div>
+        ) : (
+          <EmptyState
+            icon={<Users className="h-5 w-5" />}
+            title="Cliente não encontrado"
+            description="Ele pode ter sido removido ou o link está incorreto."
+            action={
+              <Link href="/clients" className="text-sm font-medium text-brand-600 hover:underline">
+                Voltar para clientes
+              </Link>
+            }
+          />
+        )}
       </AppShell>
     )
   }

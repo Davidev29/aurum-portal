@@ -1,11 +1,10 @@
 import { describe, expect, it, vi, afterEach, beforeAll } from 'vitest'
 import forge from 'node-forge'
-import * as pkijs from 'pkijs'
-import * as asn1js from 'asn1js'
 import { PDFDocument } from 'pdf-lib'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { signPdfDocument } from '../../electron/main/pdf/sign'
+import { makeValidTsaMock } from '../helpers/tsa-mock'
 
 const PFX_PATH = path.resolve(process.cwd(), 'scripts', 'spike', '.certs', 'spike-a1-test.pfx')
 const PFX_PASSWORD = 'SpikeSenha123!'
@@ -55,96 +54,8 @@ beforeAll(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 function makeTsaMock() {
-  return vi.fn(async (url: string, init?: RequestInit) => {
-    const body = init?.body as Buffer | Uint8Array
-    const req = pkijs.TimeStampReq.fromBER(body instanceof Buffer ? body : Buffer.from(body as any))
-    const imprint = req.messageImprint.hashedMessage.valueBlock.valueHex
-    const crypto = pkijs.getCrypto(true)
-
-    const serialNumber = new asn1js.Integer({ value: 1 })
-    const tstInfo = new pkijs.TSTInfo({
-      version: 1,
-      policy: '1.2.3.4.5',
-      messageImprint: new pkijs.MessageImprint({
-        hashAlgorithm: req.messageImprint.hashAlgorithm,
-        hashedMessage: new asn1js.OctetString({ valueHex: imprint }),
-      }),
-      serialNumber,
-      genTime: new Date(),
-    })
-
-    const certWithKey = {
-      certificate: pkijs.Certificate.fromBER(
-        Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary'),
-      ),
-      privateKey,
-    }
-    // Converte chave privada forge -> WebCrypto (PKCS#8).
-    const rsaAsn1 = forge.pki.privateKeyToAsn1(privateKey)
-    const rsaDer = forge.asn1.toDer(rsaAsn1).getBytes()
-    const pkcs8 = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-      forge.asn1.create(
-        forge.asn1.Class.UNIVERSAL,
-        forge.asn1.Type.INTEGER,
-        false,
-        forge.asn1.integerToDer(0).getBytes(),
-      ),
-      forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-        forge.asn1.create(
-          forge.asn1.Class.UNIVERSAL,
-          forge.asn1.Type.OID,
-          false,
-          forge.asn1.oidToDer(forge.pki.oids.rsaEncryption as string).getBytes(),
-        ),
-        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
-      ]),
-      forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false, rsaDer),
-    ])
-    const pkcs8Der = forge.asn1.toDer(pkcs8).getBytes()
-    const webKey = await crypto.subtle.importKey(
-      'pkcs8',
-      Buffer.from(pkcs8Der, 'binary'),
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false,
-      ['sign'],
-    )
-
-    const cms = new pkijs.SignedData({
-      version: 3,
-      encapContentInfo: new pkijs.EncapsulatedContentInfo({
-        eContentType: '1.2.840.113549.1.9.16.1.4',
-        eContent: new asn1js.OctetString({ valueHex: tstInfo.toSchema().toBER() }),
-      }),
-      signerInfos: [
-        new pkijs.SignerInfo({
-          version: 1,
-          sid: new pkijs.IssuerAndSerialNumber({
-            issuer: certWithKey.certificate.issuer,
-            serialNumber: certWithKey.certificate.serialNumber,
-          }),
-        }),
-      ],
-      certificates: [certWithKey.certificate],
-    })
-    await cms.sign(webKey, 0, 'SHA-256')
-
-    const cmsContent = new pkijs.ContentInfo({
-      contentType: '1.2.840.113549.1.7.2',
-      content: cms.toSchema(true),
-    })
-    const token = new pkijs.ContentInfo({ schema: cmsContent.toSchema() })
-    const resp = new pkijs.TimeStampResp({
-      status: new pkijs.PKIStatusInfo({ status: pkijs.PKIStatus.granted }),
-      timeStampToken: token,
-    })
-    const der = resp.toSchema().toBER()
-    return new Response(Buffer.from(der), {
-      status: 200,
-      headers: { 'content-type': 'application/timestamp-reply' },
-    })
-  })
+  return makeValidTsaMock({ cert, privateKey })
 }
-
 describe('signPdfDocument', () => {
   it('assina um PDF pequeno e produz PAdES com TST', async () => {
     vi.stubGlobal('fetch', makeTsaMock())
@@ -231,7 +142,7 @@ describe('signPdfDocument', () => {
     ).rejects.toThrow(/vencido/)
   })
 
-  it('assina offline quando a TSA retorna 500 (sem carimbo)', async () => {
+  it('cancela quando a TSA retorna 500 (fail-closed)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('erro', { status: 500 })),
@@ -239,18 +150,18 @@ describe('signPdfDocument', () => {
     const doc = await PDFDocument.create()
     doc.addPage([300, 400])
     const pdfBytes = Buffer.from(await doc.save())
-    const result = await signPdfDocument({
-      fileName: 'x.pdf',
-      pdfBytes,
-      certificate: material,
-      page: 1,
-      xPct: 0.1,
-      yPct: 0.1,
-      size: 'small',
-      reason: 'r',
-      tsaUrl: 'https://tsa.example',
-    })
-    expect(result.pdf.length).toBeGreaterThan(0)
-    expect(result.tsaHost).toBe('offline')
+    await expect(
+      signPdfDocument({
+        fileName: 'x.pdf',
+        pdfBytes,
+        certificate: material,
+        page: 1,
+        xPct: 0.1,
+        yPct: 0.1,
+        size: 'small',
+        reason: 'r',
+        tsaUrl: 'https://tsa.example',
+      }),
+    ).rejects.toThrow(/Carimbo de tempo indisponível/)
   })
 })

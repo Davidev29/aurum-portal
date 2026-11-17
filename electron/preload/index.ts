@@ -61,6 +61,7 @@ const api: AurumBitPortalApi = {
     delete: (id) => call('credentials:delete', { id }),
     reveal: (id) => call('credentials:reveal', { id }),
     copy: (id, field) => call('credentials:copy', { id, field }),
+    copyPlain: (value) => call('credentials:copyPlain', { value }),
     generate: (options) => call('credentials:generate', options),
     setDefault: (id) => call('credentials:setDefault', { id }),
   },

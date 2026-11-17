@@ -97,6 +97,7 @@ import { TrustedContentsRegistry } from './trusted'
 import { lookupCompanyByCnpj } from '../integrations/brasil-api'
 import { refreshAllClientsFromBrasilApi } from '../clients/enrichment'
 import { onlyDigits } from '../../../shared/validation'
+import { isPrivateIpLiteral } from '../../../shared/network'
 import {
   archiveClientRecursively,
   getSettings,
@@ -191,8 +192,11 @@ import { formatDocument, maskDocument } from '../../../shared/validation'
 import { formatCentsToBRL } from '../../../shared/currency'
 
 const idSchema = z.string().min(1).max(200)
+// Caminhos dos PDFs assinados nesta execução — único alvo aceito pelo
+// `pdf.reveal` (nada de path arbitrário vindo do renderer).
+const signedOutputPaths = new Set<string>()
 const idPayloadSchema = z.object({ id: idSchema })
-const idInputSchema = z.object({ id: idSchema, input: z.record(z.unknown()) })
+const idInputSchema = z.object({ id: idSchema, input: z.record(z.string(), z.unknown()) })
 const sessionIdPayload = sessionIdSchema
 const serviceIdPayload = z.object({ serviceId: idSchema })
 
@@ -794,6 +798,32 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       expiresAt: new Date(Date.now() + settings.clipboardClearSeconds * 1000).toISOString(),
     }
   })
+  // Cópia genérica COM limpeza automática e auditoria: valores revelados na
+  // sessão manual e no cadastro passam só pelo processo principal; o texto
+  // claro nunca fica parado na área de transferência do sistema.
+  const plainCopyPayloadSchema = z.object({ value: z.string().min(1).max(4096) })
+  handle(IPC.credentials.copyPlain, plainCopyPayloadSchema, ({ value }) => {
+    throttled('copy-plain', 800)
+    const settings = getSettings(db)
+    void clipboard.writeText(value)
+    setTimeout(() => {
+      void clipboard
+        .readText()
+        .then((current) => {
+          if (current === value) clipboard.clear()
+        })
+        .catch(() => {
+          // A área de transferência pode estar indisponível durante o encerramento.
+        })
+    }, settings.clipboardClearSeconds * 1000).unref()
+    audit('credential.copied', 'credential', null, {
+      clearAfterSeconds: settings.clipboardClearSeconds,
+      field: 'manual',
+    })
+    return {
+      expiresAt: new Date(Date.now() + settings.clipboardClearSeconds * 1000).toISOString(),
+    }
+  })
   handle(IPC.credentials.generate, passwordGeneratorSchema.partial(), (options) => {
     const generated = generatePassword(options)
     audit('credential.password_generated', 'credential', null, {
@@ -1011,6 +1041,16 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       } satisfies RecipeTestResult
     }
     try {
+      const hostname = new URL(service.baseUrl).hostname
+      if (isPrivateIpLiteral(hostname)) {
+        return {
+          ok: false,
+          status: 'disabled',
+          message: 'Teste indisponível para endereços de rede privada/loopback.',
+          failedStep: null,
+          testedAt,
+        } satisfies RecipeTestResult
+      }
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 10_000)
       const response = await fetch(service.baseUrl, {
@@ -1274,6 +1314,15 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     }
   })
   handle(IPC.app.lock, null, () => {
+    // Bloquear com gravação em andamento descartaria o wizard em silêncio —
+    // recuse com uma mensagem clara em vez de destruir trabalho.
+    if (sessions.hasActiveRecorder()) {
+      throw new AppError(
+        'CONFLICT',
+        'Gravação em andamento',
+        'Encerre ou salve a gravação antes de bloquear o cofre.',
+      )
+    }
     sessions.closeAll()
     audit('app.locked', 'app', null, { reason: 'manual' })
     broadcast(IPC.events.appLocked, true)
@@ -1307,7 +1356,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       const updaterModule = await import('electron-updater')
       const autoUpdater = updaterModule.autoUpdater
       autoUpdater.autoDownload = false
-      autoUpdater.channel = getSettings(db).autoUpdateChannel
+      autoUpdater.channel = 'stable'
       const result = await Promise.race([
         autoUpdater.checkForUpdates(),
         new Promise<never>((_resolve, reject) =>
@@ -1370,11 +1419,16 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     return undefined as void
   })
   handle(IPC.pdf.reveal, pdfRevealSchema, async ({ path: targetPath }) => {
-    const info = await stat(targetPath).catch(() => null)
+    const normalized = path.resolve(targetPath)
+    // Só revela PDFs que o próprio app assinou nesta execução.
+    if (!signedOutputPaths.has(normalized)) {
+      throw new AppError('NOT_FOUND', 'Arquivo assinado nao encontrado')
+    }
+    const info = await stat(normalized).catch(() => null)
     if (!info || !info.isFile()) {
       throw new AppError('NOT_FOUND', 'Arquivo assinado nao encontrado')
     }
-    shell.showItemInFolder(targetPath)
+    shell.showItemInFolder(normalized)
     return undefined as void
   })
   handle(IPC.pdf.testTsa, pdfTestTsaSchema, async ({ url }) => {
@@ -1577,6 +1631,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       } finally {
         result.pdf?.fill?.(0)
       }
+      signedOutputPaths.add(path.resolve(targetPath))
 
       audit('pdf.signed', 'certificate', certRow.id, {
         fileName: path.basename(entry.path),

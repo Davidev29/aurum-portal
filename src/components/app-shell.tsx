@@ -55,6 +55,42 @@ function isActive(pathname: string | null, href: string) {
   return href === '/' ? pathname === '/' : pathname.startsWith(href)
 }
 
+/**
+ * Container persistente do conteúdo: a cada troca de rota, apenas rearma a
+ * animação de entrada (sem remount do DOM, sem skeleton novo) — a navegação
+ * entre menus deve parecer instantânea.
+ */
+function PageTransition({
+  children,
+  fullHeight,
+}: {
+  children: React.ReactNode
+  fullHeight?: boolean
+}) {
+  const pathname = usePathname()
+  const ref = React.useRef<HTMLDivElement>(null)
+  React.useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // Reinicia a animação CSS sem trocar a key (o DOM não é destruído).
+    el.classList.remove('pv-page-transition')
+    void el.offsetWidth
+    el.classList.add('pv-page-transition')
+  }, [pathname])
+  return (
+    <div
+      ref={ref}
+      className={
+        fullHeight
+          ? 'pv-page-transition mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col p-4 sm:p-6 lg:p-8'
+          : 'pv-page-transition mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8'
+      }
+    >
+      {children}
+    </div>
+  )
+}
+
 export function AppShell({
   children,
   fullHeight = false,
@@ -210,16 +246,7 @@ export function AppShell({
               : 'min-h-0 flex-1 overflow-y-auto pv-scroll'
           }
         >
-          <div
-            key={pathname ?? 'root'}
-            className={
-              fullHeight
-                ? 'pv-page-transition mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col p-4 sm:p-6 lg:p-8'
-                : 'pv-page-transition mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8'
-            }
-          >
-            {children}
-          </div>
+          <PageTransition fullHeight={fullHeight}>{children}</PageTransition>
         </div>
       </main>
     </div>

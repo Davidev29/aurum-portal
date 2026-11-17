@@ -84,6 +84,7 @@ export const IPC = {
     delete: 'credentials:delete',
     reveal: 'credentials:reveal',
     copy: 'credentials:copy',
+    copyPlain: 'credentials:copyPlain',
     generate: 'credentials:generate',
     setDefault: 'credentials:setDefault',
   },
@@ -257,7 +258,9 @@ const httpsUrlSchema = z
 
 const authMethodSchema = z.enum(['certificate', 'password'])
 
-export const clientInputSchema = z.object({
+// Base sem defaults: o update parcial herda desta base (zod 4 aplicaria
+// .default([]) em .partial()).
+const clientBaseObject = z.object({
   type: z.enum(['PF', 'PJ']).optional(),
   name: nameSchema.optional(),
   document: documentSchema,
@@ -265,11 +268,15 @@ export const clientInputSchema = z.object({
   phone: z.string().trim().max(30).nullish(),
   notes: z.string().trim().max(5000).nullish(),
   honorariosCents: z.number().int().min(0).max(99_999_999_999).nullish(),
-  tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20),
   consent: z.boolean().optional(),
 })
 
-export const clientUpdateSchema = clientInputSchema.partial()
+export const clientInputSchema = clientBaseObject.extend({
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
+})
+
+export const clientUpdateSchema = clientBaseObject.partial()
 
 export const clientNoteCreateSchema = z.object({
   clientId: idSchema,
@@ -431,50 +438,52 @@ export const certificateExportBackupSchema = z.object({
   passphrase: z.string().min(12).max(1024),
 })
 
-export const serviceInputObjectSchema = z
-  .object({
-    name: nameSchema,
-    slug: z
-      .string()
-      .trim()
-      .toLowerCase()
-      .min(2)
-      .max(80)
-      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug invalido'),
-    category: z.enum(SERVICE_CATEGORIES).default('Outros'),
-    baseUrl: httpsUrlSchema,
-    allowedDomains: z.array(domainSchema).max(30).default([]),
-    authMethods: z.array(authMethodSchema).min(1).max(2).default(['password']),
-    defaultAuth: authMethodSchema.optional(),
-    notes: z.string().trim().max(5000).nullish(),
-    enabled: z.boolean().optional(),
-    favorite: z.boolean().optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.defaultAuth !== undefined && !value.authMethods.includes(value.defaultAuth)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['defaultAuth'],
-        message: 'O metodo padrao deve estar entre os metodos aceitos',
-      })
-    }
-    if (new Set(value.authMethods).size !== value.authMethods.length) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['authMethods'],
-        message: 'Metodos de autenticacao duplicados',
-      })
-    }
-    const baseHost = new URL(value.baseUrl).hostname.toLowerCase()
-    const effectiveDomains = value.allowedDomains.length > 0 ? value.allowedDomains : [baseHost]
-    if (!effectiveDomains.some((domain) => matchesDomainPattern(baseHost, domain))) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['allowedDomains'],
-        message: 'A allowlist deve incluir o dominio da URL base',
-      })
-    }
-  })
+// Base sem refinamentos: zod 4 não permite .partial() em objeto com checks,
+// então o update parcial deriva da base (idêntica à origem do objeto refinado).
+const serviceInputBaseObject = z.object({
+  name: nameSchema,
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(2)
+    .max(80)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug invalido'),
+  category: z.enum(SERVICE_CATEGORIES).default('Outros'),
+  baseUrl: httpsUrlSchema,
+  allowedDomains: z.array(domainSchema).max(30).default([]),
+  authMethods: z.array(authMethodSchema).min(1).max(2).default(['password']),
+  defaultAuth: authMethodSchema.optional(),
+  notes: z.string().trim().max(5000).nullish(),
+  enabled: z.boolean().optional(),
+  favorite: z.boolean().optional(),
+})
+
+export const serviceInputObjectSchema = serviceInputBaseObject.superRefine((value, ctx) => {
+  if (value.defaultAuth !== undefined && !value.authMethods.includes(value.defaultAuth)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['defaultAuth'],
+      message: 'O metodo padrao deve estar entre os metodos aceitos',
+    })
+  }
+  if (new Set(value.authMethods).size !== value.authMethods.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['authMethods'],
+      message: 'Metodos de autenticacao duplicados',
+    })
+  }
+  const baseHost = new URL(value.baseUrl).hostname.toLowerCase()
+  const effectiveDomains = value.allowedDomains.length > 0 ? value.allowedDomains : [baseHost]
+  if (!effectiveDomains.some((domain) => matchesDomainPattern(baseHost, domain))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['allowedDomains'],
+      message: 'A allowlist deve incluir o dominio da URL base',
+    })
+  }
+})
 
 export const serviceInputSchema = serviceInputObjectSchema.transform((value) => {
   const authMethods: ('certificate' | 'password')[] =
@@ -500,12 +509,10 @@ export const serviceInputSchema = serviceInputObjectSchema.transform((value) => 
   }
 })
 
-export const serviceUpdateSchema = serviceInputObjectSchema
-  .innerType()
-  .partial()
-  .superRefine(() => {
-    // Partial updates are validated against the merged row in the main process.
-  })
+// Update parcial: deriva da base (zod 4 proíbe .partial() em schema com checks).
+// Refinamento de objeto completo não se aplica a updates parciais — o merge
+// é validado pelo repositório no processo principal.
+export const serviceUpdateSchema = serviceInputBaseObject.partial()
 
 export const serviceFilterSchema = z
   .object({
@@ -661,8 +668,6 @@ export const settingsUpdateSchema = z
     passwordRevealSeconds: z.number().int().min(3).max(120),
     confirmOpenExternal: z.boolean(),
     sessionLimit: z.number().int().min(2).max(40),
-    autoCheckUpdates: z.boolean(),
-    autoUpdateChannel: z.enum(['stable', 'beta']),
     idleLockMinutes: z.number().int().min(0).max(240),
     retainAuditDays: z.number().int().min(30).max(3650),
     externalCnpjLookup: z.boolean(),
@@ -837,7 +842,8 @@ export const holidayIdSchema = z.object({ id: idSchema })
 /** PDF de relatório timbrado gerado no renderer (bytes em base64). */
 export const reportSavePdfSchema = z.object({
   filename: z.string().trim().min(1).max(200),
-  dataBase64: z.string().min(8).max(10_000_000),
+  // 5 MB binários ≈ 6.7 MB em base64 — deixa uma margem pequena.
+  dataBase64: z.string().min(8).max(7_000_000),
   trackingCode: z.string().trim().max(40).optional(),
   title: z.string().trim().max(200).optional(),
 })
@@ -910,6 +916,9 @@ export interface AurumBitPortalApi {
      * Sem `field`, copia a senha principal. O texto claro não passa pelo
      * renderer — a cópia acontece no processo principal. */
     copy(id: string, field?: string): Promise<{ expiresAt: string }>
+    /** Copia um texto arbitrário (ex.: valor revelado na sessão) para a área
+     * de transferência COM limpeza automática e auditoria. Limite de 4 KB. */
+    copyPlain(value: string): Promise<{ expiresAt: string }>
     generate(options: Partial<PasswordGeneratorOptions>): Promise<GeneratedPassword>
     setDefault(id: string): Promise<Credential>
   }

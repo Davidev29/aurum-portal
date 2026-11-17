@@ -30,8 +30,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   passwordRevealSeconds: 12,
   confirmOpenExternal: true,
   sessionLimit: 20,
-  autoCheckUpdates: false,
-  autoUpdateChannel: 'stable',
+  // autoCheckUpdates/autoUpdateChannel foram removidos (verificador morto:
+  // nada no processo principal os lia). Configurações antigas com essas
+  // chaves são simplesmente ignoradas.
   idleLockMinutes: 0,
   retainAuditDays: 365,
   externalCnpjLookup: false,
@@ -143,8 +144,6 @@ export const appSettingsSchema = z.object({
   passwordRevealSeconds: z.number().int().min(3).max(120),
   confirmOpenExternal: z.boolean(),
   sessionLimit: z.number().int().min(2).max(40),
-  autoCheckUpdates: z.boolean(),
-  autoUpdateChannel: z.enum(['stable', 'beta']),
   idleLockMinutes: z.number().int().min(0).max(240),
   retainAuditDays: z.number().int().min(30).max(3650),
   externalCnpjLookup: z.boolean(),

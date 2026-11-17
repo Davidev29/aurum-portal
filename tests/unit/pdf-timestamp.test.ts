@@ -5,9 +5,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('requestTimestamp', () => {
   it('rejeita URL invalida', async () => {
-    await expect(requestTimestamp('ftp://x', new Uint8Array([1, 2, 3]))).rejects.toThrow(
-      /HTTP ou HTTPS/,
-    )
+    await expect(requestTimestamp('ftp://x', new Uint8Array([1, 2, 3]))).rejects.toThrow(/HTTPS/)
   })
 
   it('falha com mensagem clara em timeout', async () => {

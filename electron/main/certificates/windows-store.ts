@@ -55,10 +55,16 @@ Get-ChildItem -Path 'Cert:\\CurrentUser\\My' -ErrorAction Stop | Where-Object { 
 `
 }
 
-export function buildInstallScript(pfxPathBase64: string, passwordBase64: string): string {
+export function buildInstallScript(): string {
+  // Caminho e senha chegam por VARIÁVEIS DE AMBIENTE efêmeras do processo
+  // (nunca por arquivo em %TEMP% nem pelo corpo do script).
   return `${PREAMBLE}
-$pfxPath = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${pfxPathBase64}'))
-$pfxPassword = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${passwordBase64}'))
+$pfxPath = $env:PV_PFX_PATH
+$pfxPassword = $env:PV_PFX_PASSWORD
+if (-not $pfxPath -or -not $pfxPassword) {
+  @{ ok = $false; thumbprint = $null; subject = $null; error = 'caminho ou senha do PFX ausentes' } | ConvertTo-Json -Compress
+  exit 1
+}
 $result = $null
 try {
   $secure = ConvertTo-SecureString -String $pfxPassword -AsPlainText -Force
@@ -79,21 +85,22 @@ try {
 } finally {
   $pfxPassword = $null
   $secure = $null
+  $env:PV_PFX_PASSWORD = $null
   Remove-Item -LiteralPath $pfxPath -Force -ErrorAction SilentlyContinue
 }
 $result | ConvertTo-Json -Compress
 `
 }
 
-export function buildExportScript(
-  thumbprintSha1: string,
-  pfxPathBase64: string,
-  passwordBase64: string,
-): string {
+export function buildExportScript(thumbprintSha1: string): string {
   const normalized = normalizeSha1(thumbprintSha1)
   return `${PREAMBLE}
-$pfxPath = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${pfxPathBase64}'))
-$pfxPassword = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${passwordBase64}'))
+$pfxPath = $env:PV_PFX_PATH
+$pfxPassword = $env:PV_PFX_PASSWORD
+if (-not $pfxPath -or -not $pfxPassword) {
+  @{ ok = $false; error = 'caminho ou senha do PFX ausentes' } | ConvertTo-Json -Compress
+  exit 1
+}
 $result = $null
 try {
   $cert = Get-Item -LiteralPath 'Cert:\\CurrentUser\\My\\${normalized}' -ErrorAction Stop
@@ -106,6 +113,7 @@ try {
 } finally {
   $pfxPassword = $null
   $secure = $null
+  $env:PV_PFX_PASSWORD = $null
 }
 $result | ConvertTo-Json -Compress
 `
@@ -162,7 +170,11 @@ export function parseWindowsCertificateRecords(payload: unknown): WindowsCertifi
     .filter((item) => item.thumbprintSha1.length === 40)
 }
 
-export async function runPowerShell(script: string, timeoutMs = 60_000): Promise<PowerShellResult> {
+export async function runPowerShell(
+  script: string,
+  timeoutMs = 60_000,
+  env?: Record<string, string>,
+): Promise<PowerShellResult> {
   const directory = await mkdtemp(path.join(tmpdir(), 'aurumbit-portal-ps-'))
   const scriptPath = path.join(directory, 'script.ps1')
   await writeFile(scriptPath, script.endsWith('\n') ? script : `${script}\n`, 'utf8')
@@ -190,7 +202,11 @@ export async function runPowerShell(script: string, timeoutMs = 60_000): Promise
         '-File',
         scriptPath,
       ],
-      { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
+      {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: env ? { ...process.env, ...env } : process.env,
+      },
     )
 
     const finish = (action: () => void): void => {
@@ -260,11 +276,11 @@ export async function installPfxInWindowsStore(
   const filePath = path.join(directory, `${randomUUID()}.pfx`)
   try {
     await writeFile(filePath, pfx, { mode: 0o600 })
-    const script = buildInstallScript(
-      Buffer.from(filePath, 'utf8').toString('base64'),
-      Buffer.from(password, 'utf8').toString('base64'),
-    )
-    const result = await runPowerShell(script)
+    const script = buildInstallScript()
+    const result = await runPowerShell(script, 60_000, {
+      PV_PFX_PATH: filePath,
+      PV_PFX_PASSWORD: password,
+    })
     if (result.exitCode !== 0) {
       return {
         ok: false,
@@ -322,12 +338,11 @@ export async function exportPfxFromWindowsStore(
   // Senha temporária forte, apenas para o transporte do PFX exportado.
   const password = randomBytes(32).toString('base64')
   try {
-    const script = buildExportScript(
-      normalized,
-      Buffer.from(filePath, 'utf8').toString('base64'),
-      Buffer.from(password, 'utf8').toString('base64'),
-    )
-    const result = await runPowerShell(script)
+    const script = buildExportScript(normalized)
+    const result = await runPowerShell(script, 60_000, {
+      PV_PFX_PATH: filePath,
+      PV_PFX_PASSWORD: password,
+    })
     if (result.exitCode !== 0) {
       throw new Error(
         `Falha ao exportar a chave privada do Windows: ${result.stderr.slice(0, 300) || 'erro desconhecido'}`,

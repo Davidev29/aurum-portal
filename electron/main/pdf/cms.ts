@@ -202,9 +202,8 @@ export async function buildDetachedCmsWithInfo(options: {
   const signatureBytes = Buffer.from(signatureValue as ArrayBuffer)
 
   // Carimbo de tempo RFC 3161 sobre o VALOR da assinatura.
-  // Offline-first: se a TSA falhar (rede/timeout/HTTP/URL invalida), assina
-  // SEM o token (PAdES-B) em vez de abortar — o chamador recebe tsaHost=null
-  // para sinalizar "offline" na UI. Nao mascara erros do CMS em si.
+  // Fail-closed: sem um carimbo válido, a assinatura é CANCELADA — nunca se
+  // produz um PAdES-B silencioso fingindo ser PAdES-B-T. Ver ADR-0008.
   let tsaHost: string | null = null
   try {
     const timestamp = await requestTimestamp(tsaUrl, signatureBytes)
@@ -223,7 +222,7 @@ export async function buildDetachedCmsWithInfo(options: {
     tsaHost = timestamp.tsaHost
   } catch (error) {
     if (!(error instanceof TsaError)) throw error
-    tsaHost = null
+    throw new CmsError(`Carimbo de tempo indisponível — assinatura cancelada: ${error.message}`)
   }
 
   const contentInfo = new pkijs.ContentInfo({

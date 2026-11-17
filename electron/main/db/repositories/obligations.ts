@@ -494,10 +494,15 @@ export function deleteObligation(db: AppDatabase, id: string): { deletedInactive
       { activeLinks },
     )
   }
-  // Sem vínculos ativos: remove vínculos inativos remanescentes e a obrigação.
-  const deleted = db.delete(clientObligations).where(eq(clientObligations.obligationId, id)).run()
-  db.delete(obligations).where(eq(obligations.id, id)).run()
-  return { deletedInactiveLinks: Number(deleted.changes ?? 0) }
+  // Sem vínculos ativos: remove vínculos inativos remanescentes e a obrigação
+  // NA MESMA transação — nunca fica metade apagada.
+  let deletedChanges = 0
+  db.transaction(() => {
+    const deleted = db.delete(clientObligations).where(eq(clientObligations.obligationId, id)).run()
+    db.delete(obligations).where(eq(obligations.id, id)).run()
+    deletedChanges = Number(deleted.changes ?? 0)
+  })
+  return { deletedInactiveLinks: deletedChanges }
 }
 
 /* ---------------------------------------------------------------------------
@@ -1177,8 +1182,11 @@ export function insertNotificationIfAbsent(
     read: false,
     createdAt: new Date().toISOString(),
   }
-  db.insert(notifications).values(row).run()
-  return mapNotification(row)
+  db.insert(notifications).values(row).onConflictDoNothing().run()
+  // Confirma o que foi de fato gravado: com o índice único parcial (v11),
+  // uma corrida concorrente perde sem lançar — o que conta é o que persistiu.
+  const persisted = db.select().from(notifications).where(eq(notifications.id, row.id)).get()
+  return persisted ? mapNotification(persisted) : null
 }
 
 export function markNotificationRead(db: AppDatabase, id: string): void {

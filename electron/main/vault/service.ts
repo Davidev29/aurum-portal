@@ -90,6 +90,23 @@ export class VaultService {
   openBackup(payload: string): Buffer {
     return decryptEnvelope(payload, this.masterKey, 'backup:artifact:v1')
   }
+
+  /** Marca de integridade do cofre (gravada em settings). Ver vault/integrity.ts. */
+  sealVaultIntegrity(): string {
+    return encryptEnvelope(
+      'aurumbit-vault-integrity-v1',
+      this.masterKey,
+      vaultAad('settings', 'vault.integrity', 'integrity'),
+    )
+  }
+
+  openVaultIntegrity(payload: string): string {
+    return decryptString(
+      payload,
+      this.masterKey,
+      vaultAad('settings', 'vault.integrity', 'integrity'),
+    )
+  }
 }
 
 export type { EncryptedEnvelope }

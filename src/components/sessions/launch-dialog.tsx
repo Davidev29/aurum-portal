@@ -534,10 +534,20 @@ export function LaunchDialog({
                       <div className="mt-0.5 truncate text-xs text-[var(--pv-muted)]">
                         {certificate.holderName}
                       </div>
-                      <div className="mt-1 flex items-center gap-2">
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         <Badge variant={certificate.installed ? 'success' : 'secondary'}>
                           {certificate.installed ? 'Instalado' : 'No cofre'}
                         </Badge>
+                        {certificate.status === 'expiring' ? (
+                          <Badge
+                            variant={certificate.daysUntilExpiry <= 7 ? 'danger' : 'warning'}
+                            title={`Vence em ${certificate.daysUntilExpiry} dia(s) — renove antes que expire`}
+                          >
+                            {certificate.daysUntilExpiry <= 0
+                              ? 'Vence hoje'
+                              : `Vence em ${certificate.daysUntilExpiry}d`}
+                          </Badge>
+                        ) : null}
                         <span className="text-[11px] text-[var(--pv-muted)]">
                           até {formatDate(certificateEffectiveValidToOf(certificate))}
                         </span>
@@ -545,6 +555,12 @@ export function LaunchDialog({
                     </button>
                   ))}
                 </div>
+                {selectedCertificate && !selectedCertificate.installed ? (
+                  <p className="text-[11px] text-[var(--pv-muted)]">
+                    Este certificado está no cofre — ele será instalado no Windows ao abrir a
+                    sessão.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

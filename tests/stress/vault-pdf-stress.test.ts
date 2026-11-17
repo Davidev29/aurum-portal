@@ -6,7 +6,7 @@
  * Métricas são logadas via logMetric como '[stress] {json}' para o orquestrador.
  * Budgets de tempo são generosas regressões — o alvo real é bem menor.
  */
-import { describe, expect, it, beforeAll } from 'vitest'
+import { describe, expect, it, beforeAll, beforeEach, vi, afterEach } from 'vitest'
 import { performance } from 'node:perf_hooks'
 import { randomBytes } from 'node:crypto'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
@@ -16,9 +16,12 @@ import { encryptBackup, decryptBackup } from '../../electron/main/vault/backup'
 import { signPdfDocument } from '../../electron/main/pdf/sign'
 import { resolveStampRect } from '../../electron/main/pdf/stamp'
 import type { SignatureStampSize } from '../../shared/signature'
+import { makeValidTsaMock } from '../helpers/tsa-mock'
 import { logMetric, mulberry32 } from './helpers'
 
 let material: any
+let privateKey: any
+let cert: any
 beforeAll(async () => {
   const { readFileSync } = await import('node:fs')
   const path = await import('node:path')
@@ -38,7 +41,8 @@ beforeAll(async () => {
     forge.pki.oids.certBag as string
   ] ?? []) as any[]
   const pk = keyBags[0].key
-  const cert =
+  privateKey = pk
+  cert =
     certBags.find((b: any) => b.cert.publicKey.n.compareTo(pk.n) === 0)?.cert ?? certBags[0].cert
   material = {
     pfx: buf,
@@ -52,7 +56,14 @@ beforeAll(async () => {
     thumbprintSha256: '052295E95BB4DB1BAFDC0A1FB2CB61A54FFD737FB159E4F02F25973C93FBDB01',
     validTo: '2027-11-04T11:18:17.628Z',
   }
+  // Fail-closed exige uma TSA válida (imprint/nonce ecoados).
 })
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', makeValidTsaMock({ cert, privateKey }))
+})
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe('stress: cofre AES-256-GCM', () => {
   const masterKey = Buffer.alloc(32, 7)
@@ -183,13 +194,13 @@ describe('stress: assinatura PAdES em lote', () => {
         yPct: 0.1,
         size: 'small',
         reason: 'Stress QA',
-        tsaUrl: 'not-a-url',
+        tsaUrl: 'https://tsa.test/pki',
       })
       perDocMs.push(Math.round(performance.now() - start))
       expect(result.pdf).toBeTruthy()
       expect(result.pdf.subarray(0, 5).toString('latin1').startsWith('%PDF')).toBe(true)
       expect(result.pdf.length).toBeGreaterThan(0)
-      expect(result.tsaHost).toBe('offline')
+      expect(result.tsaHost).toBe('tsa.test')
     }
     const totalMs = Math.round(performance.now() - totalStart)
     logMetric('pdf.sign_batch', { totalMs, perDocMs, maxDocMs: Math.max(...perDocMs) })
@@ -207,11 +218,11 @@ describe('stress: assinatura PAdES em lote', () => {
       yPct: 0.1,
       size: 'small',
       reason: 'Stress QA',
-      tsaUrl: 'not-a-url',
+      tsaUrl: 'https://tsa.test/pki',
     })
     expect(first.pdf.length).toBeGreaterThan(0)
     expect(first.pdf.subarray(0, 5).toString('latin1').startsWith('%PDF')).toBe(true)
-    expect(first.tsaHost).toBe('offline')
+    expect(first.tsaHost).toBe('tsa.test')
 
     const start = performance.now()
     const second = await signPdfDocument({
@@ -223,12 +234,12 @@ describe('stress: assinatura PAdES em lote', () => {
       yPct: 0.1,
       size: 'small',
       reason: 'Stress QA',
-      tsaUrl: 'not-a-url',
+      tsaUrl: 'https://tsa.test/pki',
     })
     const ms = Math.round(performance.now() - start)
     expect(second.pdf.length).toBeGreaterThan(0)
     expect(second.pdf.subarray(0, 5).toString('latin1').startsWith('%PDF')).toBe(true)
-    expect(second.tsaHost).toBe('offline')
+    expect(second.tsaHost).toBe('tsa.test')
     logMetric('pdf.sign_incremental', { ms })
   }, 60000)
 })

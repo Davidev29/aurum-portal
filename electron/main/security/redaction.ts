@@ -1,9 +1,9 @@
 import { parseHttpUrl } from '../../../shared/network'
 
 const SENSITIVE_QUERY =
-  /^(?:authorization_id|state|code|token|access_token|id_token|refresh_token|ticket|session|sessionid|key|secret|password|senha)$/i
+  /^(?:authorization_id|state|code|token|access_token|id_token|refresh_token|ticket|session|sessionid|key|secret|password|senha|cpf|cnpj|email|doc|documento)$/i
 const SENSITIVE_KEY =
-  /(pass(?:word|phrase)?|senha|secret|token|pfx|p12|private.?key|authorization|cookie|credential|pin)$/i
+  /(pass|senha|secret|token|pfx|p12|private.?key|authorization|cookie|credential|\bpin\b)/i
 
 export function redactUrl(input: string | URL): string {
   try {
@@ -36,9 +36,15 @@ export function redactUrl(input: string | URL): string {
 }
 
 export function redactString(value: string): string {
-  if (/^-----BEGIN [A-Z ]+-----[^-]+-----END [A-Z ]+-----$/s.test(value)) {
+  if (/^-----BEGIN [A-Z0-9 ]+-----[\s\S]*?-----END [A-Z0-9 ]+-----$/s.test(value)) {
     return '[REDACTED-PEM]'
   }
+  // PEM embutido no meio de um texto/erro também sai do log.
+  const pem = value.replace(
+    /-----BEGIN [A-Z0-9 ]+-----[\s\S]*?-----END [A-Z0-9 ]+-----/g,
+    '[REDACTED-PEM]',
+  )
+  if (pem !== value) return pem
   if (value.length > 4096 && /^[A-Za-z0-9+/=\r\n]+$/.test(value)) return '[REDACTED-BLOB]'
   return value
 }

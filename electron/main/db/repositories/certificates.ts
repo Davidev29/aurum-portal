@@ -457,6 +457,7 @@ export function createPfxCertificate(
     createdAt: now,
     updatedAt: now,
   }
+  let inheritedClientIds: string[] = []
   db.transaction(() => {
     db.insert(certificates).values(row).run()
     if (input.clientId) {
@@ -470,9 +471,10 @@ export function createPfxCertificate(
         .onConflictDoNothing()
         .run()
     }
+    // Renovação sem cliente explícito: herda os vínculos consentidos da cadeia
+    // NA MESMA transação — cert nunca fica visível sem seus vínculos.
+    inheritedClientIds = inheritRenewalClientLinks(db, row, now)
   })
-  // Renovação sem cliente explícito: herda os vínculos consentidos da cadeia.
-  const inheritedClientIds = inheritRenewalClientLinks(db, row, now)
   return { row, inheritedClientIds }
 }
 
@@ -484,8 +486,11 @@ export function createWindowsCertificate(
 ): CreatedCertificate {
   const existing = findCertificateByThumbprint(db, record.thumbprintSha256 ?? '')
   if (existing) {
-    if (clientId) linkClientToCertificate(db, existing.id, clientId, consent)
-    const inheritedClientIds = inheritRenewalClientLinks(db, existing, new Date().toISOString())
+    let inheritedClientIds: string[] = []
+    db.transaction(() => {
+      if (clientId) linkClientToCertificate(db, existing.id, clientId, consent)
+      inheritedClientIds = inheritRenewalClientLinks(db, existing, new Date().toISOString())
+    })
     return { row: existing, inheritedClientIds }
   }
   if (clientId && !consent) {
@@ -529,6 +534,7 @@ export function createWindowsCertificate(
       'Thumbprint SHA-256 indisponivel para o certificado do Windows',
     )
   }
+  let inheritedClientIds: string[] = []
   db.transaction(() => {
     db.insert(certificates).values(row).run()
     if (clientId) {
@@ -542,9 +548,8 @@ export function createWindowsCertificate(
         .onConflictDoNothing()
         .run()
     }
+    inheritedClientIds = inheritRenewalClientLinks(db, row, now)
   })
-  // Renovação sem cliente explícito: herda os vínculos consentidos da cadeia.
-  const inheritedClientIds = inheritRenewalClientLinks(db, row, now)
   return { row, inheritedClientIds }
 }
 

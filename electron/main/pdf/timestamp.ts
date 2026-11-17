@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import * as asn1js from 'asn1js'
 import * as pkijs from 'pkijs'
 
@@ -58,34 +58,44 @@ async function readCapped(response: Response, maxBytes: number): Promise<Buffer>
   return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)))
 }
 
-export async function buildTimeStampRequest(
+async function buildTimeStampRequestWithNonce(
   message: ArrayBuffer | Uint8Array | Buffer,
-  policyOid?: string,
-): Promise<ArrayBuffer> {
-  // MessageImprint.create calcula o hash — passar os bytes crus (valor da assinatura).
+): Promise<{ body: ArrayBuffer; nonceHex: string }> {
   const imprint = await pkijs.MessageImprint.create(
     'SHA-256',
     toUint8Array(message) as unknown as Uint8Array,
   )
-  const nonce = new asn1js.Integer({ valueHex: randomBytes(16) as unknown as Uint8Array })
+  const nonceBytes = randomBytes(16)
+  const nonce = new asn1js.Integer({ valueHex: nonceBytes as unknown as Uint8Array })
   const request = new pkijs.TimeStampReq({
     version: 1,
     messageImprint: imprint,
     certReq: true,
     nonce,
-    ...(policyOid ? { reqPolicy: policyOid } : {}),
   })
-  return request.toSchema().toBER()
+  return { body: request.toSchema().toBER(), nonceHex: Buffer.from(nonceBytes).toString('hex') }
+}
+
+export async function buildTimeStampRequest(
+  message: ArrayBuffer | Uint8Array | Buffer,
+  policyOid?: string,
+): Promise<ArrayBuffer> {
+  // Política customizada não é usada internamente; mantida pela API estável.
+  void policyOid
+  const { body } = await buildTimeStampRequestWithNonce(message)
+  return body
 }
 
 export async function requestTimestamp(
   tsaUrl: string,
   data: ArrayBuffer | Uint8Array | Buffer,
 ): Promise<TimeStampResult> {
-  if (!/^https?:\/\//i.test(tsaUrl)) {
-    throw new TsaError('A URL da TSA deve ser HTTP ou HTTPS')
+  // HTTPS é obrigatório: HTTP expõe o imprint a substituição de TSA e
+  // permitiria carimbo forjado por um MITM na mesma rede.
+  if (!/^https:\/\//i.test(tsaUrl)) {
+    throw new TsaError('A URL da TSA deve usar HTTPS')
   }
-  const body = await buildTimeStampRequest(data)
+  const { body, nonceHex } = await buildTimeStampRequestWithNonce(data)
 
   let response: Response
   try {
@@ -131,22 +141,48 @@ export async function requestTimestamp(
     throw new TsaError('TSA concedeu o carimbo, mas nao enviou o TimeStampToken')
   }
 
-  // Extrai serial e data do TSTInfo (encapContentInfo => SignedData => TSTInfo).
+  // Extrai serial, data e TSTInfo para verificar o token antes de anexá-lo.
   let signingTime: Date | undefined
   let serialHex = ''
   try {
     const signedData = new pkijs.SignedData({ schema: token.content })
     const eContent = signedData.encapContentInfo?.eContent
-    if (eContent) {
-      const tstInfo = pkijs.TSTInfo.fromBER(eContent.getValue())
-      signingTime = tstInfo.genTime
-      serialHex = Buffer.from(tstInfo.serialNumber.valueBlock.valueHex)
-        .toString('hex')
-        .toUpperCase()
+    if (!eContent) {
+      throw new TsaError('TimeStampToken nao contem o TSTInfo')
     }
-  } catch {
+    const tstInfo = pkijs.TSTInfo.fromBER(eContent.getValue())
+    // 1) O messageImprint precisa bater exatamente com o SHA-256 do dado
+    //    enviado — senão o carimbo é de outro dado (ou de outra requisição).
+    //    Um hash de 32 bytes igual está matematicamente ligado ao SHA-256.
+    const expectedHash = createHash('sha256')
+      .update(Buffer.isBuffer(data) ? data : Buffer.from(data as Uint8Array))
+      .digest('hex')
+    const actualHash = Buffer.from(tstInfo.messageImprint.hashedMessage.valueBlock.valueHex)
+      .toString('hex')
+      .toLowerCase()
+    if (actualHash !== expectedHash) {
+      throw new TsaError('messageImprint do token nao corresponde ao dado carimbado')
+    }
+    // 2) O nonce devolvido precisa ser obrigatoriamente o que enviamos
+    //    (RFC 3161 — a TSA DEVE devolver o nonce do TimeStampReq). Sem isso,
+    //    não há prova de que o token pertence a esta requisição.
+    const stripLeadingZero = (buffer: Buffer) =>
+      buffer.length > 0 && buffer[0] === 0 ? buffer.subarray(1) : buffer
+    const sent = stripLeadingZero(Buffer.from(nonceHex, 'hex'))
+    const echoedValue = tstInfo.nonce?.valueBlock?.valueHex
+    if (!echoedValue) {
+      throw new TsaError('A TSA nao devolveu o nonce — token rejeitado')
+    }
+    const echoed = stripLeadingZero(Buffer.from(echoedValue))
+    if (sent.length !== echoed.length || !sent.equals(echoed)) {
+      throw new TsaError('nonce do token nao corresponde a requisicao enviada')
+    }
+    signingTime = tstInfo.genTime
+    serialHex = Buffer.from(tstInfo.serialNumber.valueBlock.valueHex).toString('hex').toUpperCase()
+  } catch (error) {
     // Token presente mas com estrutura inesperada: falha fechada sem expor detalhes.
-    throw new TsaError('TimeStampToken recebido esta malformado')
+    if (error instanceof TsaError) throw error
+    throw new TsaError('TimeStampToken recebido esta malformado', error)
   }
 
   return {

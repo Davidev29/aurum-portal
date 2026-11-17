@@ -8,29 +8,28 @@ files:
   - dist-electron/**/*
   - out/**/*
   - package.json
-  - node_modules/**/*
-  - '!node_modules/.cache/**'
-  - '!node_modules/electron/**'
-  - '!node_modules/@playwright/**'
-  - '!node_modules/playwright/**'
-  - '!node_modules/vitest/**'
-  - '!node_modules/typescript/**'
+  # Segredos e credenciais NUNCA entram no pacote — o .gitignore protege o
+  # git, mas o files copia do disco do operador.
+  - '!**/.env*'
+  - '!**/*.pfx'
+  - '!**/*.p12'
+  - '!**/*.pvbackup'
+  - '!**/*.pem'
+  - '!**/*.key'
+  - '!**/spike-*.pfx'
+  - '!scripts/**'
+  - '!tests/**'
+  - '!docs/**'
 asar: true
 npmRebuild: false
 asarUnpack:
   - node_modules/better-sqlite3/**/*
-  - resources/**/*
-extraResources:
-  - from: resources
-    to: resources
-    filter:
-      - '**/*'
 win:
   target:
     - target: nsis
       arch: [x64]
   icon: build/icon.ico
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: ${name}-${version}-${arch}-setup.${ext}
   signAndEditExecutable: true
 nsis:
   oneClick: false
@@ -41,7 +40,7 @@ nsis:
   shortcutName: AurumBit Portal
   deleteAppDataOnUninstall: false
   runAfterFinish: true
-publish:
-  provider: generic
-  url: https://updates.aurumbit.invalid/stable
-  channel: stable
+# Sem bloco `publish`: não existe servidor de atualizações. A checagem manual
+# em Configurações permanece disponível para diagnóstico, e falha com erro
+# claro enquanto não houver URL real. Adicionar aqui quando for distribuir
+# com atualizações automáticas.

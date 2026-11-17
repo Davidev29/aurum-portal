@@ -130,8 +130,8 @@ export default function SessionPage() {
   const copyManual = async (value: string) => {
     if (!value) return
     try {
-      await navigator.clipboard.writeText(value)
-      toast.success('Valor copiado. A área de transferência é local a esta sessão.')
+      await aurumBitPortal().credentials.copyPlain(value)
+      toast.success('Copiado. A área de transferência será limpa automaticamente.')
     } catch {
       toast.error('Não foi possível acessar a área de transferência.')
     }
@@ -357,7 +357,11 @@ export default function SessionPage() {
               size="icon-sm"
               title="Fechar sessão"
               aria-label="Fechar sessão"
-              onClick={() => void aurumBitPortal().sessions.close(sessionId)}
+              onClick={() =>
+                void aurumBitPortal()
+                  .sessions.close(sessionId)
+                  .catch((error) => toast.error(errorMessage(error)))
+              }
             >
               <X className="h-4 w-4 text-[var(--pv-danger)]" />
             </Button>
@@ -556,7 +560,11 @@ export default function SessionPage() {
                     variant="ghost"
                     size="sm"
                     className="text-[#a5adff] hover:bg-white/5 hover:text-[#e7e9ff]"
-                    onClick={() => void aurumBitPortal().sessions.close(sessionId)}
+                    onClick={() =>
+                      void aurumBitPortal()
+                        .sessions.close(sessionId)
+                        .catch((error) => toast.error(errorMessage(error)))
+                    }
                   >
                     Fechar sessão
                   </Button>

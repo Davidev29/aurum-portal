@@ -5,18 +5,9 @@ import { BUILTIN_SERVICES } from '../../../shared/builtins'
 import { buildAutoRecipe } from '../../../shared/custom-service'
 import { stripVolatileQueryParams } from '../../../shared/custom-service'
 import { coerceSettings, DEFAULT_SETTINGS } from '../../../shared/settings'
+import { logger } from '../logger'
 import type { AppDatabase } from './database'
 import { clients, recipes, services, settings } from './schema'
-
-/**
- * Correções pontuais de baseUrl de serviços nativos que chegaram aos
- * usuários com endereço errado em builds anteriores. Só toca em linhas
- * cujo baseUrl é exatamente um valor legado conhecido — jamais sobrescreve
- * uma edição feita pelo operador.
- */
-const LEGACY_BUILTIN_BASE_URLS: Record<string, readonly string[]> = {
-  'builtin-speedgov-juazeiro-do-norte': ['https://servicos2.speedgov.com.br/juazeirodonorte'],
-}
 
 export function seedBuiltins(db: AppDatabase, force = false): void {
   const now = new Date().toISOString()
@@ -66,16 +57,6 @@ export function seedBuiltins(db: AppDatabase, force = false): void {
       const domainsDiffer =
         mergedDomains.length !== existingDomains.size ||
         mergedDomains.some((domain) => !existingDomains.has(domain))
-      // Corrige baseUrl de nativos que saíram com endereço errado em builds
-      // anteriores (ex.: Juazeiro do Norte SpeedGov). Nunca sobrescreve edição
-      // do operador: só linhas com o valor legado exato são migradas.
-      const legacyBaseUrls = LEGACY_BUILTIN_BASE_URLS[seed.id]
-      if (legacyBaseUrls?.includes(existing.baseUrl) && existing.baseUrl !== seed.baseUrl) {
-        db.update(services)
-          .set({ baseUrl: seed.baseUrl, updatedAt: now })
-          .where(eq(services.id, seed.id))
-          .run()
-      }
       const recipe = db.select().from(recipes).where(eq(recipes.serviceId, seed.id)).get()
       const recipeDiffers =
         recipe !== undefined &&
@@ -211,8 +192,11 @@ export function healCustomServiceRecipes(db: AppDatabase): number {
           .where(eq(recipes.id, existing.id))
           .run()
         healed += 1
-      } catch {
-        // Nunca impede o boot.
+      } catch (error) {
+        logger.warn('seed.heal_recipe_failed', {
+          serviceId: effectiveRow.id,
+          message: error instanceof Error ? error.message : String(error),
+        })
       }
       continue
     }
@@ -231,8 +215,12 @@ export function healCustomServiceRecipes(db: AppDatabase): number {
         })
         .run()
       healed += 1
-    } catch {
+    } catch (error) {
       // Nunca impede o boot; o usuário pode regenerar em Opções avançadas.
+      logger.warn('seed.insert_recipe_failed', {
+        serviceId: effectiveRow.id,
+        message: error instanceof Error ? error.message : String(error),
+      })
     }
   }
   return healed

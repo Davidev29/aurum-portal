@@ -53,7 +53,7 @@ export const postLoginGovBrHub: PostLogin = {
  * (não gov.br): smart entry (clique em "Fazer login") + smart fill
  * (preenchimento inteligente do formulário). Ficam aqui em builtins.ts —
  * o módulo base — para que tanto os serviços personalizados (custom-service)
- * quanto os portais nativos de senha (ex.: Prefeituras SpeedGov) usem o
+ * quanto os portais personalizados de senha usem o
  * mesmo fluxo sem dependência circular.
  */
 export const GENERIC_CAPTCHA_SELECTORS = [
@@ -697,56 +697,6 @@ export function certRecipeWithInterstitial(
   }
 }
 
-function speedGovSeed(
-  slugSuffix: string,
-  name: string,
-  baseUrl: string,
-  notes: string,
-  extraAllowedDomains: string[] = [],
-): BuiltinServiceSeed {
-  const slug = `speedgov-${slugSuffix}`
-  return {
-    id: `builtin-${slug}`,
-    slug,
-    name,
-    category: 'Prefeituras',
-    baseUrl,
-    allowedDomains: [
-      new URL(baseUrl).hostname,
-      'speedgov.com.br',
-      '*.speedgov.com.br',
-      ...extraAllowedDomains,
-    ],
-    authMethods: ['password'],
-    defaultAuth: 'password',
-    notes,
-    recipe: passwordRecipe(slug),
-  }
-}
-
-/**
- * Receita de senha para portais nativos externos (não gov.br): smart entry +
- * smart fill, igual à gerada para serviços personalizados. `autoSubmit:
- * true` ("Entrar sozinho"): o portal abre oculto com a animação de boot
- * exibida e o app clica em Entrar sozinho — mesmo padrão dos serviços
- * personalizados de senha. Captcha/2FA pausam a automação e revelam o
- * portal para a mão humana (requiresHumanAction). Usada pelos ISS/NFS-e
- * municipais SpeedGov.
- */
-function passwordRecipe(service: string): RecipeDefinition {
-  return {
-    version: 1,
-    service,
-    auth: 'password',
-    steps: unifiedPasswordSteps(),
-    postLogin: postLoginGeneric,
-    autoSubmit: true,
-    onFailure: 'manual',
-    captchaSelectors: [...GENERIC_CAPTCHA_SELECTORS],
-    twoFactorSelectors: [...GENERIC_TWO_FACTOR_SELECTORS],
-  }
-}
-
 export const BUILTIN_SERVICES: BuiltinServiceSeed[] = [
   {
     id: 'builtin-govbr',
@@ -991,65 +941,4 @@ export const BUILTIN_SERVICES: BuiltinServiceSeed[] = [
       'Domicílio Tributário Eletrônico (DTE) da SEFAZ-CE. Rota SPA #/certificado (acesso com certificado digital).',
     recipe: certRecipe('dte-sefaz-ce'),
   },
-  speedGovSeed(
-    'tiangua',
-    'Tianguá — SpeedGov (ISS/NFS-e)',
-    'https://iss.speedgov.com.br/tiangua/login',
-    'ISS/NFS-e de Tianguá (SpeedGov). Acesso com login e senha do município. Também acessível por servicos2.speedgov.com.br.',
-  ),
-  speedGovSeed(
-    'juazeiro-do-norte',
-    'Juazeiro do Norte — SpeedGov (ISS/NFS-e)',
-    'https://iss.speedgov.com.br/juazeirodonorte/login',
-    'ISS/NFS-e de Juazeiro do Norte (SpeedGov). Acesso com login e senha do município.',
-  ),
-  speedGovSeed(
-    'taua',
-    'Tauá — SpeedGov (ISS/NFS-e)',
-    'https://iss.speedgov.com.br/taua/login',
-    'ISS/NFS-e de Tauá (SpeedGov). Acesso com login e senha do município.',
-  ),
-  speedGovSeed(
-    'itarema',
-    'Itarema — SpeedGov (ISS/NFS-e)',
-    'https://iss.speedgov.com.br/itarema/login',
-    'ISS/NFS-e de Itarema (SpeedGov). Acesso com login e senha do município. Segunda porta de entrada: https://servicos2.speedgov.com.br/itarema (mesmo backend SpeedGov).',
-  ),
-  speedGovSeed(
-    'pindoretama',
-    'Pindoretama — SpeedGov (ISS/NFS-e)',
-    'https://iss.speedgov.com.br/pindoretama/login',
-    'ISS/NFS-e de Pindoretama (SpeedGov). Acesso com login e senha do município.',
-  ),
-  speedGovSeed(
-    'limoeiro-do-norte',
-    'Limoeiro do Norte — SpeedGov (ISS/NFS-e)',
-    'https://iss.speedgov.com.br/limoeirodonorte',
-    'ISS/NFS-e de Limoeiro do Norte (SpeedGov). Acesso com login e senha do município.',
-  ),
-  speedGovSeed(
-    'sobral',
-    'Sobral — SpeedGov (NFS-e)',
-    'https://iss.speedgov.com.br/sobral/login',
-    'Emissão de NFS-e de Sobral (SpeedGov). Acesso com login e senha do município. Atenção: o portal principal de NFS-e do município também é nfse.sobral.ce.gov.br.',
-    ['nfse.sobral.ce.gov.br', 'sobral.ce.gov.br', '*.sobral.ce.gov.br'],
-  ),
-  speedGovSeed(
-    'crateus',
-    'Crateús — SpeedGov (ISS/NFS-e)',
-    'https://iss.speedgov.com.br/crateus/login',
-    'ISS/NFS-e de Crateús (SpeedGov). Acesso com login e senha do município.',
-  ),
-  speedGovSeed(
-    'icapui',
-    'Icapuí — SpeedGov (ISS/NFS-e)',
-    'https://iss.speedgov.com.br/icapui/login',
-    'ISS/NFS-e de Icapuí (SpeedGov). Acesso com login e senha do município.',
-  ),
-  speedGovSeed(
-    'paracuru',
-    'Paracuru — SpeedGov (ISS/NFS-e)',
-    'https://iss.speedgov.com.br/paracuru/login',
-    'ISS/NFS-e de Paracuru (SpeedGov). Acesso com login e senha do município.',
-  ),
 ]

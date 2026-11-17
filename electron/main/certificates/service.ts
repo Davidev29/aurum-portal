@@ -571,7 +571,8 @@ export class CertificateService {
       })
     }
     this.record('certificate.imported', row.id, {
-      holderName: parsed.holderName,
+      // holderName (nome civil ICP-Brasil) não entra na auditoria; a
+      // identidade do titular já fica registrada pelo ID do certificado.
       document: parsed.document ? maskDocument(parsed.document) : null,
       source: 'pfx',
       installed,
@@ -943,7 +944,6 @@ export class CertificateService {
           })
           this.record('certificate.imported', row.id, {
             source: 'windows',
-            holderName: record.holderName,
             expired: isExpired,
             batch: true,
           })
@@ -1018,10 +1018,36 @@ export class CertificateService {
       throw new AppError('UNAVAILABLE', 'Certificado importado do Windows nao possui PFX no cofre')
     }
     const pfx = this.deps.vault.openPfx(id, row.pfxEnc)
-    const serialized = await encryptBackup(pfx, passphrase)
-    await writeFile(filePath, serialized, { encoding: 'utf8', mode: 0o600 })
-    this.record('backup.created', id, { scope: 'certificate-pfx' })
-    return { path: filePath }
+    try {
+      const serialized = await encryptBackup(pfx, passphrase)
+      // Nunca sobrescrever: nome existente ganha sufixo " (n)" — o caminho
+      // final gravado é o que o chamador mostra ao operador.
+      let targetPath = filePath
+      let suffix = 2
+      for (;;) {
+        try {
+          await writeFile(targetPath, serialized, {
+            encoding: 'utf8',
+            mode: 0o600,
+            flag: 'wx',
+          })
+          break
+        } catch (error) {
+          const code =
+            error instanceof Error && 'code' in error
+              ? (error as NodeJS.ErrnoException).code
+              : undefined
+          if (code !== 'EEXIST') throw error
+          const parsed = path.parse(filePath)
+          targetPath = path.join(parsed.dir, `${parsed.name} (${suffix})${parsed.ext}`)
+          suffix += 1
+        }
+      }
+      this.record('backup.created', id, { scope: 'certificate-pfx' })
+      return { path: targetPath }
+    } finally {
+      pfx.fill(0)
+    }
   }
 
   async test(id: string): Promise<CertificateTestResult> {

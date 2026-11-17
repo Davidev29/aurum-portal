@@ -145,6 +145,8 @@ interface ManagedSession {
   /** true quando a proxima revelacao deve mostrar o portal porque o fluxo
    * exige interacao humana (2FA, desafio anti-bot ou pedido explicito). */
   requiresHumanAction: boolean
+  /** Página sem resposta no dreno da gravação (já avisou na /session). */
+  drainStuck?: boolean
   /** Timer de seguranca: enquanto !authenticated apos BOOT_AUTH_TIMEOUT_MS,
    * o portal continua escondido e a sessao vira 'manual' com instrucao. */
   bootSafetyTimer: NodeJS.Timeout | null
@@ -424,7 +426,7 @@ export class SessionManager {
         nodeIntegrationInSubFrames: false,
         webSecurity: true,
         spellcheck: false,
-        devTools: true,
+        devTools: !app.isPackaged,
       },
     })
     win.setMenu(null)
@@ -445,7 +447,7 @@ export class SessionManager {
         allowRunningInsecureContent: false,
         plugins: true,
         spellcheck: false,
-        devTools: true,
+        devTools: !app.isPackaged,
         backgroundThrottling: false,
       },
     })
@@ -823,9 +825,14 @@ export class SessionManager {
       )
     })
     contents.on('before-input-event', (event, input) => {
-      if (input.type === 'keyDown' && input.key === 'F12' && app.isPackaged) {
-        event.preventDefault()
-      }
+      if (!app.isPackaged) return
+      if (input.type !== 'keyDown') return
+      const key = input.key.toLowerCase()
+      const isDevToolsShortcut =
+        key === 'f12' ||
+        // Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+Shift+C
+        (input.control && input.shift && (key === 'i' || key === 'j' || key === 'c'))
+      if (isDevToolsShortcut) event.preventDefault()
     })
   }
 
@@ -1053,6 +1060,10 @@ export class SessionManager {
     updateSessionRow(this.deps.db, record.id, 'awaiting_login')
     this.emit()
 
+    // Antes de zerar as credenciais, captura-as para redigir mensagens
+    // vindas da página que porventura as ecoam. Identidade por padrão;
+    // ganha a lista real assim que a credencial é aberta.
+    let redactSecrets = (text: string): string => text
     let username = ''
     let password = ''
     let extraValues: Record<string, string> | undefined
@@ -1065,6 +1076,16 @@ export class SessionManager {
         extraValues = secret.extraValues
         fieldSpecs = secret.fieldSpecs
         markCredentialUsed(this.deps.db, record.credentialId)
+        const secretsForRedaction = [username, password, ...Object.values(extraValues ?? {})]
+          .filter((value): value is string => typeof value === 'string' && value.trim().length >= 4)
+          .map((value) => value.trim())
+        redactSecrets = (text: string): string => {
+          let out = text
+          for (const secret of secretsForRedaction) {
+            out = out.split(secret).join('[REDACTED]')
+          }
+          return out
+        }
       } catch {
         record.recipeRunning = false
         record.status = 'manual'
@@ -1175,7 +1196,7 @@ export class SessionManager {
           record.statusMessage =
             record.authMethod === 'certificate'
               ? 'Aguardando autenticacao no portal...'
-              : result.message
+              : redactSecrets(result.message)
           updateSessionRow(this.deps.db, record.id, 'awaiting_login')
           this.startWatcher(record, definition)
         }
@@ -1190,6 +1211,7 @@ export class SessionManager {
         // portal com o selo manual para o usuario concluir. Demais falhas:
         // manter o portal invisivel e mostrar o estado de erro na /session.
         const needsHuman = result.captchaDetected || result.twoFactorDetected
+        const resultMessage = redactSecrets(result.message)
         if (needsHuman) {
           record.requiresHumanAction = true
           this.revealPortal(record)
@@ -1199,21 +1221,25 @@ export class SessionManager {
           ? result.twoFactorDetected
             ? 'Verificacao em duas etapas. Conclua o codigo na tela aberta.'
             : 'Verificacao anti-bot. Conclua o desafio na tela aberta.'
-          : result.message
-        record.lastError = result.message
-        updateSessionRow(this.deps.db, record.id, 'manual', result.message)
+          : resultMessage
+        record.lastError = resultMessage
+        updateSessionRow(this.deps.db, record.id, 'manual', resultMessage)
+        // Falha da receita (failedStep != null) marca a receita como quebrada
+        // para regeneração. Falha do agente inteligente NÃO derruba a receita —
+        // mas fica visível na auditoria, que antes registrava só o caso da receita.
         if (result.failedStep !== null) {
           recordRecipeOutcome(this.deps.db, record.serviceId, 'broken')
-          this.record('session.recipe_failed', record.id, {
-            serviceId: record.serviceId,
-            failedStep: result.failedStep,
-            message: result.message.slice(0, 500),
-          })
         }
+        this.record('session.recipe_failed', record.id, {
+          serviceId: record.serviceId,
+          failedStep: result.failedStep,
+          message: resultMessage.slice(0, 500),
+          agentic: result.failedStep === null,
+        })
         this.deps.onSessionError({
           sessionId: record.id,
           type: 'recipe_failed',
-          message: result.message,
+          message: resultMessage,
         })
         this.startWatcher(record, definition)
       }
@@ -1224,8 +1250,9 @@ export class SessionManager {
       record.requiresHumanAction = false
       record.status = 'manual'
       record.statusMessage = 'A automacao falhou. Use o modo manual.'
-      record.lastError = error instanceof Error ? error.message : 'Erro na receita'
-      updateSessionRow(this.deps.db, record.id, 'manual', record.lastError)
+      const errorMessage = redactSecrets(error instanceof Error ? error.message : 'Erro na receita')
+      record.lastError = errorMessage
+      updateSessionRow(this.deps.db, record.id, 'manual', errorMessage)
       this.record('session.recipe_failed', record.id, {
         serviceId: record.serviceId,
         message: record.lastError.slice(0, 500),
@@ -1586,7 +1613,21 @@ export class SessionManager {
       for (const popup of session.popups) {
         if (!popup.isDestroyed()) popup.close()
       }
-      if (!session.win.isDestroyed()) session.win.close()
+      // A confirmação de gravação (quando aplicável) é responsabilidade de
+      // quem chama — `before-quit` pergunta se há gravador ativo e, no
+      // caminho de lock, a gravação bloqueia o bloqueio. Aqui as janelas
+      // são destruídas de verdade: `close()` dispararia o veto do diálogo
+      // da janela e a sessão seria dada como descartada mantendo uma
+      // janela viva e invisível para o app.
+      if (!session.win.isDestroyed()) {
+        try {
+          session.win.destroy()
+        } catch (error) {
+          logger.warn('session.destroy_window_failed', {
+            message: error instanceof Error ? error.message : String(error),
+          })
+        }
+      }
       this.dispose(session, 'Aplicativo encerrado')
     }
   }
@@ -1649,7 +1690,10 @@ export class SessionManager {
         message: error instanceof Error ? error.message : String(error),
       })
     }
-    if (!this.quitting && !record.view.webContents.isDestroyed()) {
+    // A view precisa ir junto mesmo no encerramento: uma janela destruída
+    // pode não destruir a WebContentsView, e uma view viva com porta gov.br
+    // autenticada continuar carregada é sessão órfã.
+    if (!record.view.webContents.isDestroyed()) {
       try {
         record.view.webContents.close()
       } catch {
@@ -1673,7 +1717,16 @@ export class SessionManager {
   /** IDs de gravações mortas por crash/kill (sem finished/discarded/recorded/interrupted). */
   interruptedRecordingIds(): string[] {
     try {
-      const events = allAuditEvents(this.deps.db, {})
+      // Só os tipos que importam — não varre a auditoria inteira.
+      const events = allAuditEvents(this.deps.db, {
+        types: [
+          'recipe.record_started',
+          'recipe.record_finished',
+          'recipe.record_discarded',
+          'recipe.recorded',
+          'recipe.record_interrupted',
+        ],
+      })
       return interruptedRecordingIdsForEvents(events)
     } catch {
       return []
@@ -1872,7 +1925,7 @@ export class SessionManager {
         nodeIntegrationInSubFrames: false,
         webSecurity: true,
         spellcheck: false,
-        devTools: true,
+        devTools: !app.isPackaged,
       },
     })
     win.setMenu(null)
@@ -1893,7 +1946,7 @@ export class SessionManager {
         allowRunningInsecureContent: false,
         plugins: true,
         spellcheck: false,
-        devTools: true,
+        devTools: !app.isPackaged,
         backgroundThrottling: false,
       },
     })
@@ -2158,9 +2211,16 @@ export class SessionManager {
       if (rec.drainFailures >= 5 && record.statusMessage !== 'drain-stuck') {
         record.statusMessage =
           'Não estou conseguindo falar com a página — conclua ou cancele a gravação.'
+        record.drainStuck = true
         this.emit()
       }
       return
+    }
+    // A página respondeu de novo: limpa o estado preso.
+    if (record.drainStuck) {
+      record.drainStuck = false
+      record.statusMessage = 'Página respondeu — pode continuar.'
+      this.emit()
     }
     rec.drainFailures = 0
     let gaps = 0

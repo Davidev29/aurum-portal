@@ -5,6 +5,7 @@ import { serviceInputSchema } from '../../../../shared/contracts'
 import { emptyToNull } from '../../security/redaction'
 import type { AppDatabase } from '../database'
 import { AppError } from '../../errors'
+import { logger } from '../../logger'
 import { services, type RecipeRow, type ServiceRow } from '../schema'
 import { mapRecipeSummary, getRecipeByService, saveRecipe } from './recipes'
 
@@ -170,12 +171,17 @@ export function deleteService(db: AppDatabase, id: string): void {
   }
   try {
     db.delete(services).where(eq(services.id, id)).run()
-  } catch {
-    throw new AppError(
-      'CONFLICT',
-      'O servico possui historico de sessoes e nao pode ser excluido',
-      'Este servico possui historico de sessoes. Desative-o em vez de excluir.',
-    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (/FOREIGN KEY|CONSTRAINT/i.test(message)) {
+      throw new AppError(
+        'CONFLICT',
+        'O servico possui historico de sessoes e nao pode ser excluido',
+        'Este servico possui historico de sessoes. Desative-o em vez de excluir.',
+      )
+    }
+    // Erro de I/O/corrupção — não mascara como “histórico”.
+    throw error
   }
 }
 
@@ -199,17 +205,24 @@ export function duplicateService(db: AppDatabase, id: string): ServiceRow {
     createdAt: now,
     updatedAt: now,
   }
-  db.insert(services).values(row).run()
-  // Copia também a automação para a duplicata (com o novo slug); sem isso a
-  // cópia abriria o portal sem receita.
-  const sourceRecipe = getRecipeByService(db, id)
-  if (sourceRecipe) {
-    try {
-      saveRecipe(db, row.id, { ...sourceRecipe.definition, service: row.slug })
-    } catch {
-      // A cópia vale mesmo sem automação; o usuário pode regenerá-la em Avançado.
+  db.transaction(() => {
+    db.insert(services).values(row).run()
+    // Copia também a automação para a duplicata (com o novo slug); sem isso a
+    // cópia abriria o portal sem receita. Falha na receita não pode deixar
+    // serviço órfão sem automação — registra no log e segue (o usuário pode
+    // regenerá-la em Avançado).
+    const sourceRecipe = getRecipeByService(db, id)
+    if (sourceRecipe) {
+      try {
+        saveRecipe(db, row.id, { ...sourceRecipe.definition, service: row.slug })
+      } catch (error) {
+        logger.warn('service.duplicate_recipe_failed', {
+          serviceId: row.id,
+          message: error instanceof Error ? error.message : String(error),
+        })
+      }
     }
-  }
+  })
   return row
 }
 

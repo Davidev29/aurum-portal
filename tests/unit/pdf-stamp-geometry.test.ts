@@ -17,6 +17,7 @@ import { inspectPdf } from '../../electron/main/pdf/pick'
 import { resolveCustomStampRect } from '../../electron/main/pdf/stamp'
 import { signPdfDocument } from '../../electron/main/pdf/sign'
 import { pdfSignSchema } from '../../shared/contracts'
+import { makeValidTsaMock } from '../helpers/tsa-mock'
 
 const PFX_PATH = path.resolve(process.cwd(), 'scripts/spike/.certs/spike-a1-test.pfx')
 const PFX_PASSWORD = 'SpikeSenha123!'
@@ -277,6 +278,8 @@ describe('pdfSignSchema', () => {
 describe('assinatura end-to-end: posição do widget == prévia', () => {
   let pfxBuffer: Buffer
   let material: any
+  let privateKey: any
+  let cert: forge.pki.Certificate
 
   beforeAll(() => {
     pfxBuffer = readFileSync(PFX_PATH)
@@ -291,8 +294,8 @@ describe('assinatura end-to-end: posição do widget == prévia', () => {
     const certBags = (p12.getBags({ bagType: forge.pki.oids.certBag as string })[
       forge.pki.oids.certBag as string
     ] ?? []) as any[]
-    const privateKey = keyBags[0].key
-    const cert =
+    privateKey = keyBags[0].key
+    cert =
       certBags.find((b: any) => b.cert.publicKey.n.compareTo(privateKey.n) === 0)?.cert ??
       certBags[0].cert
     material = {
@@ -312,9 +315,7 @@ describe('assinatura end-to-end: posição do widget == prévia', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   function makeTsaMock() {
-    return vi.fn(async () => {
-      return new Response(Buffer.from('invalid'), { status: 500 })
-    })
+    return makeValidTsaMock({ cert, privateKey })
   }
 
   async function sigWidgetRects(
@@ -355,7 +356,7 @@ describe('assinatura end-to-end: posição do widget == prévia', () => {
       size: 'medium',
       widthPct: 0.3,
       heightPct: 0.1,
-      tsaUrl: 'not-a-url', // offline → sem rede
+      tsaUrl: 'https://tsa.test/pki',
     })
     const rects = await sigWidgetRects(signed.pdf)
     expect(rects).toHaveLength(1)
@@ -382,7 +383,7 @@ describe('assinatura end-to-end: posição do widget == prévia', () => {
       size: 'medium',
       widthPct: 0.4,
       heightPct: 0.12,
-      tsaUrl: 'not-a-url',
+      tsaUrl: 'https://tsa.test/pki',
     })
     const rects = await sigWidgetRects(signed.pdf)
     expect(rects).toHaveLength(1)
@@ -406,7 +407,7 @@ describe('assinatura end-to-end: posição do widget == prévia', () => {
       size: 'medium',
       widthPct: 0.3,
       heightPct: 0.1,
-      tsaUrl: 'not-a-url',
+      tsaUrl: 'https://tsa.test/pki',
     })
     const second = await signPdfDocument({
       fileName: 'inc-assinado.pdf',
@@ -418,7 +419,7 @@ describe('assinatura end-to-end: posição do widget == prévia', () => {
       size: 'medium',
       widthPct: 0.3,
       heightPct: 0.1,
-      tsaUrl: 'not-a-url',
+      tsaUrl: 'https://tsa.test/pki',
     })
     const expectedDoc = await PDFDocument.load(bytes)
     const expectedSecond = resolveCustomStampRect(expectedDoc.getPages()[0]!, 0.5, 0.6, 0.3, 0.1)

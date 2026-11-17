@@ -13,21 +13,19 @@ describe('windows-store: exportação transitória para assinatura', () => {
     expect(() => normalizeSha1('curto')).toThrow(/Thumbprint SHA-1 invalido/)
   })
 
-  it('gera script de exportação com thumbprint normalizado e sem vazar senha em claro no script', () => {
-    const script = buildExportScript(
-      'abcd1234567890abcdef1234567890abcdef1234',
-      Buffer.from('C:\\Temp\\a.pfx', 'utf8').toString('base64'),
-      Buffer.from('senha-temporaria', 'utf8').toString('base64'),
-    )
+  it('gera script de exportação que lê caminho/senha do ambiente (nunca em arquivo)', () => {
+    const script = buildExportScript('abcd1234567890abcdef1234567890abcdef1234')
     expect(script).toContain('Export-PfxCertificate')
     expect(script).toContain('Cert:\\CurrentUser\\My\\ABCD1234567890ABCDEF1234567890ABCDEF1234')
     expect(script).toContain('HasPrivateKey')
-    expect(script).not.toContain('senha-temporaria')
-    expect(script).not.toContain('C:\\Temp\\a.pfx')
+    // Nada de caminho/senha persistidos no corpo do script:
+    expect(script).toContain('$env:PV_PFX_PATH')
+    expect(script).toContain('$env:PV_PFX_PASSWORD')
+    expect(script).not.toMatch(/FromBase64String\('[^']{20,}'\)/)
   })
 
   it('script rejeita thumbprint inválido', () => {
-    expect(() => buildExportScript('invalido', 'eA==', 'eA==')).toThrow(/Thumbprint SHA-1 invalido/)
+    expect(() => buildExportScript('invalido')).toThrow(/Thumbprint SHA-1 invalido/)
   })
 
   it('parser ignora registros inválidos e mantém válidos', () => {

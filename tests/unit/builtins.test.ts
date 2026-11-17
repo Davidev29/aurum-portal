@@ -49,8 +49,7 @@ describe('serviços nativos (store)', () => {
       expect(parsed.version).toBe(1)
       expect(parsed.onFailure).toBe('manual')
       if (seed.authMethods.length === 1 && seed.authMethods[0] === 'password') {
-        // Prefeituras SpeedGov: autofill + Entrar sozinho, portal oculto com
-        // a animação de boot até autenticar (captcha/2FA revelam o portal).
+        // Serviços personalizados de senha: autofill + Entrar sozinho.
         expect(parsed.autoSubmit, seed.slug).toBe(true)
       } else {
         expect(parsed.autoSubmit, seed.slug).toBe(false)

@@ -41,7 +41,7 @@ export function createDatabase(filename: string): DatabaseContext {
       .run(migration.version, migration.name, new Date().toISOString())
   })
 
-  for (const migration of MIGRATIONS) {
+  for (const migration of [...MIGRATIONS].sort((a, b) => a.version - b.version)) {
     const applied = sqlite
       .prepare('SELECT 1 FROM schema_migrations WHERE version = ?')
       .get(migration.version)

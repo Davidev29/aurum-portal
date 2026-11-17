@@ -77,7 +77,7 @@ export type RelationTypes = z.infer<typeof RelationTypeSchema>
 /** Par chave-valor arbitrário anexado a um nó ou aresta. */
 export type Properties = Record<string, unknown>
 
-export const PropertiesSchema = z.record(z.unknown()).optional().default({})
+export const PropertiesSchema = z.record(z.string(), z.unknown()).optional().default({})
 
 /* ------------------------------------------------------------------ */
 /* Nó                                                                 */

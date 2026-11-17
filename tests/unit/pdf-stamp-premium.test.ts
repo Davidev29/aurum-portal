@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll } from 'vitest'
+import { describe, expect, it, beforeAll, beforeEach, vi, afterEach } from 'vitest'
 import forge from 'node-forge'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -14,6 +14,7 @@ import {
 } from '../../electron/main/pdf/stamp'
 import { SIGNATURE_STAMP_FLOOR, SIGNATURE_STAMP_MIN, STAMP_TITLE } from '../../shared/signature'
 import { inflateSync } from 'node:zlib'
+import { makeValidTsaMock } from '../helpers/tsa-mock'
 
 /** Texto do PDF com streams FlateDecode inflados (conteudo do carimbo). */
 function pdfText(buf: Buffer): string {
@@ -49,6 +50,8 @@ const PFX_PATH = path.resolve(process.cwd(), 'scripts/spike/.certs/spike-a1-test
 const PFX_PASSWORD = 'SpikeSenha123!'
 
 let material: any
+let privateKey: any
+let cert: forge.pki.Certificate
 
 beforeAll(() => {
   const pfxBuffer = readFileSync(PFX_PATH)
@@ -63,8 +66,8 @@ beforeAll(() => {
   const certBags = (p12.getBags({
     bagType: forge.pki.oids.certBag as string,
   })[forge.pki.oids.certBag as string] ?? []) as any[]
-  const privateKey = keyBags[0].key
-  const cert =
+  privateKey = keyBags[0].key
+  cert =
     certBags.find((b: any) => b.cert.publicKey.n.compareTo(privateKey.n) === 0)?.cert ??
     certBags[0].cert
   material = {
@@ -80,6 +83,13 @@ beforeAll(() => {
     validTo: '2027-11-04T11:18:17.628Z',
   }
 })
+
+beforeEach(() => {
+  // Fail-closed exige TSA válida (imprint/nonce ecoados) — stub por teste.
+  vi.stubGlobal('fetch', makeValidTsaMock({ cert, privateKey }))
+})
+
+afterEach(() => vi.unstubAllGlobals())
 
 function pageOf(width: number, height: number): any {
   return { getSize: () => ({ width, height }) }
@@ -302,7 +312,7 @@ describe('carimbo premium (AurumBit Portal)', () => {
       xPct: 0.2,
       yPct: 0.2,
       size: 'small',
-      tsaUrl: 'not-a-url',
+      tsaUrl: 'https://tsa.test/pki',
     })
     expect(await verifySignedPdf(signed.pdf)).toBe(true)
     const latin = signed.pdf.toString('latin1')
@@ -328,7 +338,7 @@ describe('carimbo premium (AurumBit Portal)', () => {
       xPct: 0.1,
       yPct: 0.1,
       size: 'small',
-      tsaUrl: 'not-a-url',
+      tsaUrl: 'https://tsa.test/pki',
     })
     const second = await signPdfDocument({
       fileName: 'premium2.pdf',
@@ -338,7 +348,7 @@ describe('carimbo premium (AurumBit Portal)', () => {
       xPct: 0.3,
       yPct: 0.3,
       size: 'small',
-      tsaUrl: 'not-a-url',
+      tsaUrl: 'https://tsa.test/pki',
     })
     expect(await verifySignedPdf(second.pdf)).toBe(true)
     const latin = second.pdf.toString('latin1')

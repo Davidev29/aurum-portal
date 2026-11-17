@@ -1,7 +1,12 @@
 'use client'
 
 import * as React from 'react'
-import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient,
+  keepPreviousData,
+} from '@tanstack/react-query'
 import { Toaster, toast } from 'sonner'
 import { aurumBitPortal } from '@/lib/api'
 import { APP_DISPLAY_NAME } from '@shared/constants'
@@ -152,7 +157,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
           queries: {
             retry: 1,
             refetchOnWindowFocus: false,
-            staleTime: 10_000,
+            // 30s: as telas continuam vivas via invalidação por eventos;
+            // voltar a um menu não deve piscar skeleton nem refazer IPC.
+            staleTime: 30_000,
+            // Troca de menu renderiza os dados anteriores enquanto o
+            // refetch acontece em silêncio — nunca "vazio por um instante".
+            placeholderData: keepPreviousData,
           },
           mutations: { retry: 0 },
         },

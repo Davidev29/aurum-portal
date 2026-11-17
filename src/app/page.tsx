@@ -99,14 +99,20 @@ export default function AcessosPage() {
   const [busy, setBusy] = React.useState(false)
 
   // Edição via deep-link ?serviceId= (compatibilidade com links antigos).
+  // O param é consumido-e-limpo da URL: sem isso, qualquer refetch dos
+  // serviços reabriria o diálogo depois que o usuário o fechou.
+  const handledEditParam = React.useRef<string | null>(null)
   React.useEffect(() => {
     if (!editParam || !services) return
+    if (handledEditParam.current === editParam) return
     const match = services.find((service) => service.id === editParam)
     if (match) {
+      handledEditParam.current = editParam
       setEditingService(match)
       setServiceFormOpen(true)
+      router.replace('/', { scroll: false })
     }
-  }, [editParam, services])
+  }, [editParam, services, router])
 
   const expiring = (certificates ?? []).filter(
     (certificate) => certificate.status === 'expiring' || certificate.status === 'expired',
@@ -284,7 +290,11 @@ export default function AcessosPage() {
               <button
                 key={session.id}
                 type="button"
-                onClick={() => void aurumBitPortal().sessions.focus(session.id)}
+                onClick={() =>
+                  void aurumBitPortal()
+                    .sessions.focus(session.id)
+                    .catch((error) => toast.error(errorMessage(error)))
+                }
                 className="pv-lift flex min-w-[268px] items-center gap-3 rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)] px-3.5 py-3 text-left shadow-[var(--pv-shadow)] hover:border-brand-300"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--pv-accent-solid)] text-xs font-bold text-[var(--pv-on-accent)]">

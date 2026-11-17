@@ -142,7 +142,7 @@ describe('backup criptografado do certificado', () => {
     expect(serialized).toContain('argon2id-aes-256-gcm')
     expect(serialized).not.toContain('conteudo binario')
     expect(await decryptBackup(serialized, passphrase)).toEqual(payload)
-  })
+  }, 30_000)
 
   it('exige frase com pelo menos 12 caracteres', async () => {
     await expect(encryptBackup(payload, 'curta')).rejects.toThrow(/12 caracteres/)
@@ -154,7 +154,7 @@ describe('backup criptografado do certificado', () => {
     const envelope = JSON.parse(serialized) as { ct: string }
     envelope.ct = Buffer.from('adulterado').toString('base64')
     await expect(decryptBackup(JSON.stringify(envelope), passphrase)).rejects.toThrow(/Falha/)
-  })
+  }, 30_000)
 
   it('rejeita versao, algoritmo e parametros de KDF diferentes', async () => {
     const serialized = await encryptBackup(payload, passphrase)

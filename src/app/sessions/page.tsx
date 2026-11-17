@@ -29,7 +29,14 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 export default function SessionsPage() {
   const router = useRouter()
   const invalidate = useInvalidate()
-  const { data: sessions, isLoading, isFetching, refetch } = useSessions()
+  const {
+    data: sessions,
+    isLoading,
+    isFetching,
+    refetch,
+    isError: sessionsError,
+    error: sessionsLoadError,
+  } = useSessions()
   const [closing, setClosing] = React.useState<PortalSession | null>(null)
   const [busy, setBusy] = React.useState(false)
 
@@ -79,6 +86,21 @@ export default function SessionsPage() {
               className="h-64 animate-pulse rounded-2xl border border-[var(--pv-border)] bg-[var(--pv-panel)]"
             />
           ))}
+        </div>
+      ) : sessionsError ? (
+        <div
+          className="rounded-2xl border border-[var(--pv-danger-border)] bg-[var(--pv-danger-soft)] p-6 text-center"
+          role="alert"
+        >
+          <p className="text-sm font-semibold">Não foi possível carregar as sessões</p>
+          <p className="mx-auto mt-1 max-w-md text-xs text-[var(--pv-muted)]">
+            {sessionsLoadError ? errorMessage(sessionsLoadError) : 'Falha desconhecida.'} Tente
+            novamente.
+          </p>
+          <Button variant="secondary" className="mt-3" onClick={() => void refetch()}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Tentar novamente
+          </Button>
         </div>
       ) : !sessions || sessions.length === 0 ? (
         <EmptyState

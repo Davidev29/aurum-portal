@@ -178,7 +178,7 @@ A Store ?? a ??nica tela de servi??os: cat??logo, gest??o e abertura de portais 
 | gov.br | Governo Federal | Certificado e senha |
 | Redesim | Governo Federal | Certificado e senha |
 | e-CAC | Governo Federal | Certificado e senha |
-| JUcec-CE | Governo Estadual | Senha |
+| JUcec-CE | Governo Estadual | Certificado e senha |
 | Pend??ncias CNPJ | Governo Federal | Certificado e senha |
 | FGTS Digital | Governo Federal | Certificado e senha |
 | eSocial | Governo Federal | Certificado e senha |
@@ -188,7 +188,7 @@ A Store ?? a ??nica tela de servi??os: cat??logo, gest??o e abertura de portais 
 | Registrato | Governo Federal | Certificado e senha |
 | DTE SEFAZ-CE | Governo Estadual | Certificado e senha |
 
-Os servi??os embutidos podem ser restaurados nas configura????es ou na Store ("Restaurar nativos"). As automa????es de login s??o assistidas: o aplicativo preenche campos, mas n??o envia o formul??rio automaticamente.
+Os servi??os embutidos podem ser restaurados nas configura????es ou na Store ("Restaurar nativos"). As automa????es de login s??o assistidas: nos servi??os de senha gerados pelo cadastro, o aplicativo preenche usu??rio e senha e clica em Entrar por padr??o ("Entrar sozinho") — desligue no cadastro do servi??o para revisar o preenchimento antes de enviar.
 
 ### Criar servi??o personalizado ("Novo site")
 

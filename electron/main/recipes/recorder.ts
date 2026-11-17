@@ -580,10 +580,14 @@ export function compileRecording(
       .join(' ')
       .toLowerCase()
 
-    // c) one-time-code / OTP — nunca gravado
+    // c) one-time-code / OTP — nunca gravado. O regex exige contexto de
+    // OTP de verdade ("código de acesso", "token de verificação"…) — jamais
+    // "código da empresa", "código do cliente" ou "token corporativo".
     const looksOtp =
       meta.autocomplete === 'one-time-code' ||
-      /otp|one.?time|c[oó]digo|2fa|token|verifica/i.test(haystack)
+      /\botp\b|one[-. ]?time|c[oó]digo\s*(de\s*)?(acesso|verifica|sms|seguran[cç]a|otp)|\b2fa\b|two[-. ]?factor|token\s*(de\s*)?(acesso|verifica|sms|seguran[cç]a|otp)|verificac?c?a?o?\s*em\s*duas/i.test(
+        haystack,
+      )
     if (looksOtp) {
       warn({
         code: 'otp-not-recorded',

@@ -223,8 +223,8 @@ export function CredentialFormDialog({
   const copy = async () => {
     if (!password) return
     try {
-      await navigator.clipboard.writeText(password)
-      toast.success('Senha copiada. Limpeza automatica em 30 segundos.')
+      await aurumBitPortal().credentials.copyPlain(password)
+      toast.success('Senha copiada. Limpeza automática da área de transferência em breve.')
     } catch {
       toast.error('Não foi possível acessar a área de transferência.')
     }
