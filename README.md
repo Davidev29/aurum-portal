@@ -201,15 +201,51 @@ substituída antes de distribuir.
 | `npm run build` / `start` | Compila renderer (export estático) + main, e abre o artefato. |
 | `npm run typecheck` | `tsc --noEmit` nos dois `tsconfig`. |
 | `npm run lint` | ESLint. |
+| `npm run format` / `format:check` | Prettier — escrever / verificar. |
+| `npm run verify` | Portão único: typecheck + lint + format:check + unitários (mesmos gates rápidos do CI). |
 | `npm test` | 618 testes unitários (Vitest). |
 | `npm run test:stress` | Suíte de stress/carga (`tests/stress/`) — fora do `npm test`. Ver [fluxo agêntico](docs/qa/QA-STRESS-AGENTIC-FLOW.md) e [relatório](docs/qa/QA-STRESS-REPORT.md). |
 | `npm run test:coverage` | Cobertura de testes. |
 | `npm run test:e2e` | Compila e executa os testes Playwright/Electron. |
 | `npm run db:generate` | Gera artefatos do Drizzle Kit. |
 | `npm run dist` / `dist:dir` | Instalador NSIS x64 / empacotado sem instalador. |
+| `npm run ci:watch` | Notificação **pós-push** do resultado do CI (balão do Windows); não impede push nem substitui o CI. |
 
 Diagnóstico do spike A1 (somente leitura): `npm run spike -- --check-only` ·
 `npm run spike:certs -- --password "TesteA1!2026"` · ver [docs/SPIKE_GO_NO_GO.md](docs/SPIKE_GO_NO_GO.md).
+
+---
+
+## Antes de push (gates locais)
+
+O repositório usa um **hook `pre-push`** em `.githooks/pre-push`, instalado
+automaticamente pelo `npm install` / `npm ci` (via `prepare` no `package.json`).
+A cada `git push`, ele executa, nesta ordem, os mesmos gates rápidos do CI:
+
+```text
+format:check (prettier) → lint (eslint) → typecheck (tsc) → test (618 unitários)
+```
+
+Se qualquer um falhar, **o push é cancelado** — o commit vermelho nunca chega ao
+GitHub. Stress e build rodam no CI; para rodá-los localmente:
+`AURUMBIT_PUSH_STRESS=1 git push` ou `AURUMBIT_PUSH_FULL=1 git push`.
+
+- Verificar se o hook está ativo: `git config --get core.hooksPath` → `.githooks`
+- Após clonar pela primeira vez, rode `npm install` antes de fazer push (o hook
+  só existe a partir daí).
+- Emergência (bypass consciente, seguido obrigatoriamente de correção):
+  `AURUMBIT_SKIP_PUSH_GATES=1 git push` ou `git push --no-verify`.
+- O hook é para **commits pequenos, um de cada vez**: em pushes de rajada só o
+  head é testado localmente antes do push — mesmo assim o hook pega os gates.
+- Regenerar o fixture de teste (se `npm test` falhar no PFX): apague
+  `scripts/spike/.certs/spike-a1-test.pfx` — o `globalSetup` recria
+  automaticamente. O arquivo é gitignorado de propósito.
+
+No GitHub, todo push na `main` roda o workflow completo: job **Validate**
+(typecheck · lint · format:check · unitários · stress · build) e, em seguida,
+o job **Package** (`electron-builder --dir` + gate `verify-release` + artefato).
+Veja [a CI no GitHub](https://github.com/Davidev29/aurum-portal/actions).
+O Node de desenvolvimento e do CI é **22** (`.node-version`).
 
 ---
 
@@ -270,9 +306,8 @@ Leia [docs/SECURITY.md](docs/SECURITY.md) e [docs/PRIVACY.md](docs/PRIVACY.md) a
 ## Testes
 
 ```powershell
-npm run typecheck
-npm run lint
-npm test                # 618/618 unitários
+npm run verify          # portão único: typecheck + lint + format:check + unitários
+npm test                # 618/618 unitários (parte do verify)
 npm run test:stress     # 15/15 — carga e fluxo pesado
 npm run test:e2e        # build + Playwright/Electron
 ```
@@ -323,6 +358,8 @@ veredicto **APPROVED**.
 | Certificado não oferecido | Confira instalação em `CurrentUser\My`, chave privada, validade, cadeia ICP-Brasil e vínculo com o cliente. |
 | Portal recusa por cadeia incompleta | Instale a cadeia ICP-Brasil no repositório do Windows e repita o teste. |
 | Senha do PFX incorreta | Layout do teclado e maiúsculas/minúsculas; o app não armazena a senha em claro. |
+| `npm test` falha no fixture PFX | Apague `scripts/spike/.certs/spike-a1-test.pfx` — o `globalSetup` o recria automaticamente. |
+| Push bloqueado pelo pre-push | Rode `npm run verify` e corrija o que falhar; emergência: `AURUMBIT_SKIP_PUSH_GATES=1 git push`. |
 | Assinatura PAdES falha | Validade do certificado, URL da TSA (botão "Testar TSA" em Configurações) e se o PDF tem senha. |
 | Aplicativo não abre | Consulte `%APPDATA%\AurumBit Portal\logs\aurumbit-portal.log` e `npm run spike -- --check-only`. |
 | Limite de sessões | Ajuste em Configurações (2 a 40) ou feche sessões existentes. |
