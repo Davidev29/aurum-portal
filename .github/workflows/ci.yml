@@ -18,30 +18,18 @@ jobs:
     name: Validate (Windows)
     runs-on: windows-latest
     timeout-minutes: 25
-    env:
-      CI: true
-      electron_config_cache: ${{ github.workspace }}/.electron-cache
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
-      - name: Restore Electron binary cache
-        uses: actions/cache@v4
-        with:
-          path: .electron-cache
-          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Install Electron binary
-        run: node node_modules/electron/install.js
 
       - name: Typecheck
         run: npm run typecheck
@@ -66,30 +54,29 @@ jobs:
     needs: validate
     runs-on: windows-latest
     timeout-minutes: 30
-    env:
-      CI: true
-      electron_config_cache: ${{ github.workspace }}/.electron-cache
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
+      # O electron-builder baixa o Electron para %LOCALAPPDATA%\electron\Cache
+      # (não honra `electron_config_cache`): cacheamos esse diretório para que
+      # o job não baixe ~151 MB do Electron a cada run.
       - name: Restore Electron binary cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
-          path: .electron-cache
-          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          path: ~/AppData/Local/electron/Cache
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            electron-builder-${{ runner.os }}-
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Install Electron binary
-        run: node node_modules/electron/install.js
 
       - name: Build
         run: npm run build
@@ -104,7 +91,7 @@ jobs:
         run: node scripts/verify-release.mjs
 
       - name: Upload packaged app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aurumbit-portal-win-x64-dir
           path: dist/win-unpacked/**/*

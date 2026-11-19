@@ -5,7 +5,8 @@
  * Varre `dist-electron/` e `out/` (arquivos .js/.cjs/.mjs/.html/.css)
  * procurando a string `autopilot` (case-insensitive). Imprime a contagem
  * total e os arquivos com ocorrências. Sai com código 1 se houver qualquer
- * ocorrência; 0 caso contrário. Sem dependências — só node:fs/node:path/node:url.
+ * ocorrência ou se algum root estiver ausente (fail-closed); 0 caso contrário.
+ * Sem dependências — só node:fs/node:path/node:url.
  *
  * Uso: node scripts/verify-release.mjs   (após `npm run build` em produção)
  */
@@ -50,8 +51,12 @@ let total = 0
 for (const root of ROOTS) {
   const absolute = path.join(rootDir, root)
   if (!existsSync(absolute)) {
-    console.warn(`[verify-release] aviso: ${root} não existe (a build de produção rodou?)`)
-    continue
+    // Fail-closed: um gate de release que "aprova vazio" porque a build não
+    // rodou não é gate — reprova explicitamente.
+    console.error(
+      `[verify-release] ERRO: ${root} não existe — a build de produção rodou antes deste passo?`,
+    )
+    process.exit(1)
   }
   for (const file of walk(absolute)) {
     const count = countOccurrences(readFileSync(file, 'utf8'))
