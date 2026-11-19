@@ -12,4 +12,16 @@ next-env.d.ts
 public/pdfjs/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+# Artefatos e diretórios de trabalho/spikes — era dependente do default
+# `--ignore-path=[.gitignore,.prettierignore]` do Prettier 3; agora explícito.
+spike-results/
+artifacts/
+data/
+.playwright-cli/
+.preview/
+.taste-skill/
 .electron-cache/
+build/
+resources/
+scripts/spike/.certs/
+tests/e2e/.certs/

@@ -2,6 +2,9 @@
 # evitando falhas do Prettier (endOfLine: "lf") por checkout com CRLF.
 * text=auto eol=lf
 
+# Hooks de git precisam de LF (shebang) em qualquer clone
+.githooks/** text eol=lf
+
 # Binários explícitos
 *.png binary
 *.jpg binary

@@ -1,0 +1,48 @@
+#!/bin/sh
+# Espelha os gates rápidos do job "Validate" da CI antes de cada push —
+# o push vermelho para origin/main deixa de existir.
+#
+# Escopo (deliberadamente rápido, ~2-4 min):
+#   format:check → lint → typecheck → test (unitário)
+# Stress/build/package rodam no CI (são mais lentos). Para rodá-los localmente:
+#   AURUMBIT_PUSH_STRESS=1 git push
+#   AURUMBIT_PUSH_FULL=1  git push    # stress + build
+#
+# Bypass consciente (emergências), seguido obrigatoriamente de correção:
+#   AURUMBIT_SKIP_PUSH_GATES=1 git push   ou   git push --no-verify
+
+set -eu
+
+if [ "${AURUMBIT_SKIP_PUSH_GATES:-0}" = "1" ]; then
+  echo "[pre-push] AURUMBIT_SKIP_PUSH_GATES=1 — gates ignorados (pós-push OBRIGATÓRIO corrigir)"
+  exit 0
+fi
+
+ROOT=$(git rev-parse --show-toplevel) || exit 0
+cd "$ROOT" || exit 0
+
+gate() {
+  name="$1"; shift
+  echo "[pre-push] $name"
+  if ! "$@"; then
+    echo "[pre-push] FALHOU em '$name'. O push foi cancelado." >&2
+    echo "[pre-push] Corrija e commite; para ignorar (não recomendado): AURUMBIT_SKIP_PUSH_GATES=1 git push" >&2
+    exit 1
+  fi
+}
+
+gate "format:check (prettier)" npm run format:check
+gate "lint (eslint)"           npm run lint
+gate "typecheck (tsc)"         npm run typecheck
+gate "test (618 unitários)"    npm test
+
+if [ "${AURUMBIT_PUSH_STRESS:-0}" = "1" ]; then
+  gate "test:stress" npm run test:stress
+fi
+if [ "${AURUMBIT_PUSH_FULL:-0}" = "1" ]; then
+  gate "test:stress" npm run test:stress
+  gate "build"       npm run build
+fi
+
+echo "[pre-push] OK (format+lint+typecheck+unit). Stress/build/package: CI do GitHub."
+exit 0

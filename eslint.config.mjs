@@ -16,6 +16,12 @@ export default tseslint.config(
       'test-results/**',
       '.preview/**',
       '.taste-skill/**',
+      // ESLint flat config não lê .gitignore — tudo precisa estar aqui:
+      '.playwright-cli/**',
+      'build/**',
+      'resources/**',
+      'scripts/spike/.certs/**',
+      'tests/e2e/.certs/**',
       '*.config.*',
       'next-env.d.ts',
     ],
